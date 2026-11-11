@@ -78,13 +78,13 @@ One row per set. `id, workout_id → Workouts.id, exercise_id → Exercises.id, 
 `id, date, trend_weight_lb, expenditure_kcal, confidence (low data|settling|stable), weekly_budget_kcal, day_targets_json, reason, created_at, updated_at`
 
 ### Portions (v3)
-Your usual portion sizes for AI estimates (Phase 6). `id, source (restaurant|cafeteria|homemade), place, label, grams, measured (weighed|estimated), created_at, updated_at, deleted_at`
+Your usual portion sizes for AI estimates (Phase 6). `id, source (restaurant|cafeteria|homemade), place, label, grams, measured (TRUE = weighed, FALSE = saved from an AI estimate), created_at, updated_at, deleted_at`
 
 ### SavedMeals (v3)
 Several foods logged together with one tap. `id, name, items_json, created_at, updated_at, deleted_at`. `items_json`: `[{"food_id":"…","grams":60}]`. **Not in the brief's tab list** — added for the brief's "Saved meals" feature.
 
 ### AIUsage
-`id, date, request_id, model, input_tokens, output_tokens, cost_usd, created_at, updated_at`
+`id, date, request_id, model, input_tokens, output_tokens, cost_usd, created_at, updated_at` — one row per API estimate (Paste AI is free and not logged). The backend sums `cost_usd` for the current Chicago month and refuses calls once it reaches Settings → `ai_monthly_cap_usd`.
 
 ## Changes from the brief
 

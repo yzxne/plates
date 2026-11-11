@@ -17,6 +17,8 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   REST_TIMER?: DurableObjectNamespace;
+
+  ANTHROPIC_API_KEY?: string; // AI meal scan / text estimates (Phase 6)
 }
 
 export const REQUIRED_SECRETS = [

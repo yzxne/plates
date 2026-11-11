@@ -39,11 +39,11 @@ export function corsHeaders(origin: string): Record<string, string> {
 
 const MAX_BODY_BYTES = 1_000_000;
 
-export async function readJson<T = Record<string, unknown>>(request: Request): Promise<T> {
+export async function readJson<T = Record<string, unknown>>(request: Request, maxBytes = MAX_BODY_BYTES): Promise<T> {
   const len = Number(request.headers.get('Content-Length') ?? '0');
-  if (len > MAX_BODY_BYTES) throw new HttpError(413, 'too_large', 'Request body too large');
+  if (len > maxBytes) throw new HttpError(413, 'too_large', 'Request body too large');
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) throw new HttpError(413, 'too_large', 'Request body too large');
+  if (text.length > maxBytes) throw new HttpError(413, 'too_large', 'Request body too large');
   if (!text) return {} as T;
   try {
     const data = JSON.parse(text);

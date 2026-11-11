@@ -2,6 +2,7 @@
 //   npm run setup-secrets -w backend                 -> all secrets
 //   npm run setup-secrets -w backend -- --passcode   -> only change the passcode
 //   npm run setup-secrets -w backend -- --google     -> only the Google client ID/secret
+//   npm run setup-secrets -w backend -- --anthropic  -> the Anthropic API key (AI estimates)
 //   npm run setup-secrets -w backend -- --push       -> new web-push (VAPID) keys
 // Requires `npx wrangler login` first.
 
@@ -90,6 +91,12 @@ function setPush() {
   putSecret('VAPID_PUBLIC_KEY', b64url(raw));
 }
 
+async function setAnthropic() {
+  const key = (await ask('Anthropic API key (starts with sk-ant-): ', { hidden: true })).trim();
+  if (!key.startsWith('sk-ant-')) { console.log('That does not look like an Anthropic key. Skipped.'); return; }
+  putSecret('ANTHROPIC_API_KEY', key);
+}
+
 async function setUsda() {
   const key = (await ask('USDA FoodData Central API key: ', { hidden: true })).trim();
   if (!key) { console.log('Empty. Skipped.'); return; }
@@ -104,6 +111,8 @@ try {
     await setGoogle();
   } else if (args.has('--usda')) {
     await setUsda();
+  } else if (args.has('--anthropic')) {
+    await setAnthropic();
   } else if (args.has('--push')) {
     setPush();
   } else {

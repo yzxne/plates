@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { clearToken } from '../api';
+import { AiUsageCard } from '../components/AiUsageCard';
 import { ConnectionCard } from '../components/ConnectionCard';
 import { IconBack, IconChevron } from '../components/Icons';
 import { NotificationsCard } from '../components/NotificationsCard';
@@ -35,10 +36,10 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
                 <IconChevron size={18} />
               </button>
               <button class="row" onClick={() => setView('foods')}><span>Saved foods</span><IconChevron size={18} /></button>
-              <div class="row disabled"><span>AI usage</span><small>Phase 6</small></div>
               <div class="row disabled"><span>Exports</span><small>Phase 7</small></div>
               <div class="row disabled"><span>Imports</span><small>Phase 7</small></div>
             </div>
+            <AiUsageCard />
             <NotificationsCard />
             <ConnectionCard />
             <button class="btn link danger center" onClick={logout}>Log out</button>

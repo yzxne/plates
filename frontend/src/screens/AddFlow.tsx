@@ -6,6 +6,7 @@ import {
 import { api, errorMessage } from '../api';
 import { lookupBarcode } from '../barcodeLookup';
 import { BarcodeScanner } from '../components/BarcodeScanner';
+import { AiEstimate, type AiMode } from './AiEstimate';
 import { EntrySheet } from '../components/EntrySheet';
 import { IconBack, IconChevron, IconClose } from '../components/Icons';
 import { dateLabel, today } from '../dates';
@@ -24,7 +25,8 @@ type View =
   | { kind: 'scan' }
   | { kind: 'barcode'; code: string }
   | { kind: 'notfound'; code: string; errors: string[] }
-  | { kind: 'detail'; food: Food; method: string };
+  | { kind: 'detail'; food: Food; method: string }
+  | { kind: 'ai'; mode: AiMode; text?: string };
 
 interface Props {
   date: string;
@@ -108,6 +110,11 @@ export function AddFlow({ date, meal: initialMeal, onClose, onLogged }: Props) {
             onMissing={(errors) => setView({ kind: 'notfound', code: view.code, errors })} />
         )}
         {view.kind === 'notfound' && <NotFound code={view.code} errors={view.errors} go={setView} />}
+        {view.kind === 'ai' && (
+          <AiEstimate key={view.mode + (view.text ?? '')} mode={view.mode} initialText={view.text} date={date} meal={meal}
+            onOpenFood={(food) => setView({ kind: 'detail', food, method: 'search' })}
+            onDone={() => setView({ kind: 'home' })} onChanged={onLogged} />
+        )}
         {view.kind === 'quick' && <QuickAdd date={date} meal={meal} onLogged={(e, ok) => logged(e, ok)} />}
       </div>
 
@@ -233,16 +240,14 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
     }
   }
 
-  const disabled = (label: string) => () => showToast(`${label} arrives in Phase 6`, 'info');
-
   return (
     <>
       <form class="search-bar" onSubmit={(e) => { e.preventDefault(); void run('usda'); }}>
         <div class="search-field">
           <input type="search" placeholder="Search foods" value={q} enterKeyHint="search" onInput={(e) => setQ(e.currentTarget.value)} />
           <button type="button" class="sb-btn" aria-label="Scan barcode" onClick={() => go({ kind: 'scan' })}><BarcodeIcon /></button>
-          <button type="button" class="sb-btn dim" aria-label="AI photo scan" onClick={disabled('AI photo scan')}><CameraIcon /></button>
-          <button type="button" class="sb-btn dim" aria-label="Estimate with AI" onClick={disabled('Estimate with AI')}><SparkIcon /></button>
+          <button type="button" class="sb-btn" aria-label="AI photo scan" onClick={() => go({ kind: 'ai', mode: 'photo', text: q.trim() })}><CameraIcon /></button>
+          <button type="button" class="sb-btn" aria-label="Estimate with AI" onClick={() => go({ kind: 'ai', mode: 'text', text: q.trim() })}><SparkIcon /></button>
         </div>
       </form>
       {error && <p class="error">{error}</p>}
@@ -282,7 +287,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
             <div class="list card">
               <button class="row" onClick={() => go({ kind: 'label' })}><span class="row-text"><span>Paste or scan label text</span><small class="muted">Live Text / Scan Text</small></span><IconChevron size={18} /></button>
               <button class="row" onClick={() => go({ kind: 'quick' })}><span class="row-text"><span>Quick add</span><small class="muted">Just calories (and macros)</small></span><IconChevron size={18} /></button>
-              <div class="row disabled"><span>Paste AI result</span><small>Phase 6</small></div>
+              <button class="row" onClick={() => go({ kind: 'ai', mode: 'paste' })}><span class="row-text"><span>Paste AI result</span><small class="muted">From the Claude or Gemini app (no API cost)</small></span><IconChevron size={18} /></button>
             </div>
           </section>
         </>
@@ -302,7 +307,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
             <button class="btn center-block" disabled={!!busy} onClick={() => run('off')}>{busy === 'off' ? 'Searching…' : 'Search Open Food Facts too'}</button>
           )}
           {off && <ResultList title="Open Food Facts" foods={off} onPick={onOpen} empty="No Open Food Facts results." note="Data © Open Food Facts contributors, ODbL" />}
-          <button class="btn center-block" onClick={disabled('Estimate with AI')}>Estimate "{q.trim()}" with AI (Phase 6)</button>
+          <button class="btn center-block" onClick={() => go({ kind: 'ai', mode: 'text', text: q.trim() })}>Estimate "{q.trim()}" with AI</button>
         </>
       )}
     </>

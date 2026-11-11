@@ -8,6 +8,7 @@ import { corsHeaders, errorResponse, HttpError, json, parseOrigins, readJson } f
 import { allowRequest, lockStatus, recordFailure, recordSuccess } from './lockout';
 import { bearerToken, SESSION_TTL_SEC, signToken, STATE_TTL_SEC, verifyToken } from './session';
 import { lookupUsdaBarcode, searchOff, searchUsda } from './food';
+import { cleanContext, cleanImages, estimate, monthUsage } from './ai';
 import { addSub, cancelRest, removeSub, scheduleRest, sendToAll, validEndpoint } from './push';
 export { RestTimer } from './push';
 import { checkTypedCode } from '../../shared/barcode';
@@ -262,6 +263,25 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (rows.some((r) => r[key] === undefined || r[key] === '')) throw new HttpError(400, 'missing_key', `Every row needs ${key}`);
     const saved = await (await sheetFor(env)).upsertBy(body.tab, key, rows);
     return json({ rows: saved });
+  }
+
+  // ---------- AI estimates ----------
+  if (method === 'GET' && path === '/ai/usage') {
+    const u = await monthUsage(await sheetFor(env));
+    return json({ month_total: u.total, count: u.count, cap: u.cap, configured: !!env.ANTHROPIC_API_KEY });
+  }
+  if (method === 'POST' && path === '/ai/meal-scan') {
+    const body = await readJson<{ images?: unknown; description?: unknown; context?: unknown }>(request, 7_000_000);
+    const images = cleanImages(body.images);
+    const context = { ...cleanContext(body.context), hasSide: images.length > 1 };
+    const description = typeof body.description === 'string' ? body.description.trim().slice(0, 300) : '';
+    return json(await estimate(env, await sheetFor(env), { description, images, context }));
+  }
+  if (method === 'POST' && path === '/ai/text-estimate') {
+    const body = await readJson<{ description?: unknown; context?: unknown }>(request);
+    const description = typeof body.description === 'string' ? body.description.trim() : '';
+    if (description.length < 3 || description.length > 500) throw new HttpError(400, 'bad_description', 'Describe the food in 3–500 characters.');
+    return json(await estimate(env, await sheetFor(env), { description, images: [], context: { ...cleanContext(body.context), hasSide: false } }));
   }
 
   // ---------- Push notifications ----------

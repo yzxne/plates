@@ -128,3 +128,21 @@ Report back: which items failed, and your iOS version (Settings → General → 
 - [ ] Progress → **Strategy** shows your weekly plan (training days marked ●) and days until the next check-in.
 - [ ] Sheet: **CheckIns** has a row with the reason; **Days** rows get target columns as you log.
 - [ ] After a week: on your check-in day the targets update by themselves (no button). Expenditure goes "low data" → "settling" → "stable" over 2–4 weeks if you mark days complete and weigh in most days.
+
+## Phase 6 — AI estimates
+
+Setup first: Guide 5 in `docs/setup-guides.md` (credit, `Plates` workspace with a spend limit, key, then `npm.cmd run setup-secrets -w backend -- --anthropic`).
+
+- [ ] Settings → **AI estimates** card shows $0.00 of $1.00 and no "Not set up yet" warning.
+- [ ] Add food → camera button → add a **top-down** photo (camera or library) → Estimate. Items appear with grams, a range, confidence and a matched food.
+- [ ] Add a **side** photo too → estimate again; grams look at least as sensible.
+- [ ] Edit grams on an item → its kcal and the total update. Untick an item → it isn't logged.
+- [ ] Tap **Change** on an item → search → pick a different food → kcal changes.
+- [ ] Log → entries show on Today; in the Sheet, FoodLog rows have `is_estimate` TRUE, `food_source` and `place` set, `entry_method` ai_photo.
+- [ ] Describe: type "chicken fried steak" with **Restaurant** + a chain name → menu matches show first (if USDA has them) → "Not listed — estimate with AI" works.
+- [ ] **Cafeteria**: place fills from Settings. Tick "Save as my usual portion" on an item, log. Next estimate there uses that grams ("Your usual portion here").
+- [ ] **Homemade**: list two ingredients, give grams for one → the AI keeps your grams and only fills the blank.
+- [ ] Source and place are remembered the next time you open AI.
+- [ ] **Paste AI**: Copy prompt → paste into the Claude app with a photo → copy its answer → paste → Read answer → review → log (no API cost; `entry_method` ai_paste).
+- [ ] Set Settings → AI monthly cap to 0 → Estimate shows "cap is used up" with **Use Paste AI instead**. Set it back.
+- [ ] The Sheet's **AIUsage** tab gets one row per API estimate, with a cost well under 1¢.

@@ -8,7 +8,9 @@ Updated each phase.
 - **Open Food Facts per-IP limits** (15 product reads/min). Cached foods avoid repeat lookups.
 - **Cloudflare free plan: 10 ms CPU per request.** Heavy work (.xlsx) runs in the browser.
 - **Google refresh token** stops working if access is revoked, unused for 6 months, or 100+ new tokens are issued for the same client. The app will show "Reconnect Google" when this happens.
-- **AI meal scan values are estimates.**
+- **AI meal scan values are estimates.** The AI only guesses grams; calories come from the matched USDA/saved food. Expect ±20–40% on mixed plates; a side photo, a known plate size and saved usual portions narrow it. Entries are flagged `is_estimate`.
+- **AI cap is checked before each call**, so the last call of a month can go slightly over the cap (by under 1¢). The Anthropic workspace spend limit is the hard backstop.
+- **Photos are shrunk on the phone** (long edge 1280 px JPEG) before upload and are not stored anywhere.
 - **Session lives in the browser's storage** (bearer token, 30 days). Safari blocks cross-site cookies between github.io and workers.dev, so a cookie isn't an option. A strict Content-Security-Policy limits script injection. "Log out everywhere" = rotate `SESSION_SECRET` (re-run `npm run setup-secrets`).
 - **Home Screen app and Safari tab have separate storage** on iOS: you log in once in each.
 - **Login lockout is approximate**: KV is eventually consistent (~60 s), so a few extra guesses may slip through across Cloudflare locations.

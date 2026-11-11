@@ -102,6 +102,9 @@ You need your workers.dev subdomain from Guide 2 for step 9.
 4. Open the `Plates` workspace → set a **monthly spend limit** (e.g., $2). (The Default workspace can't have its own limit, which is why we make a new one.)
 5. **API keys** → **Create key** → choose workspace **Plates** → name `plates-backend`.
 6. Copy the key (starts with `sk-ant-`) into your password manager. It's shown once.
+7. Put it on the backend (you type it; it's hidden and never saved in Git). In a terminal at `C:\dev\plates`:
+   `npm.cmd run setup-secrets -w backend -- --anthropic`
+8. In Plates → Settings, the **AI estimates** card should no longer say "Not set up yet". The app also has its own monthly cap (Settings → AI monthly cap, default $1), checked before every call.
 
 ## What to send me (non-secret only)
 
