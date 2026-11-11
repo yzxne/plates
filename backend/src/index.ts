@@ -7,7 +7,8 @@ import {
 import { corsHeaders, errorResponse, HttpError, json, parseOrigins, readJson } from './http';
 import { allowRequest, lockStatus, recordFailure, recordSuccess } from './lockout';
 import { bearerToken, SESSION_TTL_SEC, signToken, STATE_TTL_SEC, verifyToken } from './session';
-import { searchOff, searchUsda } from './food';
+import { lookupUsdaBarcode, searchOff, searchUsda } from './food';
+import { checkTypedCode } from '../../shared/barcode';
 import { applyFilters, Sheets, type Filters } from './sheets';
 
 export default {
@@ -245,6 +246,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (rows.some((r) => r[key] === undefined || r[key] === '')) throw new HttpError(400, 'missing_key', `Every row needs ${key}`);
     const saved = await (await sheetFor(env)).upsertBy(body.tab, key, rows);
     return json({ rows: saved });
+  }
+
+  const barcodeMatch = /^\/food\/barcode\/(\d{8,14})$/.exec(path);
+  if (method === 'GET' && barcodeMatch) {
+    const check = checkTypedCode(barcodeMatch[1]!);
+    if (!check.ok) throw new HttpError(400, 'bad_barcode', check.message);
+    return json({ food: await lookupUsdaBarcode(check.code, env.USDA_API_KEY) });
   }
 
   if (method === 'GET' && path === '/food/search') {

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "preact": "^11.2.0"
+    "preact": "^11.2.0",
+    "zxing-wasm": "^3.1.6"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",

@@ -6,11 +6,21 @@ import {
 import { api, errorMessage } from '../api';
 import { IconBack, IconChevron, IconClose } from '../components/Icons';
 import { dateLabel } from '../dates';
+import { lookupBarcode } from '../barcodeLookup';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { addEntry, cachedFoods, loadFoods, saveFood, uuid } from '../foodData';
 import { fmt, foodSummary, macroLine, sourceLabel } from '../format';
 import { showToast } from '../toast';
 
-type View = { kind: 'menu' } | { kind: 'search' } | { kind: 'label' } | { kind: 'quick' } | { kind: 'detail'; food: Food; method: string };
+type View =
+  | { kind: 'menu' }
+  | { kind: 'search' }
+  | { kind: 'label'; barcode?: string; manual?: boolean }
+  | { kind: 'quick' }
+  | { kind: 'scan' }
+  | { kind: 'barcode'; code: string }
+  | { kind: 'notfound'; code: string; errors: string[] }
+  | { kind: 'detail'; food: Food; method: string };
 
 interface Props {
   date: string;
@@ -24,7 +34,14 @@ export function AddFlow({ date, meal: initialMeal, onClose, onLogged }: Props) {
   const [meal, setMeal] = useState<Meal>(initialMeal);
   const [search, setSearch] = useState<SearchState>({ q: '', usda: null, off: null }); // kept when you go back from a food
 
-  const back = () => setView(view.kind === 'detail' ? { kind: 'search' } : { kind: 'menu' });
+  const back = () => {
+    switch (view.kind) {
+      case 'detail': setView(view.method === 'search' ? { kind: 'search' } : view.method === 'barcode' ? { kind: 'scan' } : { kind: 'menu' }); break;
+      case 'barcode': case 'notfound': setView({ kind: 'scan' }); break;
+      case 'label': setView(view.barcode ? { kind: 'notfound', code: view.barcode, errors: [] } : { kind: 'menu' }); break;
+      default: setView({ kind: 'menu' });
+    }
+  };
 
   async function logged(entry: LogEntry, ok: boolean) {
     showToast(ok ? `Logged ${entry.food_name}` : 'Not saved yet — kept and will retry', ok ? 'ok' : 'error');
@@ -51,7 +68,17 @@ export function AddFlow({ date, meal: initialMeal, onClose, onLogged }: Props) {
         {view.kind === 'menu' && <Menu go={setView} />}
         {view.kind === 'search' && <Search state={search} setState={setSearch} onPick={(food) => setView({ kind: 'detail', food, method: 'search' })} />}
         {view.kind === 'detail' && <Detail food={view.food} method={view.method} date={date} meal={meal} onLogged={logged} />}
-        {view.kind === 'label' && <LabelPaste onSaved={(food) => setView({ kind: 'detail', food, method: 'label' })} />}
+        {view.kind === 'label' && (
+          <LabelPaste barcode={view.barcode} manual={view.manual}
+            onSaved={(food) => setView({ kind: 'detail', food, method: view.barcode ? 'barcode' : view.manual ? 'manual' : 'label' })} />
+        )}
+        {view.kind === 'scan' && <BarcodeScanner onCode={(code) => setView({ kind: 'barcode', code })} />}
+        {view.kind === 'barcode' && (
+          <BarcodeLookup code={view.code}
+            onFound={(food) => setView({ kind: 'detail', food, method: 'barcode' })}
+            onMissing={(errors) => setView({ kind: 'notfound', code: view.code, errors })} />
+        )}
+        {view.kind === 'notfound' && <NotFound code={view.code} errors={view.errors} go={setView} />}
         {view.kind === 'quick' && <QuickAdd date={date} meal={meal} onLogged={logged} />}
       </div>
     </div>
@@ -65,7 +92,7 @@ function Menu({ go }: { go: (v: View) => void }) {
     { label: 'Search foods', hint: 'Saved foods, USDA, Open Food Facts', view: { kind: 'search' } },
     { label: 'Paste label text', hint: 'Copy a nutrition label with Live Text', view: { kind: 'label' } },
     { label: 'Quick add', hint: 'Just calories (and macros)', view: { kind: 'quick' } },
-    { label: 'Scan barcode', hint: '', phase: 3 },
+    { label: 'Scan barcode', hint: 'Camera, photo or typed number', view: { kind: 'scan' } },
     { label: 'AI meal scan', hint: '', phase: 6 },
     { label: 'Paste AI result', hint: '', phase: 6 },
   ];
@@ -79,6 +106,59 @@ function Menu({ go }: { go: (v: View) => void }) {
       ) : (
         <div class="row disabled" key={r.label}><span>{r.label}</span><small>Phase {r.phase}</small></div>
       ))}
+    </div>
+  );
+}
+
+// ---------- Barcode ----------
+
+function BarcodeLookup({ code, onFound, onMissing }: { code: string; onFound: (f: Food) => void; onMissing: (errors: string[]) => void }) {
+  const [step, setStep] = useState('Looking up…');
+  useEffect(() => {
+    let alive = true;
+    void lookupBarcode(code, (s) => alive && setStep(s)).then((r) => {
+      if (!alive) return;
+      if (r.food) onFound(r.food);
+      else onMissing(r.errors);
+    });
+    return () => { alive = false; };
+  }, [code]);
+  return (
+    <div class="card center">
+      <p><strong>{code}</strong></p>
+      <p class="muted">{step}</p>
+    </div>
+  );
+}
+
+function NotFound({ code, errors, go }: { code: string; errors: string[]; go: (v: View) => void }) {
+  return (
+    <div>
+      <div class="card">
+        <h2>Not found</h2>
+        <p class="muted">No saved food, Open Food Facts or USDA product has barcode <strong>{code}</strong>.</p>
+        {errors.length > 0 && (
+          <>
+            <p class="warn">Some sources couldn't be checked:</p>
+            <ul class="warn-list">{errors.map((e) => <li key={e}>{e}</li>)}</ul>
+          </>
+        )}
+        <p class="muted">Add it once and it will be found instantly next time.</p>
+      </div>
+      <div class="list card">
+        <button class="row" onClick={() => go({ kind: 'label', barcode: code })}>
+          <span class="row-text"><span>Paste or scan the label</span><small class="muted">Live Text / Scan Text</small></span>
+          <IconChevron size={18} />
+        </button>
+        <button class="row" onClick={() => go({ kind: 'label', barcode: code, manual: true })}>
+          <span class="row-text"><span>Enter manually</span><small class="muted">Type the numbers from the label</small></span>
+          <IconChevron size={18} />
+        </button>
+        {errors.length > 0 && (
+          <button class="row" onClick={() => go({ kind: 'barcode', code })}><span>Try the lookup again</span><IconChevron size={18} /></button>
+        )}
+        <button class="row" onClick={() => go({ kind: 'scan' })}><span>Scan again</span><IconChevron size={18} /></button>
+      </div>
     </div>
   );
 }
@@ -262,10 +342,15 @@ function fromParsed(p: ParsedLabel): LabelForm {
   };
 }
 
-function LabelPaste({ onSaved }: { onSaved: (f: Food) => void }) {
+const EMPTY_LABEL: ParsedLabel = {
+  basis: 'serving', servingText: null, servingGrams: null, kcal: null, protein_g: null, carbs_g: null, fat_g: null,
+  fiber_g: null, sugar_g: null, sodium_mg: null, warnings: [],
+};
+
+function LabelPaste({ onSaved, barcode, manual }: { onSaved: (f: Food) => void; barcode?: string; manual?: boolean }) {
   const [text, setText] = useState('');
-  const [parsed, setParsed] = useState<ParsedLabel | null>(null);
-  const [form, setForm] = useState<LabelForm | null>(null);
+  const [parsed, setParsed] = useState<ParsedLabel | null>(manual ? EMPTY_LABEL : null);
+  const [form, setForm] = useState<LabelForm | null>(manual ? fromParsed(EMPTY_LABEL) : null);
   const [busy, setBusy] = useState(false);
 
   function read() {
@@ -290,7 +375,7 @@ function LabelPaste({ onSaved }: { onSaved: (f: Food) => void }) {
     };
     const per100 = parsed.basis === 'per100g' ? values : per100FromServing(values, grams);
     const food: Food = {
-      name: form.name.trim(), brand: form.brand.trim(), source: 'label', source_id: '', barcode: '',
+      name: form.name.trim(), brand: form.brand.trim(), source: manual ? 'manual' : 'label', source_id: '', barcode: barcode ?? '',
       serving_size: parsed.basis === 'per100g' ? '' : (form.servingText.trim() || `${grams} g`),
       grams_per_serving: parsed.basis === 'per100g' ? null : grams,
       per100: roundNutrients(per100),
@@ -332,7 +417,8 @@ function LabelPaste({ onSaved }: { onSaved: (f: Food) => void }) {
 
   return (
     <div class="card form">
-      <h2>Check the numbers</h2>
+      <h2>{manual ? 'Enter the label' : 'Check the numbers'}</h2>
+      {barcode && <p class="muted">Will be saved with barcode {barcode}.</p>}
       <p class="muted">{parsed.basis === 'per100g' ? 'Values are per 100 g.' : 'Values are per serving.'}</p>
       {parsed.warnings.length > 0 && <ul class="warn-list">{parsed.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
       {field('name', 'Name')}

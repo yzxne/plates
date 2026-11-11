@@ -1,5 +1,8 @@
 // Food search proxies: USDA FoodData Central (needs the API key) and Open Food Facts text search.
+import { sameProduct, upcEToUpcA } from '../../shared/barcode';
 import type { Food, Nutrients } from '../../shared/nutrition';
+import { mapOff, type OffProduct } from '../../shared/off';
+export { mapOff };
 import { HttpError } from './http';
 
 export const OFF_USER_AGENT = 'Plates/0.2 (personal tracker; https://github.com/yzxne/plates)';
@@ -95,55 +98,40 @@ export async function searchUsda(query: string, apiKey: string | undefined): Pro
   return out.sort((a, b) => (a.brand ? 1 : 0) - (b.brand ? 1 : 0));
 }
 
-// ---------- Open Food Facts ----------
-
-interface OffProduct {
-  code?: string;
-  product_name?: string;
-  brands?: string | string[];
-  serving_size?: string;
-  serving_quantity?: number | string;
-  nutriments?: Record<string, number | string | undefined>;
+/** Forms USDA might store a barcode in (it only matches the exact digits). */
+export function usdaCodeCandidates(code: string): string[] {
+  const d = code.replace(/\D/g, '');
+  const base = d.length === 8 ? upcEToUpcA(d) ?? d : d;
+  const stripped = base.replace(/^0+/, '');
+  const out = new Set<string>([d]);
+  if (stripped.length <= 12) out.add(stripped.padStart(12, '0'));
+  if (stripped.length <= 13) out.add(stripped.padStart(13, '0'));
+  if (stripped.length <= 14) out.add(stripped.padStart(14, '0'));
+  return [...out];
 }
 
-const offNum = (v: unknown): number | null => {
-  if (v === '' || v === null || v === undefined) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-
-export function mapOff(p: OffProduct): Food | null {
-  const nm = p.nutriments ?? {};
-  let kcal = offNum(nm['energy-kcal_100g']);
-  if (kcal == null) {
-    const kj = offNum(nm['energy-kj_100g']) ?? offNum(nm['energy_100g']);
-    if (kj != null) kcal = Math.round(kj / 4.184);
+/** Finds a USDA branded food by barcode. Returns null when not found. */
+export async function lookupUsdaBarcode(code: string, apiKey: string | undefined): Promise<Food | null> {
+  for (const candidate of usdaCodeCandidates(code).slice(0, 4)) {
+    const u = new URL(USDA_SEARCH);
+    u.searchParams.set('api_key', apiKey || 'DEMO_KEY');
+    u.searchParams.set('query', candidate);
+    u.searchParams.set('dataType', 'Branded');
+    u.searchParams.set('pageSize', '5');
+    const res = await fetch(u.toString());
+    if (res.status === 429) throw new HttpError(429, 'usda_rate_limited', 'USDA search limit reached. Try again later.');
+    if (!res.ok) throw new HttpError(502, 'usda_error', `USDA lookup failed (${res.status})`);
+    const data = (await res.json()) as { foods?: UsdaFood[] };
+    const hit = (data.foods ?? []).find((f) => f.gtinUpc && sameProduct(f.gtinUpc, code));
+    if (hit) {
+      const food = mapUsda(hit);
+      if (food) return { ...food, barcode: code };
+    }
   }
-  const name = (p.product_name ?? '').trim();
-  if (kcal == null || !name) return null;
-  const sodiumG = offNum(nm['sodium_100g']);
-  const sq = offNum(p.serving_quantity);
-  const brand = Array.isArray(p.brands) ? p.brands[0] ?? '' : (p.brands ?? '').split(',')[0]!.trim();
-  return {
-    name,
-    brand,
-    source: 'off',
-    source_id: p.code ?? '',
-    barcode: p.code ?? '',
-    serving_size: sq ? (p.serving_size?.trim() || `${sq} g`) : '',
-    grams_per_serving: sq && sq > 0 ? sq : null,
-    per100: {
-      kcal,
-      protein_g: offNum(nm['proteins_100g']) ?? 0,
-      carbs_g: offNum(nm['carbohydrates_100g']) ?? 0,
-      fat_g: offNum(nm['fat_100g']) ?? 0,
-      fiber_g: offNum(nm['fiber_100g']),
-      sugar_g: offNum(nm['sugars_100g']),
-      sodium_mg: sodiumG == null ? null : Math.round(sodiumG * 1000 * 10) / 10,
-    },
-  };
+  return null;
 }
 
+// ---------- Open Food Facts ----------
 export async function searchOff(query: string): Promise<Food[]> {
   const u = new URL(OFF_SEARCH);
   u.searchParams.set('q', query);

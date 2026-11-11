@@ -33,3 +33,27 @@ Open https://yzxne.github.io/plates/ (Safari or Home Screen icon). Pull down / r
 
 **Failure handling**
 - [ ] Turn on Airplane Mode → log a quick add → you see "Not saved yet". Turn Airplane Mode off → More → **Not saved yet** card → **Retry now** → it saves.
+
+## Phase 3 — Barcode
+
+Test in **Safari** first, then again from the **Home Screen icon** (iOS treats them differently). Have 3–4 packaged foods ready.
+
+**Live scan**
+- [ ] **+** → **Scan barcode**. iPhone asks for camera permission → **Allow**.
+- [ ] The preview is the back camera, not black, not full-screen, not sideways.
+- [ ] Hold a barcode inside the green box. Within ~2 s it reads and shows the food with numbers → set amount → **Log**.
+- [ ] Scan the same product again → it's found instantly (from your saved foods).
+- [ ] If your phone shows a **Light** button, it turns the flashlight on/off.
+
+**Fallbacks**
+- [ ] **Use a photo** → take a photo of a barcode → it reads it.
+- [ ] **Type number** → type the digits under a barcode → **Look up** works. Change one digit → it says the check digit is wrong.
+
+**Not found**
+- [ ] Scan something obscure (store-brand, local bakery). You see **Not found** with: Paste or scan the label / Enter manually / Scan again.
+- [ ] **Enter manually** → fill name, serving size and numbers → **Save food** → **Log**. Scan it again → found instantly.
+
+**Home Screen app**
+- [ ] Repeat the live scan from the Home Screen icon. Tell me if the preview is sideways, black, or it keeps asking for permission (known iOS issues).
+
+Report back: which items failed, and your iOS version (Settings → General → About).

@@ -19,3 +19,8 @@ Updated each phase.
 - **Label parser** handles US Nutrition Facts and EU per-100 g tables; unusual layouts may need manual fixes on the confirm screen.
 - **Days totals** are recalculated whenever the Food Log for that day is opened or edited.
 - **Writes that fail** are kept on the phone (in browser storage) and retried; clearing Safari website data deletes them.
+- **Barcode camera on iOS Home Screen apps** may show rotated or black previews or re-ask permission on some iOS versions; "Use a photo" and "Type number" always work. The decoder tries rotated frames automatically.
+- **First scan takes ~1 s longer** while the decoder (~400 KB) downloads; after that it's cached.
+- **Open Food Facts API v3.6** moved nutrients to a new `nutrition` structure (found 2026-11-12, after Phase 0). Plates reads both the old and new formats. Products with no nutrition data on OFF fall through to USDA.
+- **USDA barcode lookup** tries up to 4 forms of the code (UPC-A, EAN-13, GTIN-14), so one lookup can use up to 4 USDA requests.
+- **No vibration on scan** (iPhone Safari doesn't support it).

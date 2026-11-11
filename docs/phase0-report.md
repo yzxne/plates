@@ -176,3 +176,7 @@ Still open: OFF User-Agent contact (email or GitHub URL) — needed in Phase 3.
 
 - README claims MIT, but no LICENSE file in the download. No hidden content; `.env` holds only a placeholder.
 - Nothing copied. Different stack (Flutter). Its AI call ships the API key inside the app and asks the AI for calories directly; its "Mifflin–St Jeor" function actually uses the revised Harris–Benedict constants. Its branding resembles a commercial app, so its images/assets are off-limits.
+
+## Correction (2026-11-12, during Phase 3)
+
+Open Food Facts **v3.6** returns nutrients in `product.nutrition.aggregated_set.nutrients` and an empty `nutriments`. My Phase 0 field-name test used the v3 endpoint, which still fills `nutriments`. Plates now reads both.

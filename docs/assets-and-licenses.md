@@ -21,12 +21,12 @@ Every third-party library, dataset and asset used by Plates, with its license. U
 | vitest | 5.1.0 | MIT | No |
 | wrangler | 4.160.0 | MIT OR Apache-2.0 | No (Worker deploy tool) |
 | @cloudflare/workers-types | 5.x | MIT OR Apache-2.0 | No |
+| zxing-wasm | 3.1.6 | MIT (bundles zxing-cpp Apache-2.0, zint BSD-3-Clause) | Yes, only when scanning (self-hosted .wasm) |
 
 ## Libraries planned
 
 | Library | Version | License | Use |
 |---|---|---|---|
-| zxing-wasm | 3.1.6 | MIT (bundles zxing-cpp Apache-2.0, zint BSD-3) | Barcode decoding (Phase 3) |
 | write-excel-file | 4.1.1 | MIT | .xlsx export (Phase 7) |
 
 ## Icons, images, artwork

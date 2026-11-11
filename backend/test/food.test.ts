@@ -90,6 +90,11 @@ describe('food endpoints (fake services)', () => {
       if (u.hostname === 'api.nal.usda.gov') {
         seen.push(r);
         if (u.searchParams.get('query') === 'busy') return new Response('{}', { status: 429 });
+        if (/^\d+$/.test(u.searchParams.get('query') ?? '')) {
+          // Barcode search: USDA only matches the exact stored digits.
+          const hit = u.searchParams.get('query') === usdaBranded.gtinUpc;
+          return new Response(JSON.stringify({ foods: hit ? [usdaBranded] : [] }), { status: 200 });
+        }
         return new Response(JSON.stringify({ foods: [usdaBranded, usdaFoundation] }), { status: 200 });
       }
       if (u.hostname === 'search.openfoodfacts.org') {
@@ -135,6 +140,15 @@ describe('food endpoints (fake services)', () => {
     expect(busy.body.error).toBe('usda_rate_limited');
   });
 
+  it('finds a USDA branded food by barcode in any code form', async () => {
+    const r = await get('/food/barcode/016000275287'); // UPC-A; USDA stores the 14-digit form
+    expect(r.status).toBe(200);
+    expect(r.body.food).toMatchObject({ name: 'Cheerios Cereal', barcode: '016000275287', grams_per_serving: 39 });
+    const miss = await get('/food/barcode/3017624010701');
+    expect(miss.body.food).toBeNull();
+    expect((await get('/food/barcode/3017624010709')).status).toBe(400);
+  });
+
   it('upserts one row per date in Days', async () => {
     const start = await handle(req('POST', '/oauth/google/start', { token }), env);
     const state = new URL(((await start.json()) as any).url).searchParams.get('state')!;
@@ -152,5 +166,24 @@ describe('food endpoints (fake services)', () => {
 
     const bad = await post({ tab: 'Days', key: 'id', rows: [{ id: 'x' }] });
     expect(bad.error).toBe('bad_key');
+  });
+});
+
+describe('Open Food Facts v3.6 nutrition format', () => {
+  it('reads nutrients from nutrition.aggregated_set when nutriments is empty', () => {
+    // Shape observed live on 2026-11-12 for barcode 3017624010701 (API v3.6).
+    const f = mapOff({
+      code: '3017624010701', product_name: 'Nutella', brands: 'Ferrero', nutriments: {},
+      nutrition: { aggregated_set: { nutrients: {
+        'energy-kcal': { value: 539, unit: 'kcal', source_per: '100g' },
+        proteins: { value: 6.3, unit: 'g', source_per: '100g' },
+        carbohydrates: { value: 57.5, unit: 'g', source_per: '100g' },
+        fat: { value: 30.9, unit: 'g', source_per: '100g' },
+        sugars: { value: 56.3, unit: 'g', source_per: '100g' },
+        sodium: { value: 41, unit: 'mg', source_per: '100g' },
+        fiber: { value: 2, unit: 'g', source_per: 'serving' }, // per-serving values are ignored
+      } } },
+    })!;
+    expect(f.per100).toEqual({ kcal: 539, protein_g: 6.3, carbs_g: 57.5, fat_g: 30.9, fiber_g: null, sugar_g: 56.3, sodium_mg: 41 });
   });
 });

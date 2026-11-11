@@ -14,7 +14,7 @@ function csp(apiBase: string): Plugin {
       const api = new URL(apiBase).origin;
       const policy = [
         "default-src 'self'",
-        "script-src 'self'",
+        "script-src 'self' 'wasm-unsafe-eval'", // WebAssembly barcode decoder
         "style-src 'self'",
         "img-src 'self' data: blob:",
         `connect-src 'self' ${api} https://world.openfoodfacts.org`,
