@@ -50,7 +50,7 @@ describe('nutrient math', () => {
     const row = foodToRow({ ...oats, id: 'f1' });
     expect(row.kcal_serving).toBe(152);
     expect(row.fiber_g_serving).toBe(4);
-    expect(rowToFood(row)).toEqual({ ...oats, id: 'f1' });
+    expect(rowToFood(row)).toEqual({ ...oats, id: 'f1', favorite: false });
     const noServing = foodToRow({ ...oats, grams_per_serving: null });
     expect(noServing.kcal_serving).toBe('');
   });

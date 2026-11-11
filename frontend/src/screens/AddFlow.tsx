@@ -4,17 +4,21 @@ import {
   MEAL_LABELS, MEALS, makeEntry, per100FromServing, roundNutrients, type Food, type LogEntry, type Meal, type Nutrients,
 } from '../../../shared/nutrition';
 import { api, errorMessage } from '../api';
-import { IconBack, IconChevron, IconClose } from '../components/Icons';
-import { dateLabel } from '../dates';
 import { lookupBarcode } from '../barcodeLookup';
 import { BarcodeScanner } from '../components/BarcodeScanner';
-import { addEntry, cachedFoods, loadFoods, saveFood, uuid } from '../foodData';
+import { EntrySheet } from '../components/EntrySheet';
+import { IconBack, IconChevron, IconClose } from '../components/Icons';
+import { dateLabel, today } from '../dates';
+import {
+  addEntry, cachedFoods, defaultGrams, deleteEntry, loadFoods, loadRecents, loadSavedMeals, rememberGrams, saveFood, setFavorite, uuid,
+  type RecentFood, type SavedMeal,
+} from '../foodData';
 import { fmt, foodSummary, macroLine, sourceLabel } from '../format';
 import { showToast } from '../toast';
+import { showUndo } from '../undo';
 
 type View =
-  | { kind: 'menu' }
-  | { kind: 'search' }
+  | { kind: 'home' }
   | { kind: 'label'; barcode?: string; manual?: boolean }
   | { kind: 'quick' }
   | { kind: 'scan' }
@@ -26,47 +30,72 @@ interface Props {
   date: string;
   meal: Meal;
   onClose: () => void;
-  onLogged: () => void;
+  onLogged: () => void; // something was logged/changed — Today reloads; the add screen stays open
 }
 
+/** One add screen (brief v2 §5): search bar with barcode/AI buttons, Recent + Favorites, one-tap logging with Undo. */
 export function AddFlow({ date, meal: initialMeal, onClose, onLogged }: Props) {
-  const [view, setView] = useState<View>({ kind: 'menu' });
+  const [view, setView] = useState<View>({ kind: 'home' });
   const [meal, setMeal] = useState<Meal>(initialMeal);
-  const [search, setSearch] = useState<SearchState>({ q: '', usda: null, off: null }); // kept when you go back from a food
+  const [search, setSearch] = useState<SearchState>({ q: '', usda: null, off: null });
+  const [editing, setEditing] = useState<LogEntry | null>(null);
 
   const back = () => {
     switch (view.kind) {
-      case 'detail': setView(view.method === 'search' ? { kind: 'search' } : view.method === 'barcode' ? { kind: 'scan' } : { kind: 'menu' }); break;
       case 'barcode': case 'notfound': setView({ kind: 'scan' }); break;
-      case 'label': setView(view.barcode ? { kind: 'notfound', code: view.barcode, errors: [] } : { kind: 'menu' }); break;
-      default: setView({ kind: 'menu' });
+      case 'label': setView(view.barcode ? { kind: 'notfound', code: view.barcode, errors: [] } : { kind: 'home' }); break;
+      default: setView({ kind: 'home' });
     }
   };
 
-  async function logged(entry: LogEntry, ok: boolean) {
-    showToast(ok ? `Logged ${entry.food_name}` : 'Not saved yet — kept and will retry', ok ? 'ok' : 'error');
+  /** Logs `grams` of a food right away and shows Undo / Edit. */
+  async function quickLog(food: Food, grams: number, method: string) {
+    try {
+      const saved = await saveFood(food);
+      const entry = makeEntry({ id: uuid(), date, meal, food: saved, grams, method });
+      const ok = await addEntry(entry);
+      rememberGrams(saved, grams);
+      onLogged();
+      showUndo(`${ok ? 'Logged' : 'Queued'} ${entry.food_name} · ${fmt(grams, 1)} g · ${MEAL_LABELS[meal]}`, {
+        undo: async () => { await deleteEntry(entry); onLogged(); },
+        edit: () => setEditing(entry),
+      });
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+    }
+  }
+
+  function logged(entry: LogEntry, ok: boolean, food?: Food) {
+    if (food && entry.grams) rememberGrams(food, entry.grams);
     onLogged();
-    onClose();
+    setView({ kind: 'home' });
+    showUndo(`${ok ? 'Logged' : 'Queued'} ${entry.food_name}`, {
+      undo: async () => { await deleteEntry(entry); onLogged(); },
+      edit: () => setEditing(entry),
+    });
   }
 
   return (
     <div class="overlay" role="dialog" aria-modal="true" aria-label="Add food">
       <header class="overlay-head">
-        {view.kind === 'menu'
+        {view.kind === 'home'
           ? <button class="icon-btn" aria-label="Close" onClick={onClose}><IconClose /></button>
           : <button class="icon-btn" aria-label="Back" onClick={back}><IconBack /></button>}
         <div class="overlay-title">
           <strong>Add food</strong>
           <small class="muted">{dateLabel(date)}</small>
         </div>
-        <select class="meal-select" aria-label="Meal" value={meal} onChange={(e) => setMeal(e.currentTarget.value as Meal)}>
+        <select class="meal-chip" aria-label="Meal" value={meal} onChange={(e) => setMeal(e.currentTarget.value as Meal)}>
           {MEALS.map((m) => <option key={m} value={m}>{MEAL_LABELS[m]}</option>)}
         </select>
       </header>
 
       <div class="overlay-body">
-        {view.kind === 'menu' && <Menu go={setView} />}
-        {view.kind === 'search' && <Search state={search} setState={setSearch} onPick={(food) => setView({ kind: 'detail', food, method: 'search' })} />}
+        {view.kind === 'home' && (
+          <Home state={search} setState={setSearch} date={date} meal={meal} go={setView}
+            onQuickLog={(f, g) => quickLog(f, g, 'recent')} onOpen={(food) => setView({ kind: 'detail', food, method: 'search' })}
+            onLogged={onLogged} />
+        )}
         {view.kind === 'detail' && <Detail food={view.food} method={view.method} date={date} meal={meal} onLogged={logged} />}
         {view.kind === 'label' && (
           <LabelPaste barcode={view.barcode} manual={view.manual}
@@ -75,37 +104,18 @@ export function AddFlow({ date, meal: initialMeal, onClose, onLogged }: Props) {
         {view.kind === 'scan' && <BarcodeScanner onCode={(code) => setView({ kind: 'barcode', code })} />}
         {view.kind === 'barcode' && (
           <BarcodeLookup code={view.code}
-            onFound={(food) => setView({ kind: 'detail', food, method: 'barcode' })}
+            onFound={(food) => { setView({ kind: 'home' }); void quickLog(food, defaultGrams(food), 'barcode'); }}
             onMissing={(errors) => setView({ kind: 'notfound', code: view.code, errors })} />
         )}
         {view.kind === 'notfound' && <NotFound code={view.code} errors={view.errors} go={setView} />}
-        {view.kind === 'quick' && <QuickAdd date={date} meal={meal} onLogged={logged} />}
+        {view.kind === 'quick' && <QuickAdd date={date} meal={meal} onLogged={(e, ok) => logged(e, ok)} />}
       </div>
-    </div>
-  );
-}
 
-// ---------- Menu ----------
-
-function Menu({ go }: { go: (v: View) => void }) {
-  const rows: { label: string; hint: string; view?: View; phase?: number }[] = [
-    { label: 'Search foods', hint: 'Saved foods, USDA, Open Food Facts', view: { kind: 'search' } },
-    { label: 'Paste label text', hint: 'Copy a nutrition label with Live Text', view: { kind: 'label' } },
-    { label: 'Quick add', hint: 'Just calories (and macros)', view: { kind: 'quick' } },
-    { label: 'Scan barcode', hint: 'Camera, photo or typed number', view: { kind: 'scan' } },
-    { label: 'AI meal scan', hint: '', phase: 6 },
-    { label: 'Paste AI result', hint: '', phase: 6 },
-  ];
-  return (
-    <div class="list card">
-      {rows.map((r) => r.view ? (
-        <button class="row" key={r.label} onClick={() => go(r.view!)}>
-          <span class="row-text"><span>{r.label}</span><small class="muted">{r.hint}</small></span>
-          <IconChevron size={18} />
-        </button>
-      ) : (
-        <div class="row disabled" key={r.label}><span>{r.label}</span><small>Phase {r.phase}</small></div>
-      ))}
+      {editing && (
+        <EntrySheet entry={editing} onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); onLogged(); }}
+          onDeleted={() => { setEditing(null); onLogged(); }} />
+      )}
     </div>
   );
 }
@@ -163,32 +173,35 @@ function NotFound({ code, errors, go }: { code: string; errors: string[]; go: (v
   );
 }
 
-// ---------- Search ----------
+// ---------- Home: search + Recent / Favorites / Saved meals ----------
 
 interface SearchState { q: string; usda: Food[] | null; off: Food[] | null }
 
-function Search({ state, setState, onPick }: { state: SearchState; setState: (fn: (s: SearchState) => SearchState) => void; onPick: (f: Food) => void }) {
+function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }: {
+  state: SearchState; setState: (fn: (s: SearchState) => SearchState) => void; date: string; meal: Meal;
+  go: (v: View) => void; onQuickLog: (f: Food, grams: number) => void; onOpen: (f: Food) => void; onLogged: () => void;
+}) {
   const { q, usda, off } = state;
   const setQ = (v: string) => setState(() => ({ q: v, usda: null, off: null }));
-  const setUsda = (v: Food[]) => setState((s) => ({ ...s, usda: v, off: null }));
-  const setOff = (v: Food[]) => setState((s) => ({ ...s, off: v }));
   const [saved, setSaved] = useState<Food[]>(cachedFoods());
+  const [recents, setRecents] = useState<RecentFood[] | null>(null);
+  const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+  const [list, setList] = useState<'recent' | 'favorites'>('recent');
   const [busy, setBusy] = useState<'' | 'usda' | 'off'>('');
   const [error, setError] = useState('');
-  const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    input.current?.focus();
     loadFoods().then(setSaved).catch((err) => setError(errorMessage(err)));
+    loadRecents(today()).then(setRecents).catch(() => setRecents([]));
+    loadSavedMeals().then(setSavedMeals).catch(() => {});
   }, []);
 
-  const savedMatches = useMemo(() => {
-    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    const list = words.length
-      ? saved.filter((f) => words.every((w) => `${f.name} ${f.brand}`.toLowerCase().includes(w)))
-      : saved;
-    return list.slice(0, words.length ? 20 : 10);
-  }, [q, saved]);
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const savedMatches = useMemo(
+    () => (words.length ? saved.filter((f) => words.every((w) => `${f.name} ${f.brand}`.toLowerCase().includes(w))).slice(0, 20) : []),
+    [q, saved],
+  );
+  const favorites = saved.filter((f) => f.favorite);
 
   async function run(source: 'usda' | 'off') {
     const query = q.trim();
@@ -197,7 +210,7 @@ function Search({ state, setState, onPick }: { state: SearchState; setState: (fn
     setError('');
     try {
       const r = await api<{ foods: Food[] }>('GET', `/food/search?source=${source}&q=${encodeURIComponent(query)}`);
-      if (source === 'usda') setUsda(r.foods); else setOff(r.foods);
+      setState((s) => (source === 'usda' ? { ...s, usda: r.foods, off: null } : { ...s, off: r.foods }));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -205,28 +218,125 @@ function Search({ state, setState, onPick }: { state: SearchState; setState: (fn
     }
   }
 
+  async function logSavedMeal(m: SavedMeal) {
+    try {
+      const foods = new Map((await loadFoods()).map((f) => [f.id!, f]));
+      const entries = m.items.flatMap((it) => {
+        const f = foods.get(it.food_id);
+        return f ? [makeEntry({ id: uuid(), date, meal, food: f, grams: it.grams, method: 'saved_meal' })] : [];
+      });
+      for (const e of entries) await addEntry(e);
+      onLogged();
+      showUndo(`Logged ${m.name} · ${MEAL_LABELS[meal]}`, { undo: async () => { for (const e of entries) await deleteEntry(e); onLogged(); } });
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+    }
+  }
+
+  const disabled = (label: string) => () => showToast(`${label} arrives in Phase 6`, 'info');
+
   return (
     <>
       <form class="search-bar" onSubmit={(e) => { e.preventDefault(); void run('usda'); }}>
-        <input ref={input} type="search" placeholder="Search foods" value={q} enterKeyHint="search"
-          onInput={(e) => setQ(e.currentTarget.value)} />
-        <button class="btn" type="submit" disabled={q.trim().length < 2 || !!busy}>Search</button>
+        <div class="search-field">
+          <input type="search" placeholder="Search foods" value={q} enterKeyHint="search" onInput={(e) => setQ(e.currentTarget.value)} />
+          <button type="button" class="sb-btn" aria-label="Scan barcode" onClick={() => go({ kind: 'scan' })}><BarcodeIcon /></button>
+          <button type="button" class="sb-btn dim" aria-label="AI photo scan" onClick={disabled('AI photo scan')}><CameraIcon /></button>
+          <button type="button" class="sb-btn dim" aria-label="Estimate with AI" onClick={disabled('Estimate with AI')}><SparkIcon /></button>
+        </div>
       </form>
       {error && <p class="error">{error}</p>}
 
-      <ResultList title={q.trim() ? 'Your saved foods' : 'Recent saved foods'} foods={savedMatches} onPick={onPick}
-        empty={q.trim() ? 'No saved food matches.' : 'Foods you log are saved here for next time.'} />
+      {!words.length && (
+        <>
+          <div class="seg mb">
+            <button class={list === 'recent' ? 'on' : ''} onClick={() => setList('recent')}>Recent</button>
+            <button class={list === 'favorites' ? 'on' : ''} onClick={() => setList('favorites')}>Favorites</button>
+          </div>
+          <p class="muted tiny-pad">Tap to log your usual amount · press and hold to change it first.</p>
+          {list === 'recent' && (
+            recents === null ? <p class="muted">Loading…</p>
+              : recents.length === 0 ? <p class="muted">Foods you log show up here.</p>
+                : <FoodRows foods={recents.map((r) => r.food)} gramsFor={(f) => defaultGrams(f)} onTap={(f) => onQuickLog(f, defaultGrams(f))} onHold={onOpen} />
+          )}
+          {list === 'favorites' && (
+            favorites.length === 0 ? <p class="muted">Star a food on its detail screen to keep it here.</p>
+              : <FoodRows foods={favorites} gramsFor={(f) => defaultGrams(f)} onTap={(f) => onQuickLog(f, defaultGrams(f))} onHold={onOpen} />
+          )}
 
-      {busy === 'usda' && <p class="muted center">Searching USDA…</p>}
-      {usda && <ResultList title="USDA FoodData Central" foods={usda} onPick={onPick} empty="No USDA results." />}
+          {savedMeals.length > 0 && (
+            <section class="results">
+              <h3>Saved meals</h3>
+              <div class="list card">
+                {savedMeals.map((m) => (
+                  <button class="row" key={m.id} onClick={() => logSavedMeal(m)}>
+                    <span class="row-text"><span>{m.name}</span><small class="muted">{m.items.length} items · tap to log</small></span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
-      {usda && !off && (
-        <button class="btn center-block" disabled={!!busy} onClick={() => run('off')}>
-          {busy === 'off' ? 'Searching…' : 'Search Open Food Facts too'}
-        </button>
+          <section class="results">
+            <h3>Other ways</h3>
+            <div class="list card">
+              <button class="row" onClick={() => go({ kind: 'label' })}><span class="row-text"><span>Paste or scan label text</span><small class="muted">Live Text / Scan Text</small></span><IconChevron size={18} /></button>
+              <button class="row" onClick={() => go({ kind: 'quick' })}><span class="row-text"><span>Quick add</span><small class="muted">Just calories (and macros)</small></span><IconChevron size={18} /></button>
+              <div class="row disabled"><span>Paste AI result</span><small>Phase 6</small></div>
+            </div>
+          </section>
+        </>
       )}
-      {off && <ResultList title="Open Food Facts" foods={off} onPick={onPick} empty="No Open Food Facts results." note="Data © Open Food Facts contributors, ODbL" />}
+
+      {words.length > 0 && (
+        <>
+          <section class="results">
+            <h3>Your foods</h3>
+            {savedMatches.length === 0 ? <p class="muted tiny-pad">No saved food matches. Press Search for USDA.</p>
+              : <FoodRows foods={savedMatches} gramsFor={(f) => defaultGrams(f)} onTap={(f) => onQuickLog(f, defaultGrams(f))} onHold={onOpen} />}
+          </section>
+          {!usda && busy !== 'usda' && <button class="btn center-block" onClick={() => run('usda')} disabled={q.trim().length < 2}>Search USDA</button>}
+          {busy === 'usda' && <p class="muted center">Searching USDA…</p>}
+          {usda && <ResultList title="USDA FoodData Central" foods={usda} onPick={onOpen} empty="No USDA results." />}
+          {usda && !off && (
+            <button class="btn center-block" disabled={!!busy} onClick={() => run('off')}>{busy === 'off' ? 'Searching…' : 'Search Open Food Facts too'}</button>
+          )}
+          {off && <ResultList title="Open Food Facts" foods={off} onPick={onOpen} empty="No Open Food Facts results." note="Data © Open Food Facts contributors, ODbL" />}
+          <button class="btn center-block" onClick={disabled('Estimate with AI')}>Estimate "{q.trim()}" with AI (Phase 6)</button>
+        </>
+      )}
     </>
+  );
+}
+
+/** Rows for foods you have logged before: tap = log now, press-and-hold = open the amount screen. */
+function FoodRows({ foods, gramsFor, onTap, onHold }: { foods: Food[]; gramsFor: (f: Food) => number; onTap: (f: Food) => void; onHold: (f: Food) => void }) {
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const held = useRef(false);
+  const press = (f: Food) => ({
+    onPointerDown: () => { held.current = false; timer.current = setTimeout(() => { held.current = true; onHold(f); }, 500); },
+    onPointerUp: () => clearTimeout(timer.current),
+    onPointerLeave: () => clearTimeout(timer.current),
+    onPointerCancel: () => clearTimeout(timer.current),
+    onClick: () => { if (!held.current) onTap(f); },
+    onContextMenu: (e: Event) => e.preventDefault(),
+  });
+  return (
+    <div class="list card">
+      {foods.map((f) => {
+        const g = gramsFor(f);
+        const kcal = (f.per100.kcal * g) / 100;
+        return (
+          <button class="row food-row" key={f.id} {...press(f)}>
+            <span class="row-text">
+              <span class="clip">{f.favorite ? '★ ' : ''}{f.name}</span>
+              <small class="muted clip">{[f.brand, `${fmt(g, 1)} g · ${fmt(kcal)} kcal`].filter(Boolean).join(' · ')}</small>
+            </span>
+            <span class="plus-chip" aria-hidden="true">+</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -253,12 +363,30 @@ function ResultList({ title, foods, onPick, empty, note }: { title: string; food
   );
 }
 
+const BarcodeIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+    <path d="M4 6v12M7 6v12M10 6v12M14 6v12M16.5 6v12M20 6v12" />
+  </svg>
+);
+const CameraIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 8h3l2-2.5h6L17 8h3v11H4z" /><circle cx="12" cy="13.5" r="3.5" />
+  </svg>
+);
+const SparkIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z" />
+  </svg>
+);
+
 // ---------- Detail ----------
 
-function Detail({ food, method, date, meal, onLogged }: { food: Food; method: string; date: string; meal: Meal; onLogged: (e: LogEntry, ok: boolean) => void }) {
+function Detail({ food: initial, method, date, meal, onLogged }: { food: Food; method: string; date: string; meal: Meal; onLogged: (e: LogEntry, ok: boolean, food?: Food) => void }) {
+  const [food, setFood] = useState(initial);
   const hasServing = !!food.grams_per_serving;
+  const startGrams = defaultGrams(food);
   const [unit, setUnit] = useState<'g' | 'serving'>(hasServing ? 'serving' : 'g');
-  const [amount, setAmount] = useState(hasServing ? '1' : '100');
+  const [amount, setAmount] = useState(hasServing ? String(Math.round((startGrams / food.grams_per_serving!) * 100) / 100) : String(startGrams));
   const [busy, setBusy] = useState(false);
 
   const value = Number(amount);
@@ -271,14 +399,24 @@ function Detail({ food, method, date, meal, onLogged }: { food: Food; method: st
     setUnit(u);
   }
 
+  async function toggleFavorite() {
+    try {
+      const next = await setFavorite(food, !food.favorite);
+      setFood(next);
+      showToast(next.favorite ? 'Added to Favorites' : 'Removed from Favorites', 'info');
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+    }
+  }
+
   async function log() {
     if (!preview) return;
     setBusy(true);
     try {
       const saved = await saveFood(food);
-      const entry = makeEntry({ id: uuid(), date, meal, food: saved, grams, method: food.id ? 'saved' : method });
+      const entry = makeEntry({ id: uuid(), date, meal, food: saved, grams, method: food.id && method === 'search' ? 'saved' : method });
       const ok = await addEntry(entry);
-      onLogged(entry, ok);
+      onLogged(entry, ok, saved);
     } catch (err) {
       showToast(errorMessage(err), 'error');
       setBusy(false);
@@ -288,7 +426,10 @@ function Detail({ food, method, date, meal, onLogged }: { food: Food; method: st
   return (
     <div>
       <div class="card">
-        <h2 class="no-margin">{food.name}</h2>
+        <div class="ex-head">
+          <h2 class="no-margin grow">{food.name}</h2>
+          <button class={`icon-btn star ${food.favorite ? 'on' : ''}`} aria-pressed={!!food.favorite} aria-label="Favorite" onClick={toggleFavorite}>{food.favorite ? '★' : '☆'}</button>
+        </div>
         <p class="muted">{[food.brand, sourceLabel(food)].filter(Boolean).join(' · ')}</p>
         {food.serving_size && <p class="muted tiny-pad">Serving: {food.serving_size}</p>}
 
@@ -454,7 +595,7 @@ function QuickAdd({ date, meal, onLogged }: { date: string; meal: Meal; onLogged
     const entry: LogEntry = {
       id: uuid(), date, meal, food_id: '', food_name: name.trim() || 'Quick add', grams: null, servings: 1,
       n: roundNutrients({ kcal: k, protein_g: Number(p) || 0, carbs_g: Number(c) || 0, fat_g: Number(f) || 0, fiber_g: null, sugar_g: null, sodium_mg: null }),
-      entry_method: 'quick', notes: '',
+      entry_method: 'quick', notes: '', food_source: '', place: '', is_estimate: false,
     };
     setBusy(true);
     try {

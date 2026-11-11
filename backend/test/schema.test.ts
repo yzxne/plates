@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chicagoDate, SETTINGS_FIELDS, TABS, TAB_NAMES, validateSettings } from '../../shared/schema';
+import { chicagoDate, mealForMinutes, parseWindow, SETTINGS_FIELDS, TABS, TAB_NAMES, validateSettings } from '../../shared/schema';
 import { colLetter } from '../src/sheets';
 
 describe('schema', () => {
@@ -48,5 +48,27 @@ describe('helpers', () => {
     // 2026-11-10 03:00 UTC is still Nov 9 in Chicago (UTC-6).
     expect(chicagoDate(new Date('2026-11-10T03:00:00Z'))).toBe('2026-11-09');
     expect(chicagoDate(new Date('2026-11-10T07:00:00Z'))).toBe('2026-11-10');
+  });
+});
+
+describe('meal time windows', () => {
+  const at = (h: number, m = 0) => h * 60 + m;
+  it('uses the default windows', () => {
+    expect([at(4), at(10, 59), at(11), at(15, 59), at(16), at(20, 59), at(21), at(3, 59)].map((t) => mealForMinutes(t, {})))
+      .toEqual(['breakfast', 'breakfast', 'lunch', 'lunch', 'dinner', 'dinner', 'snack', 'snack']);
+  });
+  it('follows windows from Settings', () => {
+    const s = { breakfast_window: '06:00-11:30', lunch_window: '11:31-14:00', dinner_window: '17:00-21:00' };
+    expect(mealForMinutes(at(10, 45), s)).toBe('breakfast');
+    expect(mealForMinutes(at(15), s)).toBe('snack');
+    expect(mealForMinutes(at(21), s)).toBe('dinner');
+  });
+  it('validates window text', () => {
+    expect(parseWindow('11:00-15:59')).toEqual([660, 959]);
+    expect(parseWindow('15:00-11:00')).toBeNull();
+    expect(parseWindow('25:00-26:00')).toBeNull();
+    expect(validateSettings({ lunch_window: '11:00 - 15:59' }).clean).toEqual({ lunch_window: '11:00-15:59' });
+    expect(validateSettings({ lunch_window: 'noon' }).ok).toBe(false);
+    expect(validateSettings({ cafeteria_name: 'FHSU McMindes', setup_complete: 'true' }).ok).toBe(true);
   });
 });

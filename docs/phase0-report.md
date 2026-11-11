@@ -180,3 +180,15 @@ Still open: OFF User-Agent contact (email or GitHub URL) — needed in Phase 3.
 ## Correction (2026-11-12, during Phase 3)
 
 Open Food Facts **v3.6** returns nutrients in `product.nutrition.aggregated_set.nutrients` and an empty `nutriments`. My Phase 0 field-name test used the v3 endpoint, which still fills `nutriments`. Plates now reads both.
+
+## Brief v2 checks (2026-11-11)
+
+| # | Item | Status | Result |
+|---|---|---|---|
+| 11 | **Web push, Home Screen apps** | Confirmed (needs on-device test) | Works only from the **Home Screen app** (iOS 16.4+), permission must come from a tap, every push must show a notification. iOS 26 opens Home Screen sites as web apps by default. Plan: payload-free push signed with VAPID via Web Crypto (no extra library), scheduled by a **SQLite Durable Object alarm** (available on the free plan). Uses: rest-timer alert (normal notification sound, works locked, mirrors to Apple Watch, doesn't pause music) and optional reminders, off by default. |
+| 12 | **Charting library** | Confirmed | **uPlot 1.6.32, MIT, ~21 KB gzip**, canvas, fast on phones — recommended for Progress charts, loaded only on that tab. Chart.js 4.6.1, MIT, ~69 KB gzip — heavier. Tiny sparklines/muscle bars stay as the custom SVG already built (0 KB). |
+| 13 | **Chain calorie posting** | Confirmed | FDA: chains with **20+ locations**, same name, substantially the same menu must post calories and give written nutrition (calories, fats, cholesterol, sodium, carbs, sugar, fiber, protein) on request. Plates will look in saved foods / USDA branded / Open Food Facts first; it won't scrape restaurant sites. |
+| 14 | **Native-app feel** | Partly verified | `touch-action: manipulation` speeds taps and is widely reported to stop double-tap zoom (WebKit documents only the speed-up). `user-scalable=no` is ignored since iOS 10 — not used. `overscroll-behavior` works on Safari 16+. Needs your on-device test. |
+| 15 | **AI text-estimate cost** | Computed | ~800 input + ~600 output tokens (incl. thinking) on Haiku 5.5 ≈ **$0.0004 per estimate**, about half a two-photo scan. $1 cap ≈ 2,500 text estimates. |
+
+Sources: [OneSignal iOS web push](https://documentation.onesignal.com/docs/en/web-push-for-ios), [progressivewebapps.com iOS push](https://progressivewebapps.com/background/ios-web-push/), [Cloudflare DO free tier](https://developers.cloudflare.com/changelog/2025-04-07-durable-objects-free-tier), [FDA menu labeling](https://www.fda.gov/food/nutrition-food-labeling-and-critical-foods/menu-labeling-requirements), [WebKit: responsive tapping](https://webkit.org/blog/5610/more-responsive-tapping-on-iOS/), npm registry (uPlot, Chart.js).

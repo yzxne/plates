@@ -84,3 +84,36 @@ Report back: which items failed, and your iOS version (Settings → General → 
 - [ ] Routine page → chart with **Volume / Reps / Duration** and **1M / 3M / 1Y / All**.
 - [ ] Train → **Exercises** → an exercise → best set, est. 1RM chart, history; **Edit** works.
 - [ ] Train home → **Last 7 days** sets per muscle updates.
+
+## Brief v2 rework
+
+**Layout**
+- [ ] Tabs are **Today · Progress · + · Train**. Gear (top right of Today) opens Settings; back arrow closes it.
+- [ ] Double-tap buttons/lists: no zoom. Focus every input: no zoom. Long-press a button: no copy menu.
+
+**Today**
+- [ ] Swipe the date header left/right → next/previous day. ‹ › and tapping the date still work.
+- [ ] Weekly grid shows Mon–Sun; tap a day to jump to it.
+- [ ] **Weigh in** → number pre-filled with last weight → Save → Undo banner.
+- [ ] Swipe an entry **left** → deleted + Undo (tap Undo → it's back). Swipe **right** or tap → edit.
+- [ ] A meal's **⋯** → Copy from yesterday · Log saved meal · Save as a meal.
+- [ ] **Start next workout** card shows your next routine (once you have routines).
+
+**Add (+)**
+- [ ] The meal chip matches the time of day. Change it with one tap.
+- [ ] **Recent** shows foods with your last amount → one tap logs it + Undo/Edit banner; the screen stays open for more.
+- [ ] Press and hold a recent food → amount screen. Star (☆) there → it appears under **Favorites**.
+- [ ] Barcode button (in the search bar) → scan a food you've logged before → logs instantly with Undo/Edit.
+- [ ] Type in the search bar → your foods first → **Search USDA** → Open Food Facts.
+
+**First run**
+- [ ] The setup wizard shows once (4 steps). Everything is editable later: gear → Profile, goals & meal times.
+
+**Train**
+- [ ] **Start next workout** at the top; routines show ↑ ↓ to set the rotation order; the "next" tag moves after you finish a workout.
+- [ ] Starting a routine fills weight **and** reps from last time; ✓ accepts them.
+- [ ] **Weekly volume / Workouts per week** chart.
+
+**Rest-timer notifications** (Home Screen app only)
+- [ ] Gear → Rest-timer notifications → **Turn on** → Allow → **Send test** → lock the phone → the notification arrives.
+- [ ] In a workout, check a set, lock the phone → "Rest done" arrives when the timer ends. Music keeps playing.

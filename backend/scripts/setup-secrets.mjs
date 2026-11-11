@@ -2,9 +2,10 @@
 //   npm run setup-secrets -w backend                 -> all secrets
 //   npm run setup-secrets -w backend -- --passcode   -> only change the passcode
 //   npm run setup-secrets -w backend -- --google     -> only the Google client ID/secret
+//   npm run setup-secrets -w backend -- --push       -> new web-push (VAPID) keys
 // Requires `npx wrangler login` first.
 
-import { pbkdf2Sync, randomBytes } from 'node:crypto';
+import { generateKeyPairSync, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -79,6 +80,16 @@ async function setGoogle() {
   putSecret('GOOGLE_CLIENT_SECRET', secret);
 }
 
+/** Generates a VAPID key pair for web push and stores both halves as Worker secrets. */
+function setPush() {
+  const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const jwk = privateKey.export({ format: 'jwk' });
+  const pub = publicKey.export({ format: 'jwk' });
+  const raw = Buffer.concat([Buffer.from([4]), Buffer.from(pub.x, 'base64url'), Buffer.from(pub.y, 'base64url')]);
+  putSecret('VAPID_PRIVATE_JWK', JSON.stringify({ kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d }));
+  putSecret('VAPID_PUBLIC_KEY', b64url(raw));
+}
+
 async function setUsda() {
   const key = (await ask('USDA FoodData Central API key: ', { hidden: true })).trim();
   if (!key) { console.log('Empty. Skipped.'); return; }
@@ -93,6 +104,8 @@ try {
     await setGoogle();
   } else if (args.has('--usda')) {
     await setUsda();
+  } else if (args.has('--push')) {
+    setPush();
   } else {
     console.log('This sets your Plates backend secrets in Cloudflare. Nothing is saved on this PC.\n');
     putSecret('SESSION_SECRET', b64url(randomBytes(32)));

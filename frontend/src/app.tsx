@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'preact/hooks';
-import { defaultMeal, type Meal } from '../../shared/nutrition';
-import { getToken, onUnauthorized } from './api';
+import type { Meal } from '../../shared/nutrition';
+import { formatDuration, previousSets, type Exercise, type Routine, type Workout } from '../../shared/training';
+import { getActive, startWorkout, subscribeActive } from './activeWorkout';
+import { ApiError, getToken, onUnauthorized } from './api';
 import { TabBar, type TabId } from './components/TabBar';
 import { ToastHost } from './components/ToastHost';
-import { chicagoHour, today } from './dates';
+import { UndoHost } from './components/UndoHost';
+import { today } from './dates';
 import { queue } from './queue';
-import { getActive, startWorkout, subscribeActive } from './activeWorkout';
-import { formatDuration, type Exercise, type Routine, type Workout } from '../../shared/training';
-import { cachedHistory, exerciseMap, loadExercises, loadHistory } from './trainData';
 import { AddFlow } from './screens/AddFlow';
-import { FoodLog } from './screens/FoodLog';
 import { Logger } from './screens/Logger';
-import { Train } from './screens/Train';
 import { Login } from './screens/Login';
 import { More } from './screens/More';
-import { Placeholder } from './screens/Placeholder';
+import { Progress } from './screens/Progress';
+import { SetupWizard } from './screens/SetupWizard';
+import { Today } from './screens/Today';
+import { NextWorkoutCard, Train } from './screens/Train';
+import { loadSettings, mealNow } from './settingsStore';
 import { showToast } from './toast';
+import { cachedHistory, exerciseMap, loadExercises, loadHistory } from './trainData';
 
 const GOOGLE_ERRORS: Record<string, string> = {
   denied: 'Google sign-in was cancelled.',
@@ -39,9 +42,13 @@ function takeGoogleResult(): 'connected' | 'error' | null {
   return 'error';
 }
 
+type Setup = 'checking' | 'needs-connection' | 'needs-setup' | 'done';
+
 export function App() {
   const [authed, setAuthed] = useState(!!getToken());
-  const [tab, setTab] = useState<TabId>('dashboard');
+  const [tab, setTab] = useState<TabId>('today');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [setup, setSetup] = useState<Setup>('checking');
   const [adding, setAdding] = useState<{ meal: Meal } | null>(null);
   const [foodDate, setFoodDate] = useState(today());
   const [logVersion, setLogVersion] = useState(0);
@@ -50,25 +57,22 @@ export function App() {
   const [logger, setLogger] = useState<{ exercises: Exercise[]; history: Workout[] } | null>(null);
   useEffect(() => subscribeActive(() => setHasActive(!!getActive())), []);
 
-  async function openLogger() {
-    try {
-      const [exercises, history] = await Promise.all([loadExercises(), loadHistory()]);
-      setLogger({ exercises, history });
-    } catch {
-      setLogger({ exercises: [...exerciseMap().values()], history: cachedHistory() });
-    }
-  }
-  function start(routine?: Routine) {
-    if (!getActive()) startWorkout(routine, (id) => exerciseMap().get(id)?.rest_sec ?? 90);
-    void openLogger();
-  }
-  // "+" in the tab bar logs to the Food Log's day if you're on it, otherwise today.
-  const addDate = tab === 'food' ? foodDate : today();
-
   useEffect(() => {
     onUnauthorized(() => setAuthed(false));
-    if (takeGoogleResult()) setTab('more');
+    takeGoogleResult();
   }, []);
+
+  // Load settings after login; decide whether the first-run wizard is needed.
+  useEffect(() => {
+    if (!authed) return;
+    setSetup('checking');
+    loadSettings(true)
+      .then((v) => setSetup(v.setup_complete === 'true' ? 'done' : 'needs-setup'))
+      .catch((err) => {
+        const c = err instanceof ApiError ? err.code : '';
+        setSetup(['sheet_not_set_up', 'google_not_connected', 'google_reconnect'].includes(c) ? 'needs-connection' : 'done');
+      });
+  }, [authed]);
 
   // Retry unsaved writes when the app opens, comes back to the foreground, or the network returns.
   useEffect(() => {
@@ -84,6 +88,23 @@ export function App() {
     };
   }, [authed]);
 
+  async function openLogger() {
+    try {
+      const [exercises, history] = await Promise.all([loadExercises(), loadHistory()]);
+      setLogger({ exercises, history });
+    } catch {
+      setLogger({ exercises: [...exerciseMap().values()], history: cachedHistory() });
+    }
+  }
+  async function start(routine?: Routine) {
+    if (!getActive()) {
+      let history: Workout[] = cachedHistory();
+      try { await loadExercises(); history = await loadHistory(); } catch { /* start anyway */ }
+      startWorkout(routine, (id) => exerciseMap().get(id)?.rest_sec ?? 90, (id) => previousSets(id, history));
+    }
+    void openLogger();
+  }
+
   if (!authed) {
     return (
       <>
@@ -93,16 +114,21 @@ export function App() {
     );
   }
 
+  // Logging on Today keeps the day you're looking at; elsewhere it's today. The meal comes from the time windows.
+  const addDate = tab === 'today' ? foodDate : today();
+
   return (
     <div class={`app ${hasActive && !logger ? 'has-active' : ''}`}>
       <main class="screen">
-        {tab === 'dashboard' && <Placeholder title="Dashboard" phase={5} text="Your weekly nutrition, expenditure and weight trend will show here." />}
-        {tab === 'food' && <FoodLog date={foodDate} onDate={setFoodDate} onAdd={(meal) => setAdding({ meal })} version={logVersion} />}
+        {tab === 'today' && (
+          <Today date={foodDate} onDate={setFoodDate} onAdd={(meal) => setAdding({ meal })} onSettings={() => setSettingsOpen(true)} version={logVersion}
+            nextWorkout={foodDate === today() ? <NextWorkoutCard onStart={(r) => void start(r)} version={trainVersion} /> : null} />
+        )}
+        {tab === 'progress' && <Progress />}
         {tab === 'train' && <Train onStart={start} version={trainVersion} />}
-        {tab === 'more' && <More onLogout={() => setAuthed(false)} />}
       </main>
       {hasActive && !logger && <ActiveBar onOpen={openLogger} />}
-      <TabBar current={tab} onSelect={setTab} onAdd={() => setAdding({ meal: defaultMeal(chicagoHour()) })} />
+      <TabBar current={tab} onSelect={setTab} onAdd={() => setAdding({ meal: mealNow() })} />
       {adding && (
         <AddFlow
           date={addDate}
@@ -110,7 +136,7 @@ export function App() {
           onClose={() => setAdding(null)}
           onLogged={() => {
             setLogVersion((v) => v + 1);
-            if (tab !== 'food') { setFoodDate(addDate); setTab('food'); }
+            if (tab !== 'today') { setFoodDate(addDate); setTab('today'); }
           }}
         />
       )}
@@ -119,6 +145,11 @@ export function App() {
           onMinimize={() => setLogger(null)}
           onDone={() => { setLogger(null); setTrainVersion((v) => v + 1); }} />
       )}
+      {settingsOpen && <More onLogout={() => { setSettingsOpen(false); setAuthed(false); }} onClose={() => { setSettingsOpen(false); setLogVersion((v) => v + 1); }} />}
+      {(setup === 'needs-setup' || setup === 'needs-connection') && (
+        <SetupWizard needsConnection={setup === 'needs-connection'} onDone={() => { setSetup('done'); setLogVersion((v) => v + 1); }} />
+      )}
+      <UndoHost />
       <ToastHost />
     </div>
   );

@@ -8,6 +8,8 @@ import { corsHeaders, errorResponse, HttpError, json, parseOrigins, readJson } f
 import { allowRequest, lockStatus, recordFailure, recordSuccess } from './lockout';
 import { bearerToken, SESSION_TTL_SEC, signToken, STATE_TTL_SEC, verifyToken } from './session';
 import { lookupUsdaBarcode, searchOff, searchUsda } from './food';
+import { addSub, cancelRest, removeSub, scheduleRest, sendToAll, validEndpoint } from './push';
+export { RestTimer } from './push';
 import { checkTypedCode } from '../../shared/barcode';
 import { applyFilters, Sheets, type Filters } from './sheets';
 
@@ -260,6 +262,32 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (rows.some((r) => r[key] === undefined || r[key] === '')) throw new HttpError(400, 'missing_key', `Every row needs ${key}`);
     const saved = await (await sheetFor(env)).upsertBy(body.tab, key, rows);
     return json({ rows: saved });
+  }
+
+  // ---------- Push notifications ----------
+  if (method === 'GET' && path === '/push/key') {
+    if (!env.VAPID_PUBLIC_KEY) throw new HttpError(500, 'push_not_configured', 'Notifications are not set up on the backend yet');
+    return json({ key: env.VAPID_PUBLIC_KEY });
+  }
+  if (method === 'POST' && (path === '/push/subscribe' || path === '/push/unsubscribe')) {
+    const body = await readJson<{ endpoint?: unknown }>(request);
+    if (!validEndpoint(body.endpoint)) throw new HttpError(400, 'bad_endpoint', 'Not a recognised push endpoint');
+    if (path === '/push/subscribe') await addSub(env, body.endpoint); else await removeSub(env, body.endpoint);
+    return json({ ok: true });
+  }
+  if (method === 'POST' && path === '/push/rest') {
+    const body = await readJson<{ seconds?: unknown }>(request);
+    const seconds = Number(body.seconds);
+    if (!Number.isFinite(seconds) || seconds < 0 || seconds > 1800) throw new HttpError(400, 'bad_seconds', 'seconds must be 0–1800');
+    const at = await scheduleRest(env, seconds);
+    return json({ ok: true, at: new Date(at).toISOString() });
+  }
+  if (method === 'POST' && path === '/push/rest/cancel') {
+    await cancelRest(env);
+    return json({ ok: true });
+  }
+  if (method === 'POST' && path === '/push/test') {
+    return json(await sendToAll(env));
   }
 
   const barcodeMatch = /^\/food\/barcode\/(\d{8,14})$/.exec(path);

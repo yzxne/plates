@@ -28,7 +28,11 @@ export interface Food {
   serving_size: string; // human text, e.g. "2/3 cup (55 g)"
   grams_per_serving: number | null;
   per100: Nutrients;
+  favorite?: boolean;
 }
+
+/** Where a logged food came from (brief v2 §4). Blank = not specified. */
+export type FoodOrigin = 'restaurant' | 'cafeteria' | 'homemade' | 'packaged' | '';
 
 const OPTIONAL = ['fiber_g', 'sugar_g', 'sodium_mg'] as const;
 
@@ -128,6 +132,7 @@ export function foodToRow(f: Food): Row {
   } else {
     for (const k of ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg']) row[`${k}_serving`] = '';
   }
+  row.favorite = !!f.favorite;
   if (f.id) row.id = f.id;
   return row;
 }
@@ -142,6 +147,7 @@ export function rowToFood(r: Row): Food {
     barcode: String(r.barcode ?? ''),
     serving_size: String(r.serving_size ?? ''),
     grams_per_serving: num(r.grams_per_serving),
+    favorite: r.favorite === true || r.favorite === 'TRUE',
     per100: {
       kcal: num(r.kcal_100g) ?? 0,
       protein_g: num(r.protein_g_100g) ?? 0,
@@ -165,10 +171,16 @@ export interface LogEntry {
   n: Nutrients; // rounded totals for this entry
   entry_method: string;
   notes: string;
+  food_source: FoodOrigin;
+  place: string;
+  is_estimate: boolean;
 }
 
 /** Builds a FoodLog entry for `grams` of `food`. */
-export function makeEntry(args: { id: string; date: string; meal: Meal; food: Food; grams: number; method: string; notes?: string }): LogEntry {
+export function makeEntry(args: {
+  id: string; date: string; meal: Meal; food: Food; grams: number; method: string; notes?: string;
+  food_source?: FoodOrigin; place?: string; is_estimate?: boolean;
+}): LogEntry {
   const { food, grams } = args;
   return {
     id: args.id,
@@ -181,6 +193,9 @@ export function makeEntry(args: { id: string; date: string; meal: Meal; food: Fo
     n: roundNutrients(scale(food.per100, grams)),
     entry_method: args.method,
     notes: args.notes ?? '',
+    food_source: args.food_source ?? (food.source === 'off' || (food.source === 'usda' && !!food.brand) || food.barcode ? 'packaged' : ''),
+    place: args.place ?? '',
+    is_estimate: args.is_estimate ?? food.source === 'ai',
   };
 }
 
@@ -202,6 +217,9 @@ export function entryToRow(e: LogEntry): Row {
     sodium_mg: blank(e.n.sodium_mg),
     entry_method: e.entry_method,
     notes: e.notes,
+    food_source: e.food_source,
+    place: e.place,
+    is_estimate: e.is_estimate,
   };
 }
 
@@ -226,6 +244,9 @@ export function rowToEntry(r: Row): LogEntry {
     },
     entry_method: String(r.entry_method ?? ''),
     notes: String(r.notes ?? ''),
+    food_source: (['restaurant', 'cafeteria', 'homemade', 'packaged'].includes(String(r.food_source)) ? String(r.food_source) : '') as FoodOrigin,
+    place: String(r.place ?? ''),
+    is_estimate: r.is_estimate === true || r.is_estimate === 'TRUE',
   };
 }
 

@@ -2,7 +2,7 @@
 
 Personal nutrition + workout tracker. Mobile web app for iPhone Safari (Home Screen), dark mode, data stored in a Google Sheet the app creates.
 
-**Status:** Phase 1 (foundation) — app shell, passcode login, Google connection, spreadsheet creation, Settings.
+**Status:** Phases 0–4 built (food logging, barcode, workouts) + brief v2 rework (Today / Progress / + / Train). Next: Phase 5 (weight & coaching).
 
 ## Layout
 

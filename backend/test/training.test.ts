@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bestSet, epley1RM, exerciseToRow, MUSCLES, previousSets, routineRows, rowsToRoutines, rowsToWorkouts, rowToExercise,
+  bestSet, epley1RM, exerciseToRow, MUSCLES, nextRoutine, previousSets, weeklyTotals, routineRows, rowsToRoutines, rowsToWorkouts, rowToExercise,
   setsPerMuscle, starterExercises, volume, workoutRows, workoutTotals, type Exercise, type LoggedSet, type Routine, type Workout,
 } from '../../shared/training';
 
@@ -96,5 +96,26 @@ describe('training sheet rows', () => {
     expect(list.length).toBeGreaterThan(30);
     for (const e of list) for (const m of [...e.primary, ...e.secondary]) expect(MUSCLES as readonly string[]).toContain(m);
     expect(new Set(list.map((e) => e.name)).size).toBe(list.length);
+  });
+});
+
+describe('rotation and weekly totals', () => {
+  const r = (id: string, order: number): Routine => ({ id, name: id, notes: '', sort_order: order, items: [] });
+  const routines = [r('A', 0), r('B', 1), r('C', 2)];
+  const done = (routine_id: string, start: string): Workout => ({ id: id(), routine_id, name: routine_id, date: start.slice(0, 10), start_time: start, end_time: start, notes: '', exercises: [] });
+
+  it('picks the routine after the last one done, wrapping around', () => {
+    expect(nextRoutine(routines, [])?.id).toBe('A');
+    expect(nextRoutine(routines, [done('A', '2026-11-01T10:00:00Z')])?.id).toBe('B');
+    expect(nextRoutine(routines, [done('A', '2026-11-01T10:00:00Z'), done('C', '2026-11-03T10:00:00Z')])?.id).toBe('A');
+    expect(nextRoutine(routines, [done('', '2026-11-05T10:00:00Z'), done('B', '2026-11-03T10:00:00Z')])?.id).toBe('C'); // empty workouts don't move the rotation
+    expect(nextRoutine([], [])).toBeNull();
+  });
+
+  it('sums volume and workouts per Monday-start week', () => {
+    const w = workout('2026-11-10', '2026-11-10T10:00:00.000Z', { bench: [set({ weight_lb: 100, reps: 10 })] });
+    const weeks = weeklyTotals([w], '2026-11-12', 3);
+    expect(weeks.map((x) => x.week)).toEqual(['2026-10-26', '2026-11-02', '2026-11-09']);
+    expect(weeks[2]).toEqual({ week: '2026-11-09', volume: 1000, workouts: 1 });
   });
 });

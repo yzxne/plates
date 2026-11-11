@@ -1,7 +1,7 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const TABS = {
   Settings: ['id', 'key', 'value', 'created_at', 'updated_at'],
@@ -11,11 +11,15 @@ export const TABS = {
     'kcal_100g', 'protein_g_100g', 'carbs_g_100g', 'fat_g_100g', 'fiber_g_100g', 'sugar_g_100g', 'sodium_mg_100g',
     'kcal_serving', 'protein_g_serving', 'carbs_g_serving', 'fat_g_serving', 'fiber_g_serving', 'sugar_g_serving', 'sodium_mg_serving',
     'created_at', 'updated_at', 'deleted_at',
+    // v3
+    'favorite',
   ],
   FoodLog: [
     'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
     'kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg',
     'entry_method', 'notes', 'created_at', 'updated_at', 'deleted_at',
+    // v3
+    'food_source', 'place', 'is_estimate',
   ],
   Days: [
     'id', 'date', 'day_complete',
@@ -48,6 +52,10 @@ export const TABS = {
     'id', 'date', 'trend_weight_lb', 'expenditure_kcal', 'confidence', 'weekly_budget_kcal',
     'day_targets_json', 'reason', 'created_at', 'updated_at',
   ],
+  // v3: your usual portion sizes for AI estimates (Phase 6)
+  Portions: ['id', 'source', 'place', 'label', 'grams', 'measured', 'created_at', 'updated_at', 'deleted_at'],
+  // v3: several foods logged together with one tap ("usual breakfast")
+  SavedMeals: ['id', 'name', 'items_json', 'created_at', 'updated_at', 'deleted_at'],
   AIUsage: ['id', 'date', 'request_id', 'model', 'input_tokens', 'output_tokens', 'cost_usd', 'created_at', 'updated_at'],
 } as const satisfies Record<string, readonly string[]>;
 
@@ -68,7 +76,7 @@ export interface Option { value: string; label: string }
 export interface SettingField {
   key: string;
   label: string;
-  type: 'select' | 'number' | 'date' | 'days' | 'readonly';
+  type: 'select' | 'number' | 'date' | 'days' | 'text' | 'window' | 'hidden' | 'readonly';
   default: string;
   options?: Option[];
   unit?: string;
@@ -105,9 +113,16 @@ export const SETTINGS_FIELDS: SettingField[] = [
   { key: 'checkin_weekday', label: 'Check-in day', type: 'select', default: 'Mon',
     options: WEEKDAYS.map((d) => ({ value: d, label: d })) },
   { key: 'training_days', label: 'Training days', type: 'days', default: 'Mon,Wed,Fri' },
+  { key: 'breakfast_window', label: 'Breakfast time', type: 'window', default: '04:00-10:59',
+    help: 'Food logged in this window goes to Breakfast automatically.' },
+  { key: 'lunch_window', label: 'Lunch time', type: 'window', default: '11:00-15:59' },
+  { key: 'dinner_window', label: 'Dinner time', type: 'window', default: '16:00-20:59',
+    help: 'Anything outside these windows is a Snack.' },
+  { key: 'cafeteria_name', label: 'Cafeteria', type: 'text', default: '', help: 'Default place for "Cafeteria" AI estimates.' },
   { key: 'plate_diameter_in', label: 'Plate diameter', type: 'number', unit: 'in', min: 5, max: 16, step: 0.25, default: '10.5',
     help: 'Scale reference for AI meal photos.' },
   { key: 'ai_monthly_cap_usd', label: 'AI monthly cap', type: 'number', unit: 'USD', min: 0, max: 50, step: 0.5, default: '1' },
+  { key: 'setup_complete', label: 'Setup done', type: 'hidden', default: '' },
   { key: 'units', label: 'Units', type: 'readonly', default: 'lb' },
   { key: 'timezone', label: 'Time zone', type: 'readonly', default: 'America/Chicago' },
   { key: 'schema_version', label: 'Schema version', type: 'readonly', default: String(SCHEMA_VERSION) },
@@ -155,6 +170,20 @@ export function validateSettings(input: Record<string, unknown>): SettingsValida
         else clean[key] = value;
         break;
       }
+      case 'text':
+        if (value.length > 80) errors[key] = 'Keep it under 80 characters';
+        else clean[key] = value;
+        break;
+      case 'hidden':
+        if (value.length > 40) errors[key] = 'Too long';
+        else clean[key] = value;
+        break;
+      case 'window': {
+        const w = parseWindow(value);
+        if (!w) errors[key] = 'Use HH:MM-HH:MM, e.g. 11:00-15:59';
+        else clean[key] = value.replace(/\s+/g, '');
+        break;
+      }
       case 'days': {
         const parts = value.split(',').map((s) => s.trim()).filter(Boolean);
         const bad = parts.filter((p) => !(WEEKDAYS as readonly string[]).includes(p));
@@ -165,6 +194,30 @@ export function validateSettings(input: Record<string, unknown>): SettingsValida
     }
   }
   return { ok: Object.keys(errors).length === 0, errors, clean };
+}
+
+// ---------- Meal time windows ----------
+
+/** "11:00-15:59" → minutes since midnight [start, end] (end inclusive). */
+export function parseWindow(v: string): [number, number] | null {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/.exec(v);
+  if (!m) return null;
+  const [h1, m1, h2, m2] = [m[1], m[2], m[3], m[4]].map(Number) as [number, number, number, number];
+  if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) return null;
+  const a = h1 * 60 + m1;
+  const b = h2 * 60 + m2;
+  return b >= a ? [a, b] : null;
+}
+
+export type MealName = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+/** Meal for a clock time (minutes since midnight, America/Chicago), using the Settings windows. */
+export function mealForMinutes(minutes: number, settings: Record<string, string>): MealName {
+  for (const meal of ['breakfast', 'lunch', 'dinner'] as const) {
+    const w = parseWindow(settings[`${meal}_window`] ?? SETTINGS_DEFAULTS[`${meal}_window`] ?? '');
+    if (w && minutes >= w[0] && minutes <= w[1]) return meal;
+  }
+  return 'snack';
 }
 
 // ---------- Time helpers ----------

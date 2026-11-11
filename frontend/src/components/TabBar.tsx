@@ -1,6 +1,6 @@
-import { IconDashboard, IconFoodLog, IconMore, IconPlus, IconTrain } from './Icons';
+import { IconDashboard, IconPlus, IconTrain } from './Icons';
 
-export type TabId = 'dashboard' | 'food' | 'train' | 'more';
+export type TabId = 'today' | 'progress' | 'train';
 
 interface Props {
   current: TabId;
@@ -8,34 +8,29 @@ interface Props {
   onAdd: () => void;
 }
 
-const TABS: { id: TabId; label: string; Icon: (p: { size?: number }) => preact.JSX.Element }[] = [
-  { id: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
-  { id: 'food', label: 'Food Log', Icon: IconFoodLog },
-  { id: 'train', label: 'Train', Icon: IconTrain },
-  { id: 'more', label: 'More', Icon: IconMore },
-];
+const IconToday = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="4.5" />
+  </svg>
+);
 
+/** Today · Progress · (+) · Train (brief v2). */
 export function TabBar({ current, onSelect, onAdd }: Props) {
-  const button = (t: (typeof TABS)[number]) => (
-    <button
-      key={t.id}
-      class={`tab ${current === t.id ? 'active' : ''}`}
-      aria-current={current === t.id ? 'page' : undefined}
-      onClick={() => onSelect(t.id)}
-    >
-      <t.Icon />
-      <span>{t.label}</span>
+  const tab = (id: TabId, label: string, Icon: (p: { size?: number }) => preact.JSX.Element) => (
+    <button class={`tab ${current === id ? 'active' : ''}`} aria-current={current === id ? 'page' : undefined} onClick={() => onSelect(id)}>
+      <Icon />
+      <span>{label}</span>
     </button>
   );
   return (
-    <nav class="tabbar" aria-label="Main">
-      {button(TABS[0]!)}
-      {button(TABS[1]!)}
-      <button class="tab add" aria-label="Add" onClick={onAdd}>
+    <nav class="tabbar four" aria-label="Main">
+      {tab('today', 'Today', IconToday)}
+      {tab('progress', 'Progress', IconDashboard)}
+      <button class="tab add" aria-label="Add food" onClick={onAdd}>
         <span class="add-circle"><IconPlus size={26} /></span>
       </button>
-      {button(TABS[2]!)}
-      {button(TABS[3]!)}
+      {tab('train', 'Train', IconTrain)}
     </nav>
   );
 }

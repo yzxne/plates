@@ -12,6 +12,11 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   USDA_API_KEY?: string; // optional: falls back to USDA's DEMO_KEY (30 requests/hour)
+
+  // Web push (rest-timer notifications). Public key is not secret; private key is.
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_JWK?: string;
+  REST_TIMER?: DurableObjectNamespace;
 }
 
 export const REQUIRED_SECRETS = [

@@ -151,6 +151,43 @@ export function previousSets(exerciseId: string, history: Workout[], beforeIso?:
   return [];
 }
 
+/**
+ * Workout rotation: the routine after the one you did most recently, in routine order (wraps around).
+ * No history yet → the first routine.
+ */
+export function nextRoutine(routines: Routine[], history: Workout[]): Routine | null {
+  if (!routines.length) return null;
+  const last = [...history].filter((w) => w.end_time).sort((a, b) => b.start_time.localeCompare(a.start_time))
+    .find((w) => routines.some((r) => r.id === w.routine_id));
+  if (!last) return routines[0]!;
+  const i = routines.findIndex((r) => r.id === last.routine_id);
+  return routines[(i + 1) % routines.length]!;
+}
+
+/** Totals per calendar week (Mon start) for the last `weeks` weeks, oldest first. */
+export function weeklyTotals(history: Workout[], todayDate: string, weeks = 12): { week: string; volume: number; workouts: number }[] {
+  const monday = (d: string) => {
+    const x = new Date(`${d}T12:00:00Z`);
+    x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7));
+    return x.toISOString().slice(0, 10);
+  };
+  const start = new Date(`${monday(todayDate)}T12:00:00Z`);
+  const out: { week: string; volume: number; workouts: number }[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const d = new Date(start); d.setUTCDate(d.getUTCDate() - i * 7);
+    out.push({ week: d.toISOString().slice(0, 10), volume: 0, workouts: 0 });
+  }
+  const byWeek = new Map(out.map((o) => [o.week, o]));
+  for (const w of history) {
+    if (!w.end_time) continue;
+    const o = byWeek.get(monday(w.date));
+    if (!o) continue;
+    o.workouts += 1;
+    o.volume += workoutTotals(w).volume;
+  }
+  return out;
+}
+
 export function formatDuration(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);

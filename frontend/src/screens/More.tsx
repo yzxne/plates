@@ -1,15 +1,15 @@
 import { useState } from 'preact/hooks';
 import { clearToken } from '../api';
 import { ConnectionCard } from '../components/ConnectionCard';
-import { IconChevron } from '../components/Icons';
+import { IconBack, IconChevron } from '../components/Icons';
+import { NotificationsCard } from '../components/NotificationsCard';
 import { PendingCard } from '../components/PendingCard';
 import { SavedFoods } from './SavedFoods';
 import { Settings } from './Settings';
 
-export function More({ onLogout }: { onLogout: () => void }) {
+/** Settings hub, opened from the gear icon on Today (brief v2: not a tab). */
+export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () => void }) {
   const [view, setView] = useState<'menu' | 'settings' | 'foods'>('menu');
-  if (view === 'settings') return <Settings onBack={() => setView('menu')} />;
-  if (view === 'foods') return <SavedFoods onBack={() => setView('menu')} />;
 
   function logout() {
     if (!confirm('Log out of Plates on this device?')) return;
@@ -18,25 +18,34 @@ export function More({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <section>
-      <header class="screen-head"><h1>More</h1></header>
-      <PendingCard />
-      <ConnectionCard />
-      <div class="list card">
-        <button class="row" onClick={() => setView('settings')}>
-          <span>Settings</span><IconChevron size={18} />
-        </button>
-        <button class="row" onClick={() => setView('foods')}>
-          <span>Saved foods</span><IconChevron size={18} />
-        </button>
-        <div class="row disabled"><span>Strategy</span><small>Phase 5</small></div>
-        <div class="row disabled"><span>Weight</span><small>Phase 5</small></div>
-        <div class="row disabled"><span>AI usage</span><small>Phase 6</small></div>
-        <div class="row disabled"><span>Exports</span><small>Phase 7</small></div>
-        <div class="row disabled"><span>Imports</span><small>Phase 7</small></div>
+    <div class="overlay settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="overlay-body">
+        {view === 'settings' && <Settings onBack={() => setView('menu')} />}
+        {view === 'foods' && <SavedFoods onBack={() => setView('menu')} />}
+        {view === 'menu' && (
+          <section>
+            <header class="screen-head with-back">
+              <button class="icon-btn" aria-label="Close settings" onClick={onClose}><IconBack /></button>
+              <h1>Settings</h1>
+            </header>
+            <PendingCard />
+            <div class="list card">
+              <button class="row" onClick={() => setView('settings')}>
+                <span class="row-text"><span>Profile, goals & meal times</span><small class="muted">Body, goal, training days, meal windows, cafeteria</small></span>
+                <IconChevron size={18} />
+              </button>
+              <button class="row" onClick={() => setView('foods')}><span>Saved foods</span><IconChevron size={18} /></button>
+              <div class="row disabled"><span>AI usage</span><small>Phase 6</small></div>
+              <div class="row disabled"><span>Exports</span><small>Phase 7</small></div>
+              <div class="row disabled"><span>Imports</span><small>Phase 7</small></div>
+            </div>
+            <NotificationsCard />
+            <ConnectionCard />
+            <button class="btn link danger center" onClick={logout}>Log out</button>
+            <p class="muted center tiny">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
+          </section>
+        )}
       </div>
-      <button class="btn link danger center" onClick={logout}>Log out</button>
-      <p class="muted center tiny">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
-    </section>
+    </div>
   );
 }

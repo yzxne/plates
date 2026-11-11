@@ -144,3 +144,133 @@ export function dayOutOfDate(day: DayData): boolean {
   return Number(r.total_kcal) !== t.kcal || Number(r.total_protein_g) !== t.protein_g
     || Number(r.total_carbs_g) !== t.carbs_g || Number(r.total_fat_g) !== t.fat_g;
 }
+
+// ---------- Week view (Today screen) ----------
+
+export interface WeekData {
+  days: Map<string, DayData>; // every date in the range, even empty ones
+}
+
+/** Loads FoodLog + Days for a date range in one request. */
+export async function loadRange(from: string, to: string): Promise<WeekData> {
+  const d = await readTabs(['FoodLog', 'Days'], {
+    FoodLog: { date__gte: from, date__lte: to },
+    Days: { date__gte: from, date__lte: to },
+  });
+  const days = new Map<string, DayData>();
+  for (let cur = from; cur <= to; cur = nextDate(cur)) {
+    days.set(cur, { entries: [], pendingIds: new Set(), dayComplete: false, dayRow: null });
+  }
+  for (const r of d.FoodLog ?? []) days.get(String(r.date))?.entries.push(rowToEntry(r));
+  for (const r of d.Days ?? []) {
+    const day = days.get(String(r.date));
+    if (day && !day.dayRow) {
+      day.dayRow = r;
+      day.dayComplete = r.day_complete === true || r.day_complete === 'TRUE';
+    }
+  }
+  for (const [date, day] of days) {
+    const seen = new Set(day.entries.map((e) => e.id));
+    const pending = pendingEntries(date).filter((e) => !seen.has(e.id));
+    day.entries.push(...pending);
+    day.pendingIds = new Set(pending.map((e) => e.id));
+  }
+  return { days };
+}
+
+function nextDate(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Monday of the week containing `date`. */
+export function weekStart(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  const dow = (d.getUTCDay() + 6) % 7; // Mon = 0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Copies a meal's entries from one date to another (new ids). Returns the new entries. */
+export async function copyEntries(entries: LogEntry[], toDate: string): Promise<{ copied: LogEntry[]; ok: boolean }> {
+  const copied = entries.map((e) => ({ ...e, id: uuid(), date: toDate, entry_method: 'copy' }));
+  if (!copied.length) return { copied, ok: true };
+  const ok = await write('/sheet/append', { tab: 'FoodLog', rows: copied.map(entryToRow) }, `Copy ${copied.length} item(s)`);
+  return { copied, ok };
+}
+
+// ---------- Recents and last-used amounts ----------
+
+export interface RecentFood { food: Food; grams: number; lastLogged: string }
+
+/** Distinct foods from the last 60 days of the log, newest first, with the last amount used. */
+export async function loadRecents(today: string): Promise<RecentFood[]> {
+  const from = new Date(`${today}T12:00:00Z`);
+  from.setUTCDate(from.getUTCDate() - 60);
+  const [d, foods] = await Promise.all([
+    readTabs(['FoodLog'], { FoodLog: { date__gte: from.toISOString().slice(0, 10) } }),
+    loadFoods(),
+  ]);
+  const byId = new Map(foods.map((f) => [f.id!, f]));
+  const rows = [...(d.FoodLog ?? [])].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+  const out: RecentFood[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const id = String(r.food_id ?? '');
+    const food = byId.get(id);
+    if (!id || !food || seen.has(id) || !(Number(r.grams) > 0)) continue;
+    seen.add(id);
+    out.push({ food, grams: Number(r.grams), lastLogged: String(r.date) });
+    lastGrams.set(id, Number(r.grams));
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+
+const lastGrams = new Map<string, number>();
+
+/** Last amount used for a food, else one serving, else 100 g. */
+export function defaultGrams(food: Food): number {
+  return (food.id && lastGrams.get(food.id)) || food.grams_per_serving || 100;
+}
+
+export function rememberGrams(food: Food, grams: number): void {
+  if (food.id) lastGrams.set(food.id, grams);
+}
+
+export async function setFavorite(food: Food, favorite: boolean): Promise<Food> {
+  const saved = await saveFood(food);
+  const next = { ...saved, favorite };
+  await write('/sheet/update', { tab: 'Foods', rows: [{ id: next.id!, favorite }] }, `${favorite ? 'Favorite' : 'Unfavorite'}: ${food.name}`);
+  foodsCache = (foodsCache ?? []).map((f) => (f.id === next.id ? next : f));
+  return next;
+}
+
+// ---------- Saved meals ----------
+
+export interface SavedMealItem { food_id: string; grams: number }
+export interface SavedMeal { id: string; name: string; items: SavedMealItem[] }
+
+export async function loadSavedMeals(): Promise<SavedMeal[]> {
+  const d = await readTabs(['SavedMeals']);
+  return (d.SavedMeals ?? []).map((r) => {
+    let items: SavedMealItem[] = [];
+    try { items = JSON.parse(String(r.items_json || '[]')); } catch { items = []; }
+    return { id: String(r.id), name: String(r.name ?? ''), items: Array.isArray(items) ? items : [] };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createSavedMeal(name: string, entries: LogEntry[]): Promise<SavedMeal> {
+  const meal: SavedMeal = {
+    id: uuid(),
+    name,
+    items: entries.filter((e) => e.food_id && e.grams).map((e) => ({ food_id: e.food_id, grams: e.grams! })),
+  };
+  await write('/sheet/append', { tab: 'SavedMeals', rows: [{ id: meal.id, name, items_json: JSON.stringify(meal.items) }] }, `Saved meal: ${name}`);
+  return meal;
+}
+
+export async function deleteSavedMeal(m: SavedMeal): Promise<void> {
+  await write('/sheet/update', { tab: 'SavedMeals', rows: [{ id: m.id, deleted_at: new Date().toISOString() }] }, `Delete saved meal: ${m.name}`);
+}

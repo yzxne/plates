@@ -52,3 +52,7 @@ Nothing already built is wasted: the backend, Sheet, search, barcode, label pars
 1. Short Phase 0 check of the new items above.
 2. **Rework batch** (Phases 1–4 items above), shipped in two deploys: (a) navigation + Today + settings + wizard + native feel, (b) add-screen shortcuts + swipe/Undo + saved meals + rotation + charts.
 3. Then continue with **Phase 5** (weight & coaching, Progress tab).
+
+## Status (2026-11-11)
+
+Done: Phase 0 checks; 4-tab layout + gear Settings; Today (macro bars, weekly grid, quick weigh-in, start next workout, swipe edit/delete with Undo, copy from yesterday, saved meals); first-run wizard; meal time windows; one-screen add with Recent/Favorites, one-tap re-log with Undo, long-press for amount; barcode match logs immediately with Undo/Edit; Train rotation + pre-filled weight/reps + weekly volume/frequency charts; rest-timer push notifications; native-feel CSS. Waiting on: Progress charts (Phase 5), AI features (Phase 6).

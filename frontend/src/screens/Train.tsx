@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  bestSet, epley1RM, formatDuration, isWorkingSet, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, workoutTotals,
+  bestSet, epley1RM, formatDuration, isWorkingSet, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
   type Exercise, type PlannedSet, type Routine, type RoutineItem, type SetType, type Workout,
 } from '../../../shared/training';
 import { getActive } from '../activeWorkout';
@@ -9,7 +9,7 @@ import { BarChart, MuscleBars, type Point } from '../components/Charts';
 import { ExercisePicker, NewExercise } from '../components/ExercisePicker';
 import { IconBack, IconChevron } from '../components/Icons';
 import { shiftDate, today } from '../dates';
-import { uuid } from '../foodData';
+import { uuid, write } from '../foodData';
 import { fmt } from '../format';
 import { showToast } from '../toast';
 import {
@@ -36,6 +36,7 @@ export function Train({ onStart, version }: Props) {
   const [routines, setRoutines] = useState<Routine[] | null>(null);
   const [history, setHistory] = useState<Workout[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [weeklyMetric, setWeeklyMetric] = useState<'volume' | 'workouts'>('volume');
 
   async function load(force = false) {
     setError(null);
@@ -104,6 +105,20 @@ export function Train({ onStart, version }: Props) {
   const weekAgo = shiftDate(today(), -6);
   const thisWeek = history.filter((w) => w.date >= weekAgo);
   const active = getActive();
+  const next = nextRoutine(routines, history);
+
+  async function move(i: number, dir: -1 | 1) {
+    const list = [...(routines ?? [])];
+    const [r] = list.splice(i, 1);
+    list.splice(i + dir, 0, r!);
+    const reordered = list.map((x, idx) => ({ ...x, sort_order: idx }));
+    setRoutines(reordered);
+    try {
+      await write('/sheet/update', { tab: 'Routines', rows: reordered.map((x) => ({ id: x.id, sort_order: x.sort_order })) }, 'Routine order');
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+    }
+  }
 
   return (
     <section>
@@ -119,19 +134,31 @@ export function Train({ onStart, version }: Props) {
         </div>
       )}
 
-      <button class="btn primary mb" disabled={!!active} onClick={() => onStart()}>Start empty workout</button>
+      {next && (
+        <button class="btn primary next-btn" disabled={!!active} onClick={() => onStart(next)}>
+          <span>Start next workout</span><strong>{next.name}</strong>
+        </button>
+      )}
+      <button class={`btn ${next ? 'link center' : 'primary'} mb`} disabled={!!active} onClick={() => onStart()}>Start empty workout</button>
 
       <div class="section-head">
         <h2>Routines</h2>
         <button class="btn link" onClick={() => setView({ kind: 'edit', isNew: true, routine: { id: uuid(), name: '', notes: '', sort_order: routines.length, items: [] } })}>+ New</button>
       </div>
       {routines.length === 0 && <p class="muted">No routines yet. Create one, or start an empty workout.</p>}
-      {routines.map((r) => (
-        <div class="card routine-card" key={r.id}>
+      {routines.length > 1 && <p class="muted tiny-pad">Rotation goes top to bottom. Use ↑ ↓ to reorder.</p>}
+      {routines.map((r, i) => (
+        <div class={`card routine-card ${next?.id === r.id ? 'is-next' : ''}`} key={r.id}>
           <button class="routine-main" onClick={() => setView({ kind: 'routine', id: r.id })}>
-            <strong>{r.name}</strong>
-            <small class="muted clip">{r.items.map((i) => exMap.get(i.exercise_id)?.name ?? '?').join(', ') || 'No exercises'}</small>
+            <strong>{r.name}{next?.id === r.id ? <span class="tag next">next</span> : null}</strong>
+            <small class="muted clip">{r.items.map((it) => exMap.get(it.exercise_id)?.name ?? '?').join(', ') || 'No exercises'}</small>
           </button>
+          {routines.length > 1 && (
+            <span class="reorder">
+              <button class="icon-btn small" aria-label={`Move ${r.name} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+              <button class="icon-btn small" aria-label={`Move ${r.name} down`} disabled={i === routines.length - 1} onClick={() => move(i, 1)}>↓</button>
+            </span>
+          )}
           <button class="btn" disabled={!!active} onClick={() => onStart(r)}>Start</button>
         </div>
       ))}
@@ -140,6 +167,16 @@ export function Train({ onStart, version }: Props) {
         <h2>Last 7 days</h2>
         <p class="muted">{thisWeek.length} workout{thisWeek.length === 1 ? '' : 's'} · sets per muscle</p>
         <MuscleBars counts={setsPerMuscle(thisWeek, exMap)} />
+      </div>
+
+      <div class="card">
+        <div class="seg mb">
+          <button class={weeklyMetric === 'volume' ? 'on' : ''} onClick={() => setWeeklyMetric('volume')}>Weekly volume</button>
+          <button class={weeklyMetric === 'workouts' ? 'on' : ''} onClick={() => setWeeklyMetric('workouts')}>Workouts / week</button>
+        </div>
+        <BarChart unit={weeklyMetric === 'volume' ? 'lb' : 'workouts'}
+          points={weeklyTotals(history, today(), 12).map((w) => ({ label: w.week.slice(5).replace('-', '/'), value: weeklyMetric === 'volume' ? w.volume : w.workouts }))} />
+        <small class="muted">Last 12 weeks (Mon–Sun). Volume counts working sets only.</small>
       </div>
 
       <div class="list card">
@@ -461,5 +498,25 @@ function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Ex
         ))}
       </div>
     </section>
+  );
+}
+
+/** "Start next workout" card for Today (next routine in the rotation). */
+export function NextWorkoutCard({ onStart, version }: { onStart: (r: Routine) => void; version: number }) {
+  const [next, setNext] = useState<Routine | null>(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([loadRoutines(), loadHistory()])
+      .then(([r, h]) => { if (alive) setNext(nextRoutine(r, h)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [version]);
+  if (!next) return null;
+  const active = getActive();
+  return (
+    <button class="card next-card" disabled={!!active} onClick={() => onStart(next)}>
+      <span class="row-text"><small class="muted">{active ? 'Workout in progress' : 'Start next workout'}</small><strong>{next.name}</strong></span>
+      <span class="plus-chip" aria-hidden="true">▶</span>
+    </button>
   );
 }

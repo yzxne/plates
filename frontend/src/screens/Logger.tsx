@@ -10,6 +10,7 @@ import { ExercisePicker } from '../components/ExercisePicker';
 import { IconClose } from '../components/Icons';
 import { RestTimer } from '../components/RestTimer';
 import { fmt } from '../format';
+import { cancelRestPush, scheduleRestPush } from '../push';
 import { unlockAudio } from '../sound';
 import { showToast } from '../toast';
 import { saveWorkout } from '../trainData';
@@ -44,7 +45,10 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     if (!cur) return;
     setActive({ workout: fn(structuredClone(cur.workout)), rest: rest === undefined ? cur.rest : rest });
   };
-  const setRest = (r: Rest | null) => update((x) => x, r);
+  const setRest = (r: Rest | null) => {
+    if (r) scheduleRestPush((r.endsAt - Date.now()) / 1000); else cancelRestPush();
+    update((x) => x, r);
+  };
 
   const totals = workoutTotals({ ...w, end_time: new Date(now).toISOString() });
 
@@ -63,6 +67,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     if (s.reps == null) fill.reps = prev?.reps ?? s.rep_max ?? s.rep_min ?? null;
     if (fill.reps == null && s.reps == null) { showToast('Enter reps first', 'error'); return; }
     const rest = ex.rest_sec > 0 ? { endsAt: Date.now() + ex.rest_sec * 1000, total: ex.rest_sec } : null;
+    if (rest) scheduleRestPush(ex.rest_sec);
     update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
   }
 
@@ -93,13 +98,16 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   function addExercise(e: Exercise) {
     setPicking(false);
     update((x) => {
-      x.exercises.push({ exercise_id: e.id, rest_sec: e.rest_sec, note: '', sets: [newSet()] });
+      const prev = previousSets(e.id, history);
+      const sets = prev.length ? prev.map((p) => newSet({ type: p.type, weight_lb: p.weight_lb, reps: p.reps })) : [newSet()];
+      x.exercises.push({ exercise_id: e.id, rest_sec: e.rest_sec, note: '', sets });
       return x;
     });
   }
 
   function discard() {
     if (!confirm('Discard this workout? Nothing will be saved.')) return;
+    cancelRestPush();
     setActive(null);
     onDone();
   }
@@ -119,6 +127,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     };
     setSaving(true);
     try {
+      cancelRestPush();
       const ok = await saveWorkout(final);
       setActive(null);
       if (!ok) showToast('Saved on this phone — will upload when the connection is back', 'error', 6000);

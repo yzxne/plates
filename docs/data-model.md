@@ -1,6 +1,6 @@
 # Data Model (Google Sheet)
 
-Source of truth: `shared/schema.ts`. Schema version **2** (v2 added `Workouts.name` and `Workouts.exercise_notes_json`).
+Source of truth: `shared/schema.ts`. Schema version **3**. v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
 
 ## Conventions
 
@@ -31,6 +31,9 @@ Key/value pairs. `id, key, value, created_at, updated_at`. All values are text.
 | checkin_weekday | Mon–Sun | Mon |
 | training_days | comma list, e.g. `Mon,Wed,Fri` | Mon,Wed,Fri |
 | plate_diameter_in | AI scale reference | 10.5 |
+| breakfast_window / lunch_window / dinner_window | Meal time windows (HH:MM-HH:MM); anything else is Snack | 04:00-10:59 / 11:00-15:59 / 16:00-20:59 |
+| cafeteria_name | Default place for Cafeteria AI estimates | — |
+| setup_complete | First-run wizard done | — |
 | ai_monthly_cap_usd | AI spend cap | 1 |
 | units | read-only | lb |
 | timezone | read-only | America/Chicago |
@@ -74,10 +77,20 @@ One row per set. `id, workout_id → Workouts.id, exercise_id → Exercises.id, 
 ### CheckIns
 `id, date, trend_weight_lb, expenditure_kcal, confidence (low data|settling|stable), weekly_budget_kcal, day_targets_json, reason, created_at, updated_at`
 
+### Portions (v3)
+Your usual portion sizes for AI estimates (Phase 6). `id, source (restaurant|cafeteria|homemade), place, label, grams, measured (weighed|estimated), created_at, updated_at, deleted_at`
+
+### SavedMeals (v3)
+Several foods logged together with one tap. `id, name, items_json, created_at, updated_at, deleted_at`. `items_json`: `[{"food_id":"…","grams":60}]`. **Not in the brief's tab list** — added for the brief's "Saved meals" feature.
+
 ### AIUsage
 `id, date, request_id, model, input_tokens, output_tokens, cost_usd, created_at, updated_at`
 
 ## Changes from the brief
+
+- **SavedMeals** tab (brief lists the feature but no tab).
+- Workout rotation order = **Routines.sort_order** (reorder with ↑ ↓ on Train) rather than a separate Settings key.
+- `FoodLog.food_source` is set to `packaged` automatically for barcode / Open Food Facts / USDA branded foods.
 
 - **RoutineExercises** tab added (brief had routines' exercise lists nested in Routines). Keeps each tab flat so it maps 1:1 to database tables later.
 - `deleted_at` soft-delete column on editable tabs.

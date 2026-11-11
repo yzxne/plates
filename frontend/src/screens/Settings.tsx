@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { SETTINGS_DEFAULTS, SETTINGS_FIELDS, validateSettings, WEEKDAYS, type SettingField } from '../../../shared/schema';
-import { api, ApiError, errorMessage } from '../api';
+import { ApiError, errorMessage } from '../api';
+import { loadSettings, saveSettings } from '../settingsStore';
 import { IconBack } from '../components/Icons';
 import { mergeSettingsBodies, queue } from '../queue';
 import { showToast } from '../toast';
@@ -25,7 +26,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
   async function load() {
     setLoadError(null);
     try {
-      const res = await api<{ settings: Values }>('GET', '/sheet/settings');
+      const res = { settings: await loadSettings(true) };
       setSaved(res.settings);
       setValues({ ...res.settings, ...pendingSettings() }); // unsent edits stay visible
     } catch (err) {
@@ -58,7 +59,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
     setSaving(true);
     setBanner('');
     try {
-      const res = await api<{ settings: Values }>('PUT', '/sheet/settings', { settings: v.clean });
+      const res = { settings: await saveSettings(v.clean) };
       setSaved(res.settings);
       setValues(res.settings);
       const p = queue.find(SETTINGS_KEY);
@@ -98,7 +99,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
       {hasPending && !banner && <div class="card warn">Some changes haven't reached the Sheet yet. Save again or use Retry on the More screen.</div>}
 
       <form class="card form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        {SETTINGS_FIELDS.filter((f) => f.key !== 'schema_version').map((f) => (
+        {SETTINGS_FIELDS.filter((f) => f.key !== 'schema_version' && f.type !== 'hidden').map((f) => (
           <Field key={f.key} field={f} value={values[f.key] ?? ''} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
         ))}
         <button class="btn primary sticky-save" type="submit" disabled={saving || !!loadError || Object.keys(changed).length === 0}>
@@ -114,7 +115,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
   );
 }
 
-function Field({ field, value, error, onChange }: { field: SettingField; value: string; error?: string; onChange: (v: string) => void }) {
+export function Field({ field, value, error, onChange }: { field: SettingField; value: string; error?: string; onChange: (v: string) => void }) {
   const id = `f-${field.key}`;
   let control: preact.JSX.Element;
   switch (field.type) {
@@ -135,6 +136,20 @@ function Field({ field, value, error, onChange }: { field: SettingField; value: 
         </div>
       );
       break;
+    case 'text':
+      control = <input id={id} type="text" value={value} onInput={(e) => onChange(e.currentTarget.value)} />;
+      break;
+    case 'window': {
+      const [a = '', b = ''] = value.split('-');
+      control = (
+        <div class="with-unit" role="group" aria-labelledby={`${id}-label`}>
+          <input id={id} type="time" value={a} aria-label={`${field.label} start`} onInput={(e) => onChange(`${e.currentTarget.value}-${b}`)} />
+          <span class="unit">to</span>
+          <input type="time" value={b} aria-label={`${field.label} end`} onInput={(e) => onChange(`${a}-${e.currentTarget.value}`)} />
+        </div>
+      );
+      break;
+    }
     case 'date':
       control = <input id={id} type="date" value={value} onInput={(e) => onChange(e.currentTarget.value)} />;
       break;
