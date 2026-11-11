@@ -83,9 +83,9 @@ export function BarcodeScanner({ onCode }: Props) {
         const v = video.current!;
         v.srcObject = s;
         await v.play().catch(() => {});
-        const track = s.getVideoTracks()[0];
-        const caps = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean };
-        setTorch(caps.torch ? false : null);
+        // Always offer the flash: iPhones often don't report torch support even when it works,
+        // so we just try it when tapped (WebKit bugs 243075 / 270779).
+        setTorch(s.getVideoTracks().length ? false : null);
         setStatus('scanning');
         void tick();
       } catch (err) {
@@ -117,9 +117,11 @@ export function BarcodeScanner({ onCode }: Props) {
     if (!track || torch === null) return;
     try {
       await track.applyConstraints({ advanced: [{ torch: !torch } as MediaTrackConstraintSet] });
+      // Track our own state: iOS 18 can report the old value from getSettings() (WebKit bug 280970).
       setTorch(!torch);
     } catch {
       setTorch(null);
+      showToast('This browser won\'t let Plates use the flash. Tap "Use a photo" — the iPhone camera there has its own flash.', 'error', 7000);
     }
   }
 
@@ -164,7 +166,7 @@ export function BarcodeScanner({ onCode }: Props) {
           <input type="file" accept="image/*" capture="environment" class="visually-hidden" onChange={onPhoto} disabled={photoBusy} />
         </label>
         <button class="btn" onClick={() => setTyping(!typing)}>Type number</button>
-        {torch !== null && <button class="btn" aria-pressed={torch} onClick={toggleTorch}>{torch ? 'Light off' : 'Light'}</button>}
+        {torch !== null && <button class={`btn ${torch ? 'on' : ''}`} aria-pressed={torch} onClick={toggleTorch}>{torch ? 'Flash off' : 'Flash'}</button>}
       </div>
 
       {typing && (

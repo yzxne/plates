@@ -396,7 +396,7 @@ function LabelPaste({ onSaved, barcode, manual }: { onSaved: (f: Food) => void; 
     return (
       <div class="card">
         <p class="muted"><strong>Scan it live:</strong> tap the box below twice → <strong>Scan Text</strong> (may show as a small icon or under ›) → point at the label → <strong>Insert</strong>.</p>
-        <p class="muted">Or from a photo: press and hold the text → <strong>Select All</strong> → <strong>Copy</strong>, then paste here.</p>
+        <p class="muted"><strong>Too dark?</strong> Scan Text has no flash. Take the photo with the iPhone Camera app (flash on), open it in Photos, press and hold the text → <strong>Select All</strong> → <strong>Copy</strong>, then paste here.</p>
         <textarea rows={10} placeholder="Paste label text" value={text} onInput={(e) => setText(e.currentTarget.value)} />
         <button class="btn primary" disabled={text.trim().length < 10} onClick={read}>Read label</button>
       </div>
