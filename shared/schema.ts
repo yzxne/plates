@@ -1,7 +1,15 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
+
+const FOOD_LOG_COLUMNS = [
+  'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
+  'kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg',
+  'entry_method', 'notes', 'created_at', 'updated_at', 'deleted_at',
+  // v3
+  'food_source', 'place', 'is_estimate',
+] as const;
 
 export const TABS = {
   Settings: ['id', 'key', 'value', 'created_at', 'updated_at'],
@@ -14,13 +22,7 @@ export const TABS = {
     // v3
     'favorite',
   ],
-  FoodLog: [
-    'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
-    'kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg',
-    'entry_method', 'notes', 'created_at', 'updated_at', 'deleted_at',
-    // v3
-    'food_source', 'place', 'is_estimate',
-  ],
+  FoodLog: FOOD_LOG_COLUMNS,
   Days: [
     'id', 'date', 'day_complete',
     'total_kcal', 'total_protein_g', 'total_carbs_g', 'total_fat_g',
@@ -57,6 +59,8 @@ export const TABS = {
   // v3: several foods logged together with one tap ("usual breakfast")
   SavedMeals: ['id', 'name', 'items_json', 'created_at', 'updated_at', 'deleted_at'],
   AIUsage: ['id', 'date', 'request_id', 'model', 'input_tokens', 'output_tokens', 'cost_usd', 'created_at', 'updated_at'],
+  // v4: imported food history (same columns as FoodLog). Kept separate so daily reads of FoodLog stay small and fast.
+  FoodArchive: FOOD_LOG_COLUMNS,
 } as const satisfies Record<string, readonly string[]>;
 
 export type TabName = keyof typeof TABS;
@@ -192,6 +196,8 @@ export const SETTINGS_FIELDS: SettingField[] = [
     help: 'Longer = steadier but slower to react.',
     presets: [{ value: '14', label: '2 weeks' }, { value: '21', label: '3 weeks' }, { value: '28', label: '4 weeks' }] },
   { key: 'setup_complete', label: 'Setup done', type: 'hidden', default: '' },
+  // Last date that has entries in the FoodArchive tab (set by imports). Days on or before it also read FoodArchive.
+  { key: 'archive_through', label: 'Food archive through', type: 'hidden', default: '' },
   { key: 'units', label: 'Units', type: 'readonly', default: 'lb' },
   { key: 'timezone', label: 'Time zone', type: 'readonly', default: 'America/Chicago' },
   { key: 'schema_version', label: 'Schema version', type: 'readonly', default: String(SCHEMA_VERSION) },

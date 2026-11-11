@@ -1,6 +1,6 @@
 # Data Model (Google Sheet)
 
-Source of truth: `shared/schema.ts`. Schema version **3**. v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
+Source of truth: `shared/schema.ts`. Schema version **4**. v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
 
 ## Conventions
 
@@ -34,6 +34,7 @@ Key/value pairs. `id, key, value, created_at, updated_at`. All values are text.
 | breakfast_window / lunch_window / dinner_window | Meal time windows (HH:MM-HH:MM); anything else is Snack | 04:00-10:59 / 11:00-15:59 / 16:00-20:59 |
 | cafeteria_name | Default place for Cafeteria AI estimates | — |
 | setup_complete | First-run wizard done | — |
+| archive_through | v4: last date with imported food in FoodArchive (set by imports). Days on or before it also read FoodArchive. | — |
 | ai_monthly_cap_usd | AI spend cap | 1 |
 | units | read-only | lb |
 | timezone | read-only | America/Chicago |
@@ -45,6 +46,9 @@ Saved/cached foods. Nutrients both per 100 g and per serving.
 
 ### FoodLog
 `id, date, meal (breakfast|lunch|dinner|snack), food_id → Foods.id, food_name (copy for readability), grams, servings, kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, entry_method (search|barcode|label|ai|paste_ai|quick|manual), notes, created_at, updated_at, deleted_at`
+
+### FoodArchive (v4)
+Imported food history (Cal AI). **Same columns as FoodLog.** `entry_method` starts with `import_` (e.g. `import_calai`), `food_id` and `grams` are blank (the report has totals only), ids are `calai-<hash>` so re-importing skips them. Kept out of FoodLog so everyday reads of FoodLog stay small (the Worker's free plan allows ~10 ms CPU per request; parsing ~3,500 extra rows took 7–10 ms). The app reads it only for dates ≤ `archive_through`; edits/deletes of imported entries go to this tab.
 
 ### Days
 One row per date. `id, date, day_complete (bool), total_kcal, total_protein_g, total_carbs_g, total_fat_g, target_kcal, target_protein_g, target_carbs_g, target_fat_g, created_at, updated_at`. Totals are derived from FoodLog.
@@ -95,6 +99,8 @@ Several foods logged together with one tap. `id, name, items_json, created_at, u
 - **RoutineExercises** tab added (brief had routines' exercise lists nested in Routines). Keeps each tab flat so it maps 1:1 to database tables later.
 - `deleted_at` soft-delete column on editable tabs.
 - `food_name` copied into FoodLog so the sheet is readable on its own.
+- **FoodArchive** tab (v4) for imported food history, separate from FoodLog for speed.
+- Imported rows: Hevy workouts `hevy-<hash>` (sets `<workout id>-<exercise #>-<set #>`), weigh-ins `import-w-<date>`, Cal AI food `calai-<hash>`. Imports never touch rows they didn't create.
 
 ## Schema changes over time
 

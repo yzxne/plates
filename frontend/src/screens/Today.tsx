@@ -7,7 +7,7 @@ import { SwipeRow } from '../components/SwipeRow';
 import { dateLabel, shiftDate, today } from '../dates';
 import {
   addEntry, copyEntries, createSavedMeal, dayOutOfDate, deleteEntry, loadFoods, loadRange, loadSavedMeals, saveDay,
-  uuid, weekStart, write, type DayData, type SavedMeal, type WeekData,
+  restoreEntry, uuid, weekStart, type DayData, type SavedMeal, type WeekData,
 } from '../foodData';
 import { amountLine, fmt } from '../format';
 import { queue } from '../queue';
@@ -106,7 +106,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
       await deleteEntry(e);
       showUndo(`Deleted ${e.food_name}`, {
         undo: async () => {
-          await write('/sheet/update', { tab: 'FoodLog', rows: [{ id: e.id, deleted_at: '' }] }, `Restore: ${e.food_name}`);
+          await restoreEntry(e);
           replaceEntries([...before]);
         },
       });

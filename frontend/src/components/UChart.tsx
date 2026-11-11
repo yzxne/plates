@@ -18,6 +18,8 @@ interface Props {
   height?: number;
 }
 
+// uPlot's default y padding (10%, soft zero).
+const Y_RANGE: uPlot.Range.Config = { min: { pad: 0.1, soft: 0, mode: 3 }, max: { pad: 0.1, soft: 0, mode: 3 } };
 const AXIS = { stroke: '#9aa3ae', grid: { stroke: '#2a2f37', width: 1 }, ticks: { stroke: '#2a2f37', width: 1 }, font: '11px -apple-system, system-ui, sans-serif' };
 
 export function UChart({ x, ys, series, height = 180 }: Props) {
@@ -37,7 +39,11 @@ export function UChart({ x, ys, series, height = 180 }: Props) {
         height,
         legend: { show: false },
         cursor: { drag: { x: false, y: false }, points: { size: 7 } },
-        scales: { x: { time: true } },
+        scales: {
+          x: { time: true },
+          // A flat line (e.g. trend with no weigh-ins in range) would otherwise get a huge 0–300 axis.
+          y: { range: (_u, min, max) => (min === max ? [min - 2, max + 2] : U.rangeNum(min, max, Y_RANGE)) },
+        },
         axes: [{ ...AXIS }, { ...AXIS, size: 44 }],
         series: [
           {},

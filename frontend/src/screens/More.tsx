@@ -5,12 +5,13 @@ import { ConnectionCard } from '../components/ConnectionCard';
 import { IconBack, IconChevron } from '../components/Icons';
 import { NotificationsCard } from '../components/NotificationsCard';
 import { PendingCard } from '../components/PendingCard';
+import { DataScreen } from './DataScreen';
 import { SavedFoods } from './SavedFoods';
 import { Settings } from './Settings';
 
 /** Settings hub, opened from the gear icon on Today (brief v2: not a tab). */
 export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () => void }) {
-  const [view, setView] = useState<'menu' | 'settings' | 'foods'>('menu');
+  const [view, setView] = useState<'menu' | 'settings' | 'foods' | 'data'>('menu');
 
   function logout() {
     if (!confirm('Log out of Plates on this device?')) return;
@@ -23,6 +24,7 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
       <div class="overlay-body">
         {view === 'settings' && <Settings onBack={() => setView('menu')} />}
         {view === 'foods' && <SavedFoods onBack={() => setView('menu')} />}
+        {view === 'data' && <DataScreen onBack={() => setView('menu')} />}
         {view === 'menu' && (
           <section>
             <header class="screen-head with-back">
@@ -36,8 +38,10 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
                 <IconChevron size={18} />
               </button>
               <button class="row" onClick={() => setView('foods')}><span>Saved foods</span><IconChevron size={18} /></button>
-              <div class="row disabled"><span>Exports</span><small>Phase 7</small></div>
-              <div class="row disabled"><span>Imports</span><small>Phase 7</small></div>
+              <button class="row" onClick={() => setView('data')}>
+                <span class="row-text"><span>Import & export</span><small class="muted">Excel backup, weekly summary, Hevy & Cal AI imports</small></span>
+                <IconChevron size={18} />
+              </button>
             </div>
             <AiUsageCard />
             <NotificationsCard />

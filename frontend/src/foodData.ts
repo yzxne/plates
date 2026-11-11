@@ -5,6 +5,7 @@ import {
 import type { Row } from '../../shared/schema';
 import { api, ApiError, errorMessage } from './api';
 import { queue } from './queue';
+import { getSettings } from './settingsStore';
 
 export const uuid = () => crypto.randomUUID();
 
@@ -97,9 +98,23 @@ function pendingEntries(date: string): LogEntry[] {
   return out;
 }
 
+// ---------- Imported history (FoodArchive tab) ----------
+
+/** Imported entries live in FoodArchive; everything logged in Plates lives in FoodLog. */
+export const logTab = (e: Pick<LogEntry, 'entry_method'>): 'FoodLog' | 'FoodArchive' =>
+  e.entry_method.startsWith('import') ? 'FoodArchive' : 'FoodLog';
+
+/** True when dates on or before `from` may have imported entries. */
+const needsArchive = (from: string) => {
+  const through = getSettings().archive_through ?? '';
+  return !!through && from <= through;
+};
+
 export async function loadDay(date: string): Promise<DayData> {
-  const d = await readTabs(['FoodLog', 'Days'], { FoodLog: { date }, Days: { date } });
-  const entries = (d.FoodLog ?? []).map(rowToEntry);
+  const archive = needsArchive(date);
+  const d = await readTabs(archive ? ['FoodLog', 'FoodArchive', 'Days'] : ['FoodLog', 'Days'],
+    { FoodLog: { date }, FoodArchive: { date }, Days: { date } });
+  const entries = [...(d.FoodArchive ?? []), ...(d.FoodLog ?? [])].map(rowToEntry);
   const seen = new Set(entries.map((e) => e.id));
   const pending = pendingEntries(date).filter((e) => !seen.has(e.id));
   const dayRow = d.Days?.[0] ?? null;
@@ -116,11 +131,15 @@ export async function addEntry(e: LogEntry): Promise<boolean> {
 }
 
 export async function updateEntry(e: LogEntry): Promise<boolean> {
-  return write('/sheet/update', { tab: 'FoodLog', rows: [entryToRow(e)] }, `Edit: ${e.food_name}`);
+  return write('/sheet/update', { tab: logTab(e), rows: [entryToRow(e)] }, `Edit: ${e.food_name}`);
 }
 
 export async function deleteEntry(e: LogEntry): Promise<boolean> {
-  return write('/sheet/update', { tab: 'FoodLog', rows: [{ id: e.id, deleted_at: new Date().toISOString() }] }, `Delete: ${e.food_name}`);
+  return write('/sheet/update', { tab: logTab(e), rows: [{ id: e.id, deleted_at: new Date().toISOString() }] }, `Delete: ${e.food_name}`);
+}
+
+export async function restoreEntry(e: LogEntry): Promise<boolean> {
+  return write('/sheet/update', { tab: logTab(e), rows: [{ id: e.id, deleted_at: '' }] }, `Restore: ${e.food_name}`);
 }
 
 /** Writes the day's totals and "day complete" flag to the Days tab. */
@@ -157,15 +176,14 @@ export interface WeekData {
 
 /** Loads FoodLog + Days for a date range in one request. */
 export async function loadRange(from: string, to: string): Promise<WeekData> {
-  const d = await readTabs(['FoodLog', 'Days'], {
-    FoodLog: { date__gte: from, date__lte: to },
-    Days: { date__gte: from, date__lte: to },
-  });
+  const range = { date__gte: from, date__lte: to };
+  const d = await readTabs(needsArchive(from) ? ['FoodLog', 'FoodArchive', 'Days'] : ['FoodLog', 'Days'],
+    { FoodLog: range, FoodArchive: range, Days: range });
   const days = new Map<string, DayData>();
   for (let cur = from; cur <= to; cur = nextDate(cur)) {
     days.set(cur, { entries: [], pendingIds: new Set(), dayComplete: false, dayRow: null });
   }
-  for (const r of d.FoodLog ?? []) days.get(String(r.date))?.entries.push(rowToEntry(r));
+  for (const r of [...(d.FoodArchive ?? []), ...(d.FoodLog ?? [])]) days.get(String(r.date))?.entries.push(rowToEntry(r));
   for (const r of d.Days ?? []) {
     const day = days.get(String(r.date));
     if (day && !day.dayRow) {

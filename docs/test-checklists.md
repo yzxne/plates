@@ -146,3 +146,18 @@ Setup first: Guide 5 in `docs/setup-guides.md` (credit, `Plates` workspace with 
 - [ ] **Paste AI**: Copy prompt → paste into the Claude app with a photo → copy its answer → paste → Read answer → review → log (no API cost; `entry_method` ai_paste).
 - [ ] Set Settings → AI monthly cap to 0 → Estimate shows "cap is used up" with **Use Paste AI instead**. Set it back.
 - [ ] The Sheet's **AIUsage** tab gets one row per API estimate, with a cost well under 1¢.
+
+## Phase 7 — Imports & exports
+
+Do these on your **computer** first (bigger screen for the preview), then try one export on the iPhone. Details: `docs/imports.md`.
+
+- [ ] Settings → **Import & export** → Choose files → pick the Cal AI PDF **and** both Hevy CSVs at once.
+- [ ] Preview shows: ~3,900 food entries over ~513 days, 66 workouts / 1,004 sets, ~38 weigh-ins, the exercises it matched and the new ones it will add. Nothing is in the Sheet yet.
+- [ ] Tap **Import** → progress counts up → "Imported …". The Sheet has a new **FoodArchive** tab; Workouts, Sets, Exercises, Weights and Days have the new rows.
+- [ ] Choose the same files again → preview says **Nothing new to import**.
+- [ ] Today → go back to an old day (e.g. swipe back a week before you started Plates) → Cal AI foods show with their calories. Edit one entry's meal or delete one → it changes in FoodArchive (not FoodLog). Undo restores it.
+- [ ] Progress → **All** → weight chart starts June 2025; calorie chart shows the old months.
+- [ ] Train → History lists the Hevy workouts with sets and volume; tap one → exercises and notes look right. Check a few new exercises' muscle groups (Train → Exercises) and fix any wrong guesses.
+- [ ] **Export to Excel** → file opens in Excel/Numbers with one sheet per tab.
+- [ ] **Export weekly summary** for last week → open the .md in Obsidian: nutrition table, weight, workouts.
+- [ ] On iPhone: Export to Excel → share sheet → Save to Files works.

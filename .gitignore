@@ -1,4 +1,4 @@
-# Dependencies and builds
+﻿# Dependencies and builds
 node_modules/
 dist/
 build/
@@ -33,3 +33,6 @@ desktop.ini
 !.vscode/extensions.json
 *.log
 Plates Brief Changes.md
+
+# Your UI reference images (private)
+design-refs/

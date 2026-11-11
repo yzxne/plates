@@ -23,12 +23,9 @@ Every third-party library, dataset and asset used by Plates, with its license. U
 | @cloudflare/workers-types | 5.x | MIT OR Apache-2.0 | No |
 | zxing-wasm | 3.1.6 | MIT (bundles zxing-cpp Apache-2.0, zint BSD-3-Clause) | Yes, only when scanning (self-hosted .wasm) |
 | uplot | 1.6.32 | MIT | Yes, only when a chart is shown (Progress) |
-
-## Libraries planned
-
-| Library | Version | License | Use |
-|---|---|---|---|
-| write-excel-file | 4.1.1 | MIT | .xlsx export (Phase 7) |
+| @anthropic-ai/sdk | 1.8.0 | MIT | No (Worker only, Phase 6 AI estimates) |
+| write-excel-file | 4.1.1 | MIT (bundles fflate, MIT) | Yes, only when you export to Excel (Phase 7) |
+| pdfjs-dist | 5.7.284 | Apache-2.0 | Yes, only when you import a PDF (Phase 7; legacy build for older iPhones) |
 
 ## Icons, images, artwork
 
