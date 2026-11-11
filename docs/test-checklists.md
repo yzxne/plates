@@ -117,3 +117,14 @@ Report back: which items failed, and your iOS version (Settings → General → 
 **Rest-timer notifications** (Home Screen app only)
 - [ ] Gear → Rest-timer notifications → **Turn on** → Allow → **Send test** → lock the phone → the notification arrives.
 - [ ] In a workout, check a set, lock the phone → "Rest done" arrives when the timer ends. Music keeps playing.
+
+## Phase 5 — Weight & coaching
+
+- [ ] Settings (gear) → Profile: sex, birth date and height are filled in (the wizard asked for them).
+- [ ] Today → **Weigh in**. Within a moment a toast says "Check-in done · new targets average … kcal/day" (first time only).
+- [ ] Today's macro bars now show "X of target" with a marker; the weekly grid's **Remaining** toggle works.
+- [ ] Three cards on Today: **Expenditure**, **Weight trend**, **Scale weight** with mini charts → tapping one opens Progress at that chart.
+- [ ] Progress: switch 1W / 1M / 3M / 6M / 1Y / All. Tap and drag on a chart → exact values appear above it.
+- [ ] Progress → **Strategy** shows your weekly plan (training days marked ●) and days until the next check-in.
+- [ ] Sheet: **CheckIns** has a row with the reason; **Days** rows get target columns as you log.
+- [ ] After a week: on your check-in day the targets update by themselves (no button). Expenditure goes "low data" → "settling" → "stable" over 2–4 weeks if you mark days complete and weigh in most days.

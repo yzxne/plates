@@ -84,6 +84,7 @@ export interface SettingField {
   max?: number;
   step?: number;
   help?: string;
+  group?: 'advanced';
 }
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -122,6 +123,18 @@ export const SETTINGS_FIELDS: SettingField[] = [
   { key: 'plate_diameter_in', label: 'Plate diameter', type: 'number', unit: 'in', min: 5, max: 16, step: 0.25, default: '10.5',
     help: 'Scale reference for AI meal photos.' },
   { key: 'ai_monthly_cap_usd', label: 'AI monthly cap', type: 'number', unit: 'USD', min: 0, max: 50, step: 0.5, default: '1' },
+  // Coaching constants (docs/algorithm.md). [Assumption] defaults — tune after a few weeks of data.
+  { key: 'training_day_shift_pct', label: 'Training-day extra', type: 'number', unit: '%', min: 0, max: 40, step: 1, default: '10', group: 'advanced',
+    help: 'Training days get this much more than the daily average; other days get less. Weekly total stays the same.' },
+  { key: 'fat_pct', label: 'Fat share of calories', type: 'number', unit: '%', min: 15, max: 50, step: 1, default: '25', group: 'advanced',
+    help: 'Never below your fat minimum.' },
+  { key: 'min_calories', label: 'Calorie floor', type: 'number', unit: 'kcal', min: 800, max: 3000, step: 50, default: '1200', group: 'advanced' },
+  { key: 'max_target_change', label: 'Max weekly change', type: 'number', unit: 'kcal/day', min: 25, max: 500, step: 25, default: '150', group: 'advanced' },
+  { key: 'energy_per_lb', label: 'Energy per lb of weight', type: 'number', unit: 'kcal', min: 1500, max: 3500, step: 50, default: '2700', group: 'advanced',
+    help: 'Used instead of the old 3,500 kcal/lb rule (see docs/algorithm.md).' },
+  { key: 'trend_alpha', label: 'Trend smoothing', type: 'number', min: 0.02, max: 0.5, step: 0.01, default: '0.1', group: 'advanced',
+    help: 'Higher = trend follows the scale faster.' },
+  { key: 'expenditure_window_days', label: 'Expenditure window', type: 'number', unit: 'days', min: 14, max: 42, step: 1, default: '21', group: 'advanced' },
   { key: 'setup_complete', label: 'Setup done', type: 'hidden', default: '' },
   { key: 'units', label: 'Units', type: 'readonly', default: 'lb' },
   { key: 'timezone', label: 'Time zone', type: 'readonly', default: 'America/Chicago' },

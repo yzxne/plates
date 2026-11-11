@@ -12,11 +12,12 @@ import { AddFlow } from './screens/AddFlow';
 import { Logger } from './screens/Logger';
 import { Login } from './screens/Login';
 import { More } from './screens/More';
-import { Progress } from './screens/Progress';
+import { Progress, type ProgressSection } from './screens/Progress';
 import { SetupWizard } from './screens/SetupWizard';
 import { Today } from './screens/Today';
 import { NextWorkoutCard, Train } from './screens/Train';
 import { loadSettings, mealNow } from './settingsStore';
+import { ensureCheckIn } from './coachData';
 import { showToast } from './toast';
 import { cachedHistory, exerciseMap, loadExercises, loadHistory } from './trainData';
 
@@ -48,6 +49,7 @@ export function App() {
   const [authed, setAuthed] = useState(!!getToken());
   const [tab, setTab] = useState<TabId>('today');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [progressFocus, setProgressFocus] = useState<ProgressSection>(null);
   const [setup, setSetup] = useState<Setup>('checking');
   const [adding, setAdding] = useState<{ meal: Meal } | null>(null);
   const [foodDate, setFoodDate] = useState(today());
@@ -73,6 +75,23 @@ export function App() {
         setSetup(['sheet_not_set_up', 'google_not_connected', 'google_reconnect'].includes(c) ? 'needs-connection' : 'done');
       });
   }, [authed]);
+
+  // Weekly check-in: automatic, no action needed (brief v2). Runs on open and when the app comes back to the front.
+  useEffect(() => {
+    if (!authed || setup !== 'done') return;
+    const run = () => {
+      void ensureCheckIn().then((r) => {
+        if (r.ran) {
+          showToast(`Check-in done · new targets average ${r.avg.toLocaleString('en-US')} kcal/day`, 'ok', 6000);
+          setLogVersion((v) => v + 1);
+        }
+      }).catch(() => {});
+    };
+    run();
+    const onVisible = () => { if (document.visibilityState === 'visible') run(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [authed, setup]);
 
   // Retry unsaved writes when the app opens, comes back to the foreground, or the network returns.
   useEffect(() => {
@@ -122,13 +141,14 @@ export function App() {
       <main class="screen">
         {tab === 'today' && (
           <Today date={foodDate} onDate={setFoodDate} onAdd={(meal) => setAdding({ meal })} onSettings={() => setSettingsOpen(true)} version={logVersion}
+            onOpenProgress={(sec) => { setProgressFocus(sec); setTab('progress'); }}
             nextWorkout={foodDate === today() ? <NextWorkoutCard onStart={(r) => void start(r)} version={trainVersion} /> : null} />
         )}
-        {tab === 'progress' && <Progress />}
+        {tab === 'progress' && <Progress focus={progressFocus} />}
         {tab === 'train' && <Train onStart={start} version={trainVersion} />}
       </main>
       {hasActive && !logger && <ActiveBar onOpen={openLogger} />}
-      <TabBar current={tab} onSelect={setTab} onAdd={() => setAdding({ meal: mealNow() })} />
+      <TabBar current={tab} onSelect={(t) => { setProgressFocus(null); setTab(t); }} onAdd={() => setAdding({ meal: mealNow() })} />
       {adding && (
         <AddFlow
           date={addDate}

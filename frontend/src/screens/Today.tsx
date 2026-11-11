@@ -14,6 +14,20 @@ import { queue } from '../queue';
 import { showToast } from '../toast';
 import { showUndo } from '../undo';
 import { addWeight, deleteWeight, lastWeight, loadWeights, type WeighIn } from '../weightData';
+import { cachedCoach, ensureCheckIn, expenditureSeries, loadCoach, subscribeCoach, targetsForDate } from '../coachData';
+import { Sparkline } from '../components/UChart';
+
+type Targets = { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
+
+/** Targets for a date: the check-in plan, else whatever was saved on that day's row. */
+function targetFor(date: string, day?: DayData): Targets | null {
+  const plan = targetsForDate(date);
+  if (plan) return plan;
+  const r = day?.dayRow;
+  return r && Number(r.target_kcal) > 0
+    ? { kcal: Number(r.target_kcal), protein_g: Number(r.target_protein_g), carbs_g: Number(r.target_carbs_g), fat_g: Number(r.target_fat_g) }
+    : null;
+}
 
 interface Props {
   date: string;
@@ -22,17 +36,23 @@ interface Props {
   onSettings: () => void;
   version: number;
   nextWorkout?: preact.ComponentChildren;
+  onOpenProgress?: (section: 'weight' | 'expenditure' | 'calories') => void;
 }
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout }: Props) {
+export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, onOpenProgress }: Props) {
   const [week, setWeek] = useState<WeekData | null>(null);
   const [weekOf, setWeekOf] = useState('');
   const [error, setError] = useState<Error | null>(null);
   const [editing, setEditing] = useState<LogEntry | null>(null);
   const [picker, setPicker] = useState<Meal | null>(null);
   const [mode, setMode] = useState<'consumed' | 'remaining'>('consumed');
+  const [, setCoachTick] = useState(0);
+  useEffect(() => {
+    void loadCoach().catch(() => {});
+    return subscribeCoach(() => setCoachTick((n) => n + 1));
+  }, []);
 
   const start = weekStart(date);
   async function load() {
@@ -42,7 +62,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout }:
       setWeek(w);
       setWeekOf(start);
       const d = w.days.get(date);
-      if (d && !d.pendingIds.size && dayOutOfDate(d)) void saveDay(date, d.entries, d.dayComplete);
+      if (d && !d.pendingIds.size && dayOutOfDate(d)) void saveDay(date, d.entries, d.dayComplete, targetsForDate(date));
     } catch (err) {
       setError(err as Error);
     }
@@ -75,7 +95,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout }:
   function replaceEntries(next: LogEntry[]) {
     if (!day) return;
     setDay((d) => ({ ...d, entries: next }));
-    void saveDay(date, next, day.dayComplete);
+    void saveDay(date, next, day.dayComplete, targetsForDate(date));
   }
 
   async function remove(e: LogEntry) {
@@ -101,7 +121,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout }:
     const next = !day.dayComplete;
     setDay((d) => ({ ...d, dayComplete: next }));
     try {
-      if (!(await saveDay(date, day.entries, next))) showToast('Not saved yet — will retry', 'error');
+      if (!(await saveDay(date, day.entries, next, targetsForDate(date)))) showToast('Not saved yet — will retry', 'error');
     } catch (err) {
       setDay((d) => ({ ...d, dayComplete: !next }));
       showToast(errorMessage(err), 'error');
@@ -164,10 +184,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout }:
 
   const notReady = error instanceof ApiError && ['sheet_not_set_up', 'google_not_connected', 'google_reconnect'].includes(error.code);
   const t = day ? totals(day.entries) : null;
-  const targets = day?.dayRow && Number(day.dayRow.target_kcal) > 0 ? {
-    kcal: Number(day.dayRow.target_kcal), protein_g: Number(day.dayRow.target_protein_g),
-    carbs_g: Number(day.dayRow.target_carbs_g), fat_g: Number(day.dayRow.target_fat_g),
-  } : null;
+  const targets = targetFor(date, day);
 
   return (
     <section>
@@ -194,6 +211,8 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout }:
       {week && weekOf === start && (
         <WeekGrid week={week} start={start} selected={date} mode={mode} onMode={setMode} onPick={onDate} />
       )}
+
+      {onOpenProgress && <TrendCards onOpen={onOpenProgress} />}
 
       <QuickWeigh date={date} />
 
@@ -278,7 +297,7 @@ function MacroBars({ t, targets }: { t: Nutrients | null; targets: { kcal: numbe
           </div>
         );
       })}
-      {!targets && <small class="muted">Targets appear after your first check-in (Phase 5).</small>}
+      {!targets && <small class="muted">Targets appear after your first weigh-in and profile (sex, birth date, height in Settings).</small>}
     </div>
   );
 }
@@ -287,18 +306,16 @@ function WeekGrid({ week, start, selected, mode, onMode, onPick }: {
   week: WeekData; start: string; selected: string; mode: 'consumed' | 'remaining'; onMode: (m: 'consumed' | 'remaining') => void; onPick: (d: string) => void;
 }) {
   const dates = DOW.map((_, i) => shiftDate(start, i));
-  const rows: [string, 'kcal' | 'protein_g' | 'fat_g' | 'carbs_g', 'target_kcal' | 'target_protein_g' | 'target_fat_g' | 'target_carbs_g'][] = [
-    ['Cal', 'kcal', 'target_kcal'], ['P', 'protein_g', 'target_protein_g'], ['F', 'fat_g', 'target_fat_g'], ['C', 'carbs_g', 'target_carbs_g'],
-  ];
-  const hasTargets = dates.some((d) => Number(week.days.get(d)?.dayRow?.target_kcal) > 0);
-  const weekTotals = rows.map(([, k, tk]) => {
+  const rows: [string, 'kcal' | 'protein_g' | 'fat_g' | 'carbs_g'][] = [['Cal', 'kcal'], ['P', 'protein_g'], ['F', 'fat_g'], ['C', 'carbs_g']];
+  const hasTargets = dates.some((d) => !!targetFor(d, week.days.get(d)));
+  const weekTotals = rows.map(([, k]) => {
     let sum = 0;
     let target = 0;
     for (const d of dates) {
       const day = week.days.get(d);
       if (!day) continue;
       sum += totals(day.entries)[k] as number;
-      target += Number(day.dayRow?.[tk] ?? 0) || 0;
+      target += targetFor(d, day)?.[k] ?? 0;
     }
     return { sum, target };
   });
@@ -316,13 +333,13 @@ function WeekGrid({ week, start, selected, mode, onMode, onPick }: {
         {dates.map((d, i) => (
           <button key={d} class={`wg-day ${d === selected ? 'on' : ''} ${d === today() ? 'today' : ''}`} onClick={() => onPick(d)}>{DOW[i]}</button>
         ))}
-        {rows.map(([label, k, tk]) => (
+        {rows.map(([label, k]) => (
           <>
             <span class="wg-label" key={label}>{label}</span>
             {dates.map((d) => {
               const day = week.days.get(d);
               const v = day ? (totals(day.entries)[k] as number) : 0;
-              const target = Number(day?.dayRow?.[tk] ?? 0) || 0;
+              const target = targetFor(d, day)?.[k] ?? 0;
               const shown = mode === 'remaining' && target ? target - v : v;
               return <span key={d + k} class={`wg-cell ${d === selected ? 'on' : ''}`}>{v || (mode === 'remaining' && target) ? fmt(shown) : '·'}</span>;
             })}
@@ -352,6 +369,7 @@ function QuickWeigh({ date }: { date: string }) {
     try {
       const { w, ok } = await addWeight(v, date);
       setLast(w);
+      void loadCoach(true).then(() => (cachedCoach()?.checkins.length ? null : ensureCheckIn())).catch(() => {});
       showUndo(`Weighed in ${fmt(w.weight_lb, 1)} lb${ok ? '' : ' (will retry)'}`, {
         undo: async () => { await deleteWeight(w); setLast(lastWeight()); },
       });
@@ -397,6 +415,41 @@ function SavedMealPicker({ onPick, onClose }: { onPick: (m: SavedMeal) => void; 
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Expenditure · Weight trend · Scale weight, each with a 2-week sparkline. Tap → full chart in Progress. */
+function TrendCards({ onOpen }: { onOpen: (s: 'weight' | 'expenditure') => void }) {
+  const c = cachedCoach();
+  if (!c || !c.trend.length) return null;
+  const from = shiftDate(today(), -13);
+  const exp = expenditureSeries(from);
+  const tr = c.trend.filter((p) => p.date >= from);
+  const lastTrend = c.trend.at(-1)!;
+  const weekAgo = c.trend.find((p) => p.date === shiftDate(today(), -7)) ?? c.trend[0]!;
+  const delta = lastTrend.trend - weekAgo.trend;
+  const lastScale = [...c.trend].reverse().find((p) => p.scale != null);
+  return (
+    <div class="trend-cards">
+      <button class="trend-card" onClick={() => onOpen('expenditure')}>
+        <small>Expenditure</small>
+        <strong>{exp.length ? fmt(exp.at(-1)!.kcal) : '–'}</strong>
+        <small>{exp.at(-1)?.confidence ?? 'needs profile'}</small>
+        <Sparkline values={exp.map((e) => e.kcal)} color="var(--warn)" />
+      </button>
+      <button class="trend-card" onClick={() => onOpen('weight')}>
+        <small>Weight trend</small>
+        <strong>{fmt(lastTrend.trend, 1)}</strong>
+        <small>{delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta), 1)} lb / 7 d</small>
+        <Sparkline values={tr.map((p) => p.trend)} />
+      </button>
+      <button class="trend-card" onClick={() => onOpen('weight')}>
+        <small>Scale weight</small>
+        <strong>{lastScale ? fmt(lastScale.scale, 1) : '–'}</strong>
+        <small>{lastScale ? (lastScale.date === today() ? 'today' : lastScale.date.slice(5).replace('-', '/')) : ''}</small>
+        <Sparkline values={tr.map((p) => p.scale)} color="var(--muted)" dots />
+      </button>
     </div>
   );
 }

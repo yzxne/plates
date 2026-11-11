@@ -32,3 +32,6 @@ Updated each phase.
 - **Swipe on entries** is custom touch handling; if it fights with scrolling on your phone, tap still opens edit.
 - **Undo** lasts 6 seconds; after that use edit/delete.
 - **Last-used amounts** come from the last 60 days of your log.
+- **Expenditure needs complete days and weigh-ins.** Until ~2 weeks of data, it leans on the profile estimate (labelled "low data" / "settling").
+- **Days without a Days row** (food logged but Today never opened that day) don't count toward expenditure; opening the day fixes it.
+- **Charts are computed on the phone** from all weigh-ins and day totals; fine for years of data.

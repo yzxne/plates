@@ -124,7 +124,10 @@ export async function deleteEntry(e: LogEntry): Promise<boolean> {
 }
 
 /** Writes the day's totals and "day complete" flag to the Days tab. */
-export async function saveDay(date: string, entries: LogEntry[], dayComplete: boolean): Promise<boolean> {
+export async function saveDay(
+  date: string, entries: LogEntry[], dayComplete: boolean,
+  targets?: { kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null,
+): Promise<boolean> {
   const t = totals(entries);
   return write('/sheet/upsert', {
     tab: 'Days',
@@ -132,6 +135,7 @@ export async function saveDay(date: string, entries: LogEntry[], dayComplete: bo
     rows: [{
       date, day_complete: dayComplete,
       total_kcal: t.kcal, total_protein_g: t.protein_g, total_carbs_g: t.carbs_g, total_fat_g: t.fat_g,
+      ...(targets ? { target_kcal: targets.kcal, target_protein_g: targets.protein_g, target_carbs_g: targets.carbs_g, target_fat_g: targets.fat_g } : {}),
     }],
   }, `Day totals ${date}`);
 }

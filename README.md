@@ -2,7 +2,7 @@
 
 Personal nutrition + workout tracker. Mobile web app for iPhone Safari (Home Screen), dark mode, data stored in a Google Sheet the app creates.
 
-**Status:** Phases 0–4 built (food logging, barcode, workouts) + brief v2 rework (Today / Progress / + / Train). Next: Phase 5 (weight & coaching).
+**Status:** Phases 0–5 built (food logging, barcode, workouts, weight & coaching) + brief v2 rework. Next: Phase 6 (AI meal scan & estimates).
 
 ## Layout
 

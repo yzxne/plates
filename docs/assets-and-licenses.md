@@ -22,6 +22,7 @@ Every third-party library, dataset and asset used by Plates, with its license. U
 | wrangler | 4.160.0 | MIT OR Apache-2.0 | No (Worker deploy tool) |
 | @cloudflare/workers-types | 5.x | MIT OR Apache-2.0 | No |
 | zxing-wasm | 3.1.6 | MIT (bundles zxing-cpp Apache-2.0, zint BSD-3-Clause) | Yes, only when scanning (self-hosted .wasm) |
+| uplot | 1.6.32 | MIT | Yes, only when a chart is shown (Progress) |
 
 ## Libraries planned
 

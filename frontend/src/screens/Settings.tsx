@@ -99,9 +99,15 @@ export function Settings({ onBack }: { onBack: () => void }) {
       {hasPending && !banner && <div class="card warn">Some changes haven't reached the Sheet yet. Save again or use Retry on the More screen.</div>}
 
       <form class="card form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        {SETTINGS_FIELDS.filter((f) => f.key !== 'schema_version' && f.type !== 'hidden').map((f) => (
+        {SETTINGS_FIELDS.filter((f) => f.key !== 'schema_version' && f.type !== 'hidden' && f.group !== 'advanced').map((f) => (
           <Field key={f.key} field={f} value={values[f.key] ?? ''} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
         ))}
+        <details class="advanced">
+          <summary>Advanced coaching</summary>
+          {SETTINGS_FIELDS.filter((f) => f.group === 'advanced').map((f) => (
+            <Field key={f.key} field={f} value={values[f.key] ?? ''} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
+          ))}
+        </details>
         <button class="btn primary sticky-save" type="submit" disabled={saving || !!loadError || Object.keys(changed).length === 0}>
           {saving ? 'Saving…' : 'Save'}
         </button>
