@@ -60,7 +60,7 @@ export function Train({ onStart, version }: Props) {
       <section>
         <header class="screen-head"><h1>Train</h1></header>
         <div class="card">
-          <p class={notReady ? 'muted' : 'error'}>{notReady ? 'Connect Google and create the spreadsheet in More first.' : errorMessage(error)}</p>
+          <p class={notReady ? 'muted' : 'error'}>{notReady ? 'Connect Google and create the spreadsheet first: gear icon on Today → Google connection.' : errorMessage(error)}</p>
           {!notReady && <button class="btn" onClick={() => load(true)}>Try again</button>}
         </div>
       </section>

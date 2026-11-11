@@ -19,6 +19,8 @@ function csp(apiBase: string): Plugin {
         "img-src 'self' data: blob:",
         `connect-src 'self' ${api} https://world.openfoodfacts.org`,
         "media-src 'self' blob:",
+        // pdf.js worker (self) and the zip step of the Excel export (blob: worker made by the bundled fflate code)
+        "worker-src 'self' blob:",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
@@ -34,7 +36,8 @@ export default defineConfig(({ mode }) => {
     base: env.VITE_BASE || '/plates/',
     plugins: [preact(), csp(env.VITE_API_BASE ?? '')],
     server: { fs: { allow: ['..'] } },
-    build: { target: 'safari16', sourcemap: false },
+    // pdf.js (~500 kB) is loaded only when you import a PDF, so its size doesn't affect normal startup.
+    build: { target: 'safari16', sourcemap: false, chunkSizeWarningLimit: 600 },
     test: { include: ['test/**/*.test.ts'], environment: 'node' },
   };
 });

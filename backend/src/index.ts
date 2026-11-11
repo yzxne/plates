@@ -6,7 +6,9 @@ import {
 } from './google';
 import { corsHeaders, errorResponse, HttpError, json, parseOrigins, readJson } from './http';
 import { allowRequest, lockStatus, recordFailure, recordSuccess } from './lockout';
-import { bearerToken, SESSION_TTL_SEC, signToken, STATE_TTL_SEC, verifyToken } from './session';
+import {
+  bearerToken, revokeOtherSessions, SESSION_TTL_SEC, sessionsValidAfter, signToken, STATE_TTL_SEC, verifyToken,
+} from './session';
 import { lookupUsdaBarcode, searchOff, searchUsda } from './food';
 import { cleanContext, cleanImages, estimate, monthUsage } from './ai';
 import { addSub, cancelRest, removeSub, scheduleRest, sendToAll, validEndpoint } from './push';
@@ -51,7 +53,8 @@ function clientIp(request: Request): string {
 async function requireSession(request: Request, env: Env): Promise<void> {
   if (!env.SESSION_SECRET) throw new HttpError(500, 'not_configured', 'SESSION_SECRET is not set on the backend');
   const token = bearerToken(request);
-  if (!token || !(await verifyToken(env.SESSION_SECRET, token, 'session'))) {
+  const payload = token ? await verifyToken(env.SESSION_SECRET, token, 'session') : null;
+  if (!payload || payload.iat < (await sessionsValidAfter(env.PLATES_KV))) {
     throw new HttpError(401, 'unauthorized', 'Please log in again');
   }
 }
@@ -64,7 +67,7 @@ export function _resetSchemaCheck(): void {
 
 async function sheetFor(env: Env): Promise<Sheets> {
   const id = await env.PLATES_KV.get(KV_KEYS.spreadsheetId);
-  if (!id) throw new HttpError(409, 'sheet_not_set_up', 'No Plates spreadsheet yet. Create it in More → Settings.');
+  if (!id) throw new HttpError(409, 'sheet_not_set_up', 'No Plates spreadsheet yet. Create it in Settings (gear icon on Today).');
   const sheets = new Sheets(await getAccessToken(env), id);
   // After an app update adds columns, upgrade the Sheet once (adds tabs/columns at the end; never moves data).
   const key = `${id}:v${SCHEMA_VERSION}`;
@@ -162,6 +165,13 @@ async function route(request: Request, env: Env): Promise<Response> {
   await requireSession(request, env);
 
   if (method === 'GET' && path === '/auth/check') return json({ ok: true });
+
+  // Signs out every other device (e.g. a lost phone). This device gets a fresh session.
+  if (method === 'POST' && path === '/auth/logout-others') {
+    await revokeOtherSessions(env.PLATES_KV);
+    const { token, exp } = await signToken(env.SESSION_SECRET!, 'session', SESSION_TTL_SEC);
+    return json({ token, expires_at: new Date(exp * 1000).toISOString() });
+  }
 
   if (method === 'GET' && path === '/status') {
     const missingSecrets = REQUIRED_SECRETS.filter((k) => !env[k]);

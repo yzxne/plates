@@ -6,7 +6,8 @@ export async function pdfLines(file: File, onProgress?: (page: number, pages: nu
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const workerUrl = (await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const doc = await task.promise;
   const lines: string[] = [];
   try {
     for (let i = 1; i <= doc.numPages; i++) {
@@ -26,7 +27,7 @@ export async function pdfLines(file: File, onProgress?: (page: number, pages: nu
       onProgress?.(i, doc.numPages);
     }
   } finally {
-    await doc.destroy();
+    await task.destroy();
   }
   return lines;
 }

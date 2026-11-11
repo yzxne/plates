@@ -4,6 +4,7 @@ import { hashPasscode } from '../src/crypto';
 import { _resetGoogleCache, KV_KEYS } from '../src/google';
 import { _resetSchemaCheck, handle } from '../src/index';
 import { _resetRateLimit } from '../src/lockout';
+import { _resetSessionCache } from '../src/session';
 import { timing } from '../src/sheets';
 import { FakeGoogle, makeEnv, req, WORKER } from './helpers';
 
@@ -38,6 +39,7 @@ beforeEach(async () => {
   _resetGoogleCache();
   _resetRateLimit();
   _resetSchemaCheck();
+  _resetSessionCache();
   timing.sleep = async () => {};
 });
 
@@ -64,6 +66,22 @@ describe('CORS and health', () => {
   it('rejects API calls from other origins', async () => {
     const res = await handle(req('POST', '/auth/login', { origin: 'https://evil.example', body: { passcode: PASSCODE } }), env);
     expect(res.status).toBe(403);
+  });
+});
+
+describe('sign out other devices', () => {
+  it('rejects older sessions and keeps this device signed in', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-11T12:00:00Z'));
+    const lostPhone = await login();
+    now.mockReturnValue(Date.parse('2026-11-11T12:05:00Z'));
+    const thisDevice = await login();
+    now.mockReturnValue(Date.parse('2026-11-11T12:10:00Z'));
+    const r = await call('POST', '/auth/logout-others', thisDevice);
+    expect(r.status).toBe(200);
+    expect((await call('GET', '/auth/check', lostPhone)).status).toBe(401);
+    expect((await call('GET', '/auth/check', thisDevice)).status).toBe(401); // also older than the cut-off
+    expect((await call('GET', '/auth/check', r.body.token)).status).toBe(200);
+    now.mockRestore();
   });
 });
 

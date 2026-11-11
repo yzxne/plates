@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
-import { clearToken } from '../api';
+import { api, clearToken, errorMessage, setToken } from '../api';
+import { showToast } from '../toast';
 import { AiUsageCard } from '../components/AiUsageCard';
 import { ConnectionCard } from '../components/ConnectionCard';
 import { IconBack, IconChevron } from '../components/Icons';
@@ -12,6 +13,17 @@ import { Settings } from './Settings';
 /** Settings hub, opened from the gear icon on Today (brief v2: not a tab). */
 export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () => void }) {
   const [view, setView] = useState<'menu' | 'settings' | 'foods' | 'data'>('menu');
+
+  async function logoutOthers() {
+    if (!confirm('Sign out Plates on every other phone or computer? Use this if a device is lost. This one stays signed in.')) return;
+    try {
+      const r = await api<{ token: string }>('POST', '/auth/logout-others');
+      setToken(r.token);
+      showToast('Other devices will be signed out within about a minute', 'info');
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+    }
+  }
 
   function logout() {
     if (!confirm('Log out of Plates on this device?')) return;
@@ -46,7 +58,10 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
             <AiUsageCard />
             <NotificationsCard />
             <ConnectionCard />
-            <button class="btn link danger center" onClick={logout}>Log out</button>
+            <div class="link-row">
+              <button class="btn link" onClick={logoutOthers}>Sign out other devices</button>
+              <button class="btn link danger" onClick={logout}>Log out</button>
+            </div>
             <p class="muted center tiny">Food data: USDA FoodData Central · Open Food Facts (ODbL)</p>
           </section>
         )}

@@ -46,7 +46,9 @@ describe('AES-GCM token storage', () => {
     expect(enc).not.toContain('refresh');
     expect(await decryptString(key, enc)).toBe('refresh-token-value');
     const [iv, ct] = enc.split('.');
-    const flipped = ct!.slice(0, -2) + (ct!.endsWith('A') ? 'BB' : 'AA');
+    // Change a middle character (the last base64 character can hold ignored padding bits).
+    const mid = Math.floor(ct!.length / 2);
+    const flipped = ct!.slice(0, mid) + (ct![mid] === 'A' ? 'B' : 'A') + ct!.slice(mid + 1);
     await expect(decryptString(key, `${iv}.${flipped}`)).rejects.toThrow();
   });
 

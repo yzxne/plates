@@ -374,7 +374,7 @@ textarea {
 .ex-card { padding: 12px; }
 .ex-head { display: flex; align-items: center; gap: 6px; }
 .ex-head h2 { margin: 0; flex: 1; min-width: 0; }
-.ex-menu { width: 44px; min-height: 36px; padding: 0; text-align: center; text-align-last: center; font-size: 18px; background: var(--surface-2); color: var(--text); -webkit-appearance: none; appearance: none; }
+.ex-menu { width: 44px; min-height: 44px; padding: 0; text-align: center; text-align-last: center; font-size: 18px; background: var(--surface-2); color: var(--text); -webkit-appearance: none; appearance: none; }
 .ex-note { margin: 8px 0 0; min-height: 40px; font-size: 16px; }
 .set-grid { display: grid; grid-template-columns: 44px 1fr 1fr 1fr 44px; gap: 6px; align-items: center; }
 .set-head { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center; }
@@ -446,9 +446,9 @@ input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus 
 
 .week-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .week-top h2 { margin: 0; }
-.week-top .seg button { min-height: 34px; font-size: 13px; padding: 0 10px; }
+.week-top .seg button { min-height: 40px; font-size: 13px; padding: 0 10px; }
 .week-grid { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 2px; font-size: 12px; text-align: center; margin-bottom: 6px; }
-.wg-day { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 0; border-radius: 6px; cursor: pointer; min-height: 30px; }
+.wg-day { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 0; border-radius: 6px; cursor: pointer; min-height: 40px; }
 .wg-day.today { color: var(--text); font-weight: 700; }
 .wg-day.on, .wg-cell.on { background: var(--surface-2); }
 .wg-label { color: var(--muted); text-align: left; padding: 3px 0; }
@@ -460,7 +460,7 @@ input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus 
 .weigh-plus { font-size: 26px; color: var(--accent); line-height: 1; }
 .weigh .with-unit input { flex: 1; }
 
-.meal-head .ex-menu { width: 40px; min-height: 34px; }
+.meal-head .ex-menu { width: 44px; min-height: 44px; }
 .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; background: #3a3220; color: var(--warn); font-size: 11px; vertical-align: middle; }
 
 .swipe-wrap { position: relative; border-top: 1px solid var(--border); overflow: hidden; }
@@ -486,7 +486,7 @@ input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus 
 
 /* ---------- One-screen add ---------- */
 
-.meal-chip { width: auto; min-height: 36px; padding: 4px 28px 4px 12px; border-radius: 999px; background: var(--surface-2); font-weight: 600; }
+.meal-chip { width: auto; min-height: 40px; padding: 4px 28px 4px 12px; border-radius: 999px; background: var(--surface-2); font-weight: 600; }
 .search-field { flex: 1; display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding-right: 4px; }
 .search-field input { border: none; background: transparent; flex: 1; min-width: 0; }
 .search-field input:focus { outline: none; }
@@ -494,7 +494,7 @@ input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus 
 .sb-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: var(--accent); border-radius: 10px; cursor: pointer; flex: none; }
 .sb-btn.dim { color: var(--muted); opacity: 0.6; }
 .food-row { gap: 10px; }
-.plus-chip { width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--accent); font-size: 22px; line-height: 1; }
+.plus-chip { width: 40px; height: 40px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--accent); font-size: 22px; line-height: 1; }
 .star { font-size: 24px; color: var(--muted); margin-right: -10px; }
 .star.on { color: var(--warn); }
 .next-btn { display: flex; flex-direction: column; gap: 0; min-height: 60px; margin-bottom: 6px; }
@@ -503,7 +503,7 @@ input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus 
 .routine-card.is-next { border-color: #2c6b4c; }
 .tag.next { background: #1d3a2c; color: var(--accent); }
 .reorder { display: flex; flex-direction: column; }
-.reorder .icon-btn.small { width: 32px; height: 26px; margin: 0; color: var(--muted); }
+.reorder .icon-btn.small { width: 40px; height: 32px; margin: 0; color: var(--muted); }
 .next-card { display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
 .next-card .row-text { padding: 0; }
 .next-card strong { font-size: 17px; }
@@ -568,3 +568,6 @@ table.plan tr.today td { color: var(--accent); font-weight: 600; }
 .tick { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--text); font-size: 15px; min-width: 0; cursor: pointer; }
 .tick input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
 .save-usual { margin-top: 10px; font-size: 14px; color: var(--muted); }
+
+/* Phase 8 */
+.link-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px; margin: 8px 4px; }

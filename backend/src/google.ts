@@ -131,7 +131,7 @@ export async function getAccessToken(env: Env, nowMs = Date.now()): Promise<stri
   if (status === 400 && data.error === 'invalid_grant') {
     await env.PLATES_KV.put(KV_KEYS.reconnect, '1');
     memAccess = null;
-    throw new HttpError(409, 'google_reconnect', 'Google access expired or was revoked. Reconnect Google in More → Settings.');
+    throw new HttpError(409, 'google_reconnect', 'Google access expired or was revoked. Reconnect Google in Settings (gear icon on Today).');
   }
   if (status !== 200 || !data.access_token) {
     throw new HttpError(502, 'google_token_error', `Could not refresh Google access: ${data.error_description ?? data.error ?? status}`);

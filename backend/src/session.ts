@@ -39,6 +39,30 @@ export async function verifyToken(secret: string, token: string, typ: TokenType,
   return payload;
 }
 
+// ---------- "Sign out other devices" ----------
+// Sessions issued before this time (unix seconds, in KV) are rejected. Cached per server instance for 30 s,
+// so other instances notice within ~30 s plus KV propagation (up to ~60 s).
+
+export const SESSIONS_VALID_AFTER_KEY = 'auth:sessions_valid_after';
+let validAfterCache: { value: number; at: number } | null = null;
+
+export async function sessionsValidAfter(kv: KVNamespace, nowMs = Date.now()): Promise<number> {
+  if (validAfterCache && nowMs - validAfterCache.at < 30_000) return validAfterCache.value;
+  const value = Number(await kv.get(SESSIONS_VALID_AFTER_KEY)) || 0;
+  validAfterCache = { value, at: nowMs };
+  return value;
+}
+
+export async function revokeOtherSessions(kv: KVNamespace, nowMs = Date.now()): Promise<void> {
+  const value = Math.floor(nowMs / 1000);
+  await kv.put(SESSIONS_VALID_AFTER_KEY, String(value));
+  validAfterCache = { value, at: nowMs };
+}
+
+export function _resetSessionCache(): void {
+  validAfterCache = null;
+}
+
 export function bearerToken(request: Request): string | null {
   const h = request.headers.get('Authorization') ?? '';
   const m = /^Bearer\s+(.+)$/i.exec(h);

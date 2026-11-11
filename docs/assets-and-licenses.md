@@ -25,7 +25,7 @@ Every third-party library, dataset and asset used by Plates, with its license. U
 | uplot | 1.6.32 | MIT | Yes, only when a chart is shown (Progress) |
 | @anthropic-ai/sdk | 1.8.0 | MIT | No (Worker only, Phase 6 AI estimates) |
 | write-excel-file | 4.1.1 | MIT (bundles fflate, MIT) | Yes, only when you export to Excel (Phase 7) |
-| pdfjs-dist | 5.7.284 | Apache-2.0 | Yes, only when you import a PDF (Phase 7; legacy build for older iPhones) |
+| pdfjs-dist | 6.5.438 | Apache-2.0 | Yes, only when you import a PDF (Phase 7; legacy build for older iPhones). Upgraded from 5.7.284 in Phase 8 for GHSA-hq66-cqwq-w95j. |
 
 ## Icons, images, artwork
 

@@ -90,7 +90,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
       {loadError && (
         <div class="card">
           <p class={notReady ? 'muted' : 'error'}>
-            {notReady ? 'Connect Google and create the spreadsheet (More → Google connection) before saving settings.' : errorMessage(loadError)}
+            {notReady ? 'Connect Google and create the spreadsheet (Settings → Google connection) before saving settings.' : errorMessage(loadError)}
           </p>
           {!notReady && <button class="btn" onClick={load}>Try again</button>}
         </div>

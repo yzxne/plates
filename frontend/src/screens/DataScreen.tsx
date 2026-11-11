@@ -78,6 +78,10 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
           <button class="btn" aria-label="Next week" disabled={week >= thisWeek} onClick={() => setWeek(addDays(week, 7))}>›</button>
         </div>
         <button class="btn" style="width:100%" disabled={!!busy} onClick={() => run('Building summary…', () => exportWeekly(week))}>Export weekly summary (.md)</button>
+        <p class="muted tiny mt">
+          Backups: Google keeps every version of your Sheet (in the Sheet: File → Version history), so mistakes can be undone.
+          Export to Excel about once a month and keep the file outside Google Drive.
+        </p>
       </div>
 
       <div class="card">

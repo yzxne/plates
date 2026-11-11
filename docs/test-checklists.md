@@ -161,3 +161,11 @@ Do these on your **computer** first (bigger screen for the preview), then try on
 - [ ] **Export to Excel** → file opens in Excel/Numbers with one sheet per tab.
 - [ ] **Export weekly summary** for last week → open the .md in Obsidian: nutrition table, weight, workouts.
 - [ ] On iPhone: Export to Excel → share sheet → Save to Files works.
+
+## Phase 8 — Polish & hardening
+
+- [ ] Settings → Import & export → **Export to Excel** now finishes (before this fix it hung on "Building the file…" on the live site). On iPhone: share sheet → Save to Files.
+- [ ] Settings (bottom) → **Sign out other devices** → confirm → you stay signed in here. On another device/browser that was signed in, within a minute the app asks for the passcode again.
+- [ ] Buttons feel easy to hit on iPhone: meal "⋯" menus, the week grid days, Consumed/Remaining, routine ↑ ↓.
+- [ ] Turn on Airplane mode → open Today → you see an error with **Try again** (not a blank screen). Turn it off → Try again works.
+- [ ] Read `docs/backup.md` once and do your first monthly Excel export.

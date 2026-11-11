@@ -8,6 +8,8 @@ Updated each phase.
 - **Open Food Facts per-IP limits** (15 product reads/min). Cached foods avoid repeat lookups.
 - **Cloudflare free plan: 10 ms CPU per request.** Heavy work (.xlsx, PDF reading) runs in the browser, and imported food history lives in its own tab (FoodArchive). FoodLog itself grows ~2,000 rows a year; after a year or two of use, older rows may need moving to FoodArchive the same way (or the $5/month Workers plan).
 - **Imported Cal AI food has no gram amounts** (the report only has totals), so those entries can't be resized — edit or delete them instead. Imported Hevy cardio/timed sets are skipped; muscle groups for new exercises are guesses.
+- **"Sign out other devices" takes up to ~1 minute** to reach every Cloudflare location. Sessions otherwise last 30 days.
+- **Viewing days before you started Plates** reads the whole FoodArchive tab (~4,000 rows), which is slower than normal days and uses most of the Worker's CPU budget for that request (parsing ~3,500 rows measured 7–10 ms on a PC).
 - **Imports depend on the other apps' export formats** (checked Nov 2026). If Hevy or Cal AI change theirs, the preview says the file isn't recognised.
 - **Google refresh token** stops working if access is revoked, unused for 6 months, or 100+ new tokens are issued for the same client. The app will show "Reconnect Google" when this happens.
 - **AI meal scan values are estimates.** The AI only guesses grams; calories come from the matched USDA/saved food. Expect ±20–40% on mixed plates; a side photo, a known plate size and saved usual portions narrow it. Entries are flagged `is_estimate`.
