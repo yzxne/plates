@@ -87,6 +87,8 @@ export class FakeGoogle {
   refreshValid = true;
   issuedRefresh = 'refresh-123';
   private nextSheetId = 100;
+  /** Optional handler for non-Google hosts (USDA, Open Food Facts). */
+  otherHosts?: (r: Request) => Response | undefined;
 
   install(): void {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => this.handle(new Request(input, init))));
@@ -113,6 +115,8 @@ export class FakeGoogle {
     }
     if (url.hostname === 'oauth2.googleapis.com' && url.pathname === '/revoke') return ok({});
 
+    const other = this.otherHosts?.(r);
+    if (other) return other;
     if (url.hostname !== 'sheets.googleapis.com') return err(404, `unexpected host ${url.hostname}`);
     if (!/^Bearer access-\d$/.test(r.headers.get('Authorization') ?? '')) return err(401, 'bad token');
     const forced = this.failNext.shift();

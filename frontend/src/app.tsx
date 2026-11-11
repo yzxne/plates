@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'preact/hooks';
+import { defaultMeal, type Meal } from '../../shared/nutrition';
 import { getToken, onUnauthorized } from './api';
-import { AddSheet } from './components/AddSheet';
 import { TabBar, type TabId } from './components/TabBar';
 import { ToastHost } from './components/ToastHost';
+import { chicagoHour, today } from './dates';
 import { queue } from './queue';
+import { AddFlow } from './screens/AddFlow';
+import { FoodLog } from './screens/FoodLog';
 import { Login } from './screens/Login';
 import { More } from './screens/More';
 import { Placeholder } from './screens/Placeholder';
@@ -34,7 +37,11 @@ function takeGoogleResult(): 'connected' | 'error' | null {
 export function App() {
   const [authed, setAuthed] = useState(!!getToken());
   const [tab, setTab] = useState<TabId>('dashboard');
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<{ meal: Meal } | null>(null);
+  const [foodDate, setFoodDate] = useState(today());
+  const [logVersion, setLogVersion] = useState(0);
+  // "+" in the tab bar logs to the Food Log's day if you're on it, otherwise today.
+  const addDate = tab === 'food' ? foodDate : today();
 
   useEffect(() => {
     onUnauthorized(() => setAuthed(false));
@@ -68,12 +75,22 @@ export function App() {
     <div class="app">
       <main class="screen">
         {tab === 'dashboard' && <Placeholder title="Dashboard" phase={5} text="Your weekly nutrition, expenditure and weight trend will show here." />}
-        {tab === 'food' && <Placeholder title="Food Log" phase={2} text="Log meals by day, grouped into breakfast, lunch, dinner and snacks." />}
+        {tab === 'food' && <FoodLog date={foodDate} onDate={setFoodDate} onAdd={(meal) => setAdding({ meal })} version={logVersion} />}
         {tab === 'train' && <Placeholder title="Train" phase={4} text="Routines, live workout logging and history." />}
         {tab === 'more' && <More onLogout={() => setAuthed(false)} />}
       </main>
-      <TabBar current={tab} onSelect={setTab} onAdd={() => setAdding(true)} />
-      {adding && <AddSheet onClose={() => setAdding(false)} />}
+      <TabBar current={tab} onSelect={setTab} onAdd={() => setAdding({ meal: defaultMeal(chicagoHour()) })} />
+      {adding && (
+        <AddFlow
+          date={addDate}
+          meal={adding.meal}
+          onClose={() => setAdding(null)}
+          onLogged={() => {
+            setLogVersion((v) => v + 1);
+            if (tab !== 'food') { setFoodDate(addDate); setTab('food'); }
+          }}
+        />
+      )}
       <ToastHost />
     </div>
   );

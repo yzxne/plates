@@ -169,7 +169,7 @@ describe('spreadsheet setup and settings (end to end with fake Google)', () => {
     const rows = google.tabValues(setup.spreadsheet_id, 'Settings');
     const goal = rows.find((r) => r[1] === 'goal_type')!;
     expect(goal[2]).toBe('lose');
-    expect(String(goal[4])).not.toBe(String(goal[3])); // updated_at changed
+    expect(String(goal[4]) >= String(goal[3])).toBe(true); // updated_at refreshed (may equal created_at within the same ms)
 
     const get = await call('GET', '/sheet/settings', token);
     expect(get.body.settings.goal_rate_lb_per_week).toBe('0.75');

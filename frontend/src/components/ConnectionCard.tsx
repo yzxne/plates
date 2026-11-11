@@ -4,7 +4,7 @@ import { queue } from '../queue';
 import { showToast } from '../toast';
 
 export interface Status {
-  backend: { missing_secrets: string[] };
+  backend: { missing_secrets: string[]; usda_key?: boolean };
   google: { connected: boolean; reconnect_needed: boolean };
   sheet: { set_up: boolean; ok?: boolean; title?: string; url?: string; error?: string; message?: string };
 }
@@ -103,6 +103,9 @@ export function ConnectionCard({ onStatus }: { onStatus?: (s: Status | null) => 
 
       {backend.missing_secrets.length > 0 && (
         <p class="warn">Backend setup incomplete — missing: {backend.missing_secrets.join(', ')}</p>
+      )}
+      {backend.usda_key === false && (
+        <p class="warn">USDA key not set — food search uses USDA's shared demo key (30 searches/hour).</p>
       )}
 
       {!google.connected && (

@@ -7,7 +7,8 @@ import {
 import { corsHeaders, errorResponse, HttpError, json, parseOrigins, readJson } from './http';
 import { allowRequest, lockStatus, recordFailure, recordSuccess } from './lockout';
 import { bearerToken, SESSION_TTL_SEC, signToken, STATE_TTL_SEC, verifyToken } from './session';
-import { Sheets } from './sheets';
+import { searchOff, searchUsda } from './food';
+import { applyFilters, Sheets, type Filters } from './sheets';
 
 export default {
   fetch: (request: Request, env: Env) => handle(request, env),
@@ -163,7 +164,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
     const fresh = await googleConnection(env); // may change if the token refresh failed above
     return json({
-      backend: { missing_secrets: missingSecrets },
+      backend: { missing_secrets: missingSecrets, usda_key: !!env.USDA_API_KEY },
       google: { connected: fresh.connected, reconnect_needed: fresh.reconnectNeeded },
       sheet,
     });
@@ -220,12 +221,39 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   if (method === 'POST' && path === '/sheet/read') {
-    const body = await readJson<{ tabs?: unknown }>(request);
+    const body = await readJson<{ tabs?: unknown; filters?: unknown; include_deleted?: unknown }>(request);
     const tabs = Array.isArray(body.tabs) ? body.tabs : [];
     if (!tabs.length || !tabs.every(isTabName)) throw new HttpError(400, 'bad_tabs', 'tabs must list known tab names');
+    const filters = (body.filters && typeof body.filters === 'object' ? body.filters : {}) as Record<string, Filters>;
     const parsed = await (await sheetFor(env)).readTabs(tabs as TabName[]);
-    const data = Object.fromEntries(Object.entries(parsed).map(([t, p]) => [t, p.rows.map((r) => r.data)]));
+    const data = Object.fromEntries(Object.entries(parsed).map(([t, p]) => [
+      t,
+      applyFilters(p.rows.map((r) => r.data), filters[t], body.include_deleted === true),
+    ]));
     return json({ data });
+  }
+
+  if (method === 'POST' && path === '/sheet/upsert') {
+    const body = await readJson<{ tab?: unknown; key?: unknown; rows?: unknown }>(request);
+    if (!isTabName(body.tab)) throw new HttpError(400, 'bad_tab', 'Unknown tab');
+    if (body.tab === 'Settings') throw new HttpError(400, 'use_settings_endpoint', 'Use PUT /sheet/settings for settings');
+    const key = typeof body.key === 'string' ? body.key : '';
+    if (!key || key === 'id' || !(TABS[body.tab] as readonly string[]).includes(key)) {
+      throw new HttpError(400, 'bad_key', 'key must be a column of the tab (not id)');
+    }
+    const rows = validateRows(body.tab, body.rows, false);
+    if (rows.some((r) => r[key] === undefined || r[key] === '')) throw new HttpError(400, 'missing_key', `Every row needs ${key}`);
+    const saved = await (await sheetFor(env)).upsertBy(body.tab, key, rows);
+    return json({ rows: saved });
+  }
+
+  if (method === 'GET' && path === '/food/search') {
+    const q = (url.searchParams.get('q') ?? '').trim();
+    const source = url.searchParams.get('source') ?? 'usda';
+    if (q.length < 2 || q.length > 100) throw new HttpError(400, 'bad_query', 'Search for 2–100 characters');
+    if (source === 'usda') return json({ source, foods: await searchUsda(q, env.USDA_API_KEY) });
+    if (source === 'off') return json({ source, foods: await searchOff(q) });
+    throw new HttpError(400, 'bad_source', 'source must be usda or off');
   }
 
   if (method === 'POST' && (path === '/sheet/append' || path === '/sheet/update')) {

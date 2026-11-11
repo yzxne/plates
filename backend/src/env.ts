@@ -11,6 +11,7 @@ export interface Env {
   TOKEN_ENC_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  USDA_API_KEY?: string; // optional: falls back to USDA's DEMO_KEY (30 requests/hour)
 }
 
 export const REQUIRED_SECRETS = [

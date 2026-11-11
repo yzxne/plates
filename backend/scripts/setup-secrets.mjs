@@ -79,18 +79,27 @@ async function setGoogle() {
   putSecret('GOOGLE_CLIENT_SECRET', secret);
 }
 
+async function setUsda() {
+  const key = (await ask('USDA FoodData Central API key: ', { hidden: true })).trim();
+  if (!key) { console.log('Empty. Skipped.'); return; }
+  putSecret('USDA_API_KEY', key);
+}
+
 const args = new Set(process.argv.slice(2));
 try {
   if (args.has('--passcode')) {
     await setPasscode();
   } else if (args.has('--google')) {
     await setGoogle();
+  } else if (args.has('--usda')) {
+    await setUsda();
   } else {
     console.log('This sets your Plates backend secrets in Cloudflare. Nothing is saved on this PC.\n');
     putSecret('SESSION_SECRET', b64url(randomBytes(32)));
     putSecret('TOKEN_ENC_KEY', b64url(randomBytes(32)));
     await setPasscode();
     await setGoogle();
+    await setUsda();
   }
   console.log('\nAll set.');
 } catch (err) {

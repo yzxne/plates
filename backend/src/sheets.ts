@@ -269,6 +269,45 @@ export class Sheets {
     return updated;
   }
 
+  /**
+   * Updates the row whose `key` column matches (ignoring soft-deleted rows), or appends it.
+   * Used for one-row-per-date tabs like Days. 2–3 API calls total.
+   */
+  async upsertBy(tab: TabName, key: string, rows: Row[], nowMs = Date.now()): Promise<Row[]> {
+    if (!rows.length) return [];
+    const headers = TABS[tab];
+    const parsed = (await this.readTabs([tab]))[tab]!;
+    const byKey = new Map<string, { rowNumber: number; data: Row }>();
+    for (const r of parsed.rows) {
+      if (r.data.deleted_at) continue;
+      const k = String(r.data[key] ?? '');
+      if (k && !byKey.has(k)) byKey.set(k, r);
+    }
+    const ts = nowIso(nowMs);
+    const lastCol = colLetter(headers.length);
+    const updates: { range: string; values: Cell[][] }[] = [];
+    const appends: Row[] = [];
+    const saved: Row[] = [];
+    for (const row of rows) {
+      const existing = byKey.get(String(row[key]));
+      if (existing) {
+        const merged: Row = { ...existing.data, ...row, id: existing.data.id!, created_at: existing.data.created_at ?? ts, updated_at: ts };
+        updates.push({ range: `${q(tab)}!A${existing.rowNumber}:${lastCol}${existing.rowNumber}`, values: [rowToValues(headers, merged)] });
+        saved.push(merged);
+      } else {
+        appends.push(row);
+      }
+    }
+    if (updates.length) {
+      await googleFetch(this.token, this.url('/values:batchUpdate'), {
+        method: 'POST',
+        body: JSON.stringify({ valueInputOption: 'RAW', data: updates }),
+      });
+    }
+    if (appends.length) saved.push(...(await this.append(tab, appends, nowMs)));
+    return saved;
+  }
+
   async readSettings(): Promise<Record<string, string>> {
     const parsed = (await this.readTabs(['Settings'])).Settings!;
     const out: Record<string, string> = {};
@@ -306,6 +345,30 @@ export class Sheets {
     }
     if (appends.length) await this.append('Settings', appends, nowMs);
   }
+}
+
+export type Filters = Record<string, string | number | boolean>;
+
+/**
+ * Keeps rows matching every filter. Keys: `col` (equals), `col__gte`, `col__lte` (string/number compare).
+ * Soft-deleted rows are dropped unless includeDeleted.
+ */
+export function applyFilters(rows: Row[], filters: Filters | undefined, includeDeleted = false): Row[] {
+  const entries = Object.entries(filters ?? {});
+  return rows.filter((r) => {
+    if (!includeDeleted && r.deleted_at) return false;
+    return entries.every(([k, want]) => {
+      const m = /^(.+?)__(gte|lte)$/.exec(k);
+      const col = m ? m[1]! : k;
+      const have = r[col];
+      if (!m) return String(have ?? '') === String(want);
+      if (have === '' || have === undefined) return false;
+      const bothNum = typeof have === 'number' && typeof want === 'number';
+      const a = bothNum ? (have as number) : String(have);
+      const b = bothNum ? (want as number) : String(want);
+      return m[2] === 'gte' ? a >= b : a <= b;
+    });
+  });
 }
 
 function isKnownTab(name: string): name is TabName {
