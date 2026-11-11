@@ -1,0 +1,34 @@
+# Dependencies and builds
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# Cloudflare / local secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Exports and personal data
+*.xlsx
+*.csv
+exports/
+imports/
+
+# Obsidian vault files (personal, kept out of the public repo)
+.obsidian/
+Plates Development Brief.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+*.log

@@ -1,0 +1,86 @@
+# Data Model (Google Sheet)
+
+Source of truth: `shared/schema.ts`. Schema version **1**.
+
+## Conventions
+
+- One tab per entity. Row 1 = header row (frozen). Columns are matched **by header name**, not position.
+- Every row has `id` (UUID v4), `created_at`, `updated_at` (ISO 8601 UTC, e.g. `2026-11-10T18:04:05.123Z`).
+- "Day" fields (`date`) are calendar dates `YYYY-MM-DD` in **America/Chicago**.
+- Weights in **lb**, food amounts in **g**, sodium in **mg**, energy in **kcal**.
+- Values are written with `valueInputOption=RAW`: text that starts with `=` is stored as text, never as a formula.
+- Deletes are **soft**: set `deleted_at`. Rows are never removed by the app (row numbers stay stable; Sheet history stays readable).
+- Booleans are stored as Sheet booleans (`TRUE`/`FALSE`).
+- Nested data that has no tab of its own is stored as a JSON string in a `*_json` column.
+
+## Tabs
+
+### Settings
+Key/value pairs. `id, key, value, created_at, updated_at`. All values are text.
+
+| key | Meaning | Default |
+|---|---|---|
+| sex | `male` / `female` (resting-rate formula only) | — |
+| birth_date | YYYY-MM-DD | — |
+| height_in | Height in inches | — |
+| activity_multiplier | 1.2 – 1.9 | 1.375 |
+| goal_type | `lose` / `maintain` / `gain` | maintain |
+| goal_rate_lb_per_week | lb/week | 0.5 |
+| protein_g_per_lb | g protein per lb body weight | 0.8 |
+| fat_min_g | g/day | 50 |
+| checkin_weekday | Mon–Sun | Mon |
+| training_days | comma list, e.g. `Mon,Wed,Fri` | Mon,Wed,Fri |
+| plate_diameter_in | AI scale reference | 10.5 |
+| ai_monthly_cap_usd | AI spend cap | 1 |
+| units | read-only | lb |
+| timezone | read-only | America/Chicago |
+| schema_version | read-only | 1 |
+
+### Foods
+Saved/cached foods. Nutrients both per 100 g and per serving.
+`id, name, brand, source (usda|off|label|ai|manual|quick), source_id, barcode, serving_size, serving_unit, grams_per_serving, kcal_100g, protein_g_100g, carbs_g_100g, fat_g_100g, fiber_g_100g, sugar_g_100g, sodium_mg_100g, kcal_serving, protein_g_serving, carbs_g_serving, fat_g_serving, fiber_g_serving, sugar_g_serving, sodium_mg_serving, created_at, updated_at, deleted_at`
+
+### FoodLog
+`id, date, meal (breakfast|lunch|dinner|snack), food_id → Foods.id, food_name (copy for readability), grams, servings, kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, entry_method (search|barcode|label|ai|paste_ai|quick|manual), notes, created_at, updated_at, deleted_at`
+
+### Days
+One row per date. `id, date, day_complete (bool), total_kcal, total_protein_g, total_carbs_g, total_fat_g, target_kcal, target_protein_g, target_carbs_g, target_fat_g, created_at, updated_at`. Totals are derived from FoodLog.
+
+### Weights
+`id, date, time (HH:MM, Chicago), weight_lb, body_fat_pct, notes, created_at, updated_at, deleted_at`
+
+### Exercises
+`id, name, primary_muscles (comma list), secondary_muscles, equipment, default_rest_sec, notes, created_at, updated_at, deleted_at`
+
+### Routines
+`id, name, notes, sort_order, created_at, updated_at, deleted_at`
+
+### RoutineExercises
+Ordered exercises within a routine. `id, routine_id → Routines.id, exercise_id → Exercises.id, position, rest_sec, planned_sets_json, notes, created_at, updated_at, deleted_at`
+
+`planned_sets_json` example:
+```json
+[{"type":"W","weight_lb":95,"rep_min":8,"rep_max":10},{"type":"N","weight_lb":135,"rep_min":6,"rep_max":8}]
+```
+
+### Workouts
+`id, routine_id (optional), date, start_time, end_time (ISO), duration_sec, notes, created_at, updated_at, deleted_at`
+
+### Sets
+One row per set. `id, workout_id → Workouts.id, exercise_id → Exercises.id, exercise_order, set_order, set_type (W|N|F), weight_lb, reps, rep_min, rep_max, completed (bool), rpe, note, created_at, updated_at, deleted_at`
+
+### CheckIns
+`id, date, trend_weight_lb, expenditure_kcal, confidence (low data|settling|stable), weekly_budget_kcal, day_targets_json, reason, created_at, updated_at`
+
+### AIUsage
+`id, date, request_id, model, input_tokens, output_tokens, cost_usd, created_at, updated_at`
+
+## Changes from the brief
+
+- **RoutineExercises** tab added (brief had routines' exercise lists nested in Routines). Keeps each tab flat so it maps 1:1 to database tables later.
+- `deleted_at` soft-delete column on editable tabs.
+- `food_name` copied into FoodLog so the sheet is readable on its own.
+
+## Schema changes over time
+
+The backend checks headers on setup. If a tab's header row is an exact **prefix** of the current schema (older version), the missing column names are added to the right — no data moves. Any other mismatch is reported, never auto-fixed.

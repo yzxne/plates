@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "plates-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "kv_namespaces": [
+    // Create with: npx wrangler kv namespace create PLATES_KV  — then paste the id here (not a secret).
+    { "binding": "PLATES_KV", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://yzxne.github.io",
+    "APP_URL": "https://yzxne.github.io/plates/"
+  }
+  // Secrets (set with: npm run setup-secrets -w backend, or npx wrangler secret put NAME):
+  // PASSCODE_HASH, SESSION_SECRET, TOKEN_ENC_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+}

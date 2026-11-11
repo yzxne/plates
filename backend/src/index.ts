@@ -1,0 +1,243 @@
+import { isTabName, SETTINGS_DEFAULTS, TABS, validateSettings, type Row, type TabName } from '../../shared/schema';
+import { verifyPasscode } from './crypto';
+import { REQUIRED_SECRETS, type Env } from './env';
+import {
+  buildAuthUrl, disconnectGoogle, exchangeCode, getAccessToken, googleConnection, KV_KEYS, redirectUri,
+} from './google';
+import { corsHeaders, errorResponse, HttpError, json, parseOrigins, readJson } from './http';
+import { allowRequest, lockStatus, recordFailure, recordSuccess } from './lockout';
+import { bearerToken, SESSION_TTL_SEC, signToken, STATE_TTL_SEC, verifyToken } from './session';
+import { Sheets } from './sheets';
+
+export default {
+  fetch: (request: Request, env: Env) => handle(request, env),
+} satisfies ExportedHandler<Env>;
+
+export async function handle(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const allowed = parseOrigins(env.ALLOWED_ORIGINS);
+  const originOk = !origin || allowed.includes(origin);
+  const cors = origin && originOk ? corsHeaders(origin) : {};
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: originOk ? 204 : 403, headers: cors });
+  }
+  if (!originOk) return json({ error: 'origin_not_allowed', message: 'This origin is not allowed' }, 403);
+
+  let res: Response;
+  try {
+    res = await route(request, env);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      res = errorResponse(err);
+    } else {
+      console.error('Unhandled error', err);
+      res = json({ error: 'server_error', message: 'Something went wrong on the server' }, 500);
+    }
+  }
+  for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
+  return res;
+}
+
+function clientIp(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') ?? 'unknown';
+}
+
+async function requireSession(request: Request, env: Env): Promise<void> {
+  if (!env.SESSION_SECRET) throw new HttpError(500, 'not_configured', 'SESSION_SECRET is not set on the backend');
+  const token = bearerToken(request);
+  if (!token || !(await verifyToken(env.SESSION_SECRET, token, 'session'))) {
+    throw new HttpError(401, 'unauthorized', 'Please log in again');
+  }
+}
+
+async function sheetFor(env: Env): Promise<Sheets> {
+  const id = await env.PLATES_KV.get(KV_KEYS.spreadsheetId);
+  if (!id) throw new HttpError(409, 'sheet_not_set_up', 'No Plates spreadsheet yet. Create it in More → Settings.');
+  return new Sheets(await getAccessToken(env), id);
+}
+
+function appRedirect(env: Env, params: Record<string, string>): Response {
+  const url = new URL(env.APP_URL);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  return new Response(null, { status: 302, headers: { Location: url.toString(), 'Cache-Control': 'no-store' } });
+}
+
+const MAX_ROWS = 500;
+
+function validateRows(tab: TabName, rows: unknown, requireId: boolean): Row[] {
+  if (!Array.isArray(rows) || rows.length === 0) throw new HttpError(400, 'bad_rows', 'rows must be a non-empty array');
+  if (rows.length > MAX_ROWS) throw new HttpError(400, 'too_many_rows', `At most ${MAX_ROWS} rows per request`);
+  const allowed = new Set<string>(TABS[tab]);
+  return rows.map((r, i) => {
+    if (!r || typeof r !== 'object' || Array.isArray(r)) throw new HttpError(400, 'bad_rows', `Row ${i} is not an object`);
+    const row = r as Record<string, unknown>;
+    const unknownKeys = Object.keys(row).filter((k) => !allowed.has(k));
+    if (unknownKeys.length) throw new HttpError(400, 'unknown_columns', `${tab} has no column(s): ${unknownKeys.join(', ')}`);
+    if (requireId && !row.id) throw new HttpError(400, 'missing_id', `Row ${i} needs an id`);
+    for (const [k, v] of Object.entries(row)) {
+      if (v !== null && !['string', 'number', 'boolean'].includes(typeof v)) {
+        throw new HttpError(400, 'bad_value', `Row ${i}, ${k}: values must be text, numbers or true/false`);
+      }
+      if (typeof v === 'string' && v.length > 50_000) throw new HttpError(400, 'bad_value', `Row ${i}, ${k}: text too long`);
+    }
+    return row as Row;
+  });
+}
+
+async function route(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+  const method = request.method;
+  const ip = clientIp(request);
+
+  // ---------- Public ----------
+  if (method === 'GET' && (path === '/' || path === '/health')) {
+    return json({ ok: true, service: 'plates-api' });
+  }
+
+  if (method === 'POST' && path === '/auth/login') {
+    if (!env.PASSCODE_HASH || !env.SESSION_SECRET) {
+      throw new HttpError(500, 'not_configured', 'Passcode or session secret not set on the backend');
+    }
+    const lock = await lockStatus(env.PLATES_KV, ip);
+    if (lock.locked) {
+      throw new HttpError(429, 'locked', `Too many wrong passcodes. Try again in ${Math.ceil(lock.retryAfterSec / 60)} min.`, {
+        retry_after_sec: lock.retryAfterSec,
+      });
+    }
+    const body = await readJson<{ passcode?: unknown }>(request);
+    const passcode = typeof body.passcode === 'string' ? body.passcode : '';
+    if (!passcode || passcode.length > 200) throw new HttpError(400, 'bad_passcode', 'Enter your passcode');
+    if (!(await verifyPasscode(passcode, env.PASSCODE_HASH))) {
+      await recordFailure(env.PLATES_KV, ip);
+      throw new HttpError(401, 'wrong_passcode', 'Wrong passcode');
+    }
+    await recordSuccess(env.PLATES_KV, ip);
+    const { token, exp } = await signToken(env.SESSION_SECRET, 'session', SESSION_TTL_SEC);
+    return json({ token, expires_at: new Date(exp * 1000).toISOString() });
+  }
+
+  // Google redirects the browser here (no Origin header, no bearer token). The signed state proves it started from the app.
+  if (method === 'GET' && path === '/oauth/google/callback') {
+    const state = url.searchParams.get('state') ?? '';
+    if (!env.SESSION_SECRET || !(await verifyToken(env.SESSION_SECRET, state, 'oauth_state'))) {
+      return appRedirect(env, { google: 'error', reason: 'expired' });
+    }
+    const error = url.searchParams.get('error');
+    if (error) return appRedirect(env, { google: 'error', reason: error === 'access_denied' ? 'denied' : 'google' });
+    const code = url.searchParams.get('code');
+    if (!code) return appRedirect(env, { google: 'error', reason: 'no_code' });
+    try {
+      await exchangeCode(env, code, redirectUri(request.url));
+    } catch (err) {
+      const reason = err instanceof HttpError ? err.code : 'server';
+      if (!(err instanceof HttpError)) console.error('OAuth exchange failed', err);
+      return appRedirect(env, { google: 'error', reason });
+    }
+    return appRedirect(env, { google: 'connected' });
+  }
+
+  // ---------- Authenticated ----------
+  if (!allowRequest(ip)) throw new HttpError(429, 'rate_limited', 'Too many requests. Slow down for a minute.');
+  await requireSession(request, env);
+
+  if (method === 'GET' && path === '/auth/check') return json({ ok: true });
+
+  if (method === 'GET' && path === '/status') {
+    const missingSecrets = REQUIRED_SECRETS.filter((k) => !env[k]);
+    const conn = await googleConnection(env);
+    const spreadsheetId = await env.PLATES_KV.get(KV_KEYS.spreadsheetId);
+    const sheet: Record<string, unknown> = { set_up: !!spreadsheetId };
+    if (conn.connected && spreadsheetId) {
+      try {
+        const meta = await new Sheets(await getAccessToken(env), spreadsheetId).meta();
+        Object.assign(sheet, { ok: true, title: meta.title, url: meta.url });
+      } catch (err) {
+        Object.assign(sheet, {
+          ok: false,
+          error: err instanceof HttpError ? err.code : 'server_error',
+          message: err instanceof HttpError ? err.message : 'Could not reach the spreadsheet',
+        });
+      }
+    }
+    const fresh = await googleConnection(env); // may change if the token refresh failed above
+    return json({
+      backend: { missing_secrets: missingSecrets },
+      google: { connected: fresh.connected, reconnect_needed: fresh.reconnectNeeded },
+      sheet,
+    });
+  }
+
+  if (method === 'POST' && path === '/oauth/google/start') {
+    const { token } = await signToken(env.SESSION_SECRET!, 'oauth_state', STATE_TTL_SEC);
+    return json({ url: buildAuthUrl(env, redirectUri(request.url), token) });
+  }
+
+  if (method === 'POST' && path === '/oauth/google/disconnect') {
+    await disconnectGoogle(env);
+    return json({ ok: true });
+  }
+
+  if (method === 'POST' && path === '/sheet/setup') {
+    const body = await readJson<{ create_new?: unknown }>(request);
+    const token = await getAccessToken(env);
+    const existingId = await env.PLATES_KV.get(KV_KEYS.spreadsheetId);
+    if (existingId && body.create_new !== true) {
+      const sheets = new Sheets(token, existingId);
+      try {
+        const meta = await sheets.meta();
+        const result = await sheets.ensureSchema();
+        return json({ created: false, spreadsheet_id: existingId, url: meta.url, ...result });
+      } catch (err) {
+        if (err instanceof HttpError && err.code === 'sheet_not_found') {
+          throw new HttpError(409, 'sheet_missing', 'Your saved Plates spreadsheet is gone (deleted or in trash). Restore it from Drive trash, or create a new one.');
+        }
+        throw err;
+      }
+    }
+    const created = await Sheets.create(token, 'Plates');
+    await env.PLATES_KV.put(KV_KEYS.spreadsheetId, created.spreadsheetId);
+    return json({ created: true, spreadsheet_id: created.spreadsheetId, url: created.url, addedTabs: [], addedColumns: [], problems: [] });
+  }
+
+  if (method === 'GET' && path === '/sheet/settings') {
+    const stored = await (await sheetFor(env)).readSettings();
+    return json({ settings: { ...SETTINGS_DEFAULTS, ...stored } });
+  }
+
+  if (method === 'PUT' && path === '/sheet/settings') {
+    const body = await readJson<{ settings?: unknown }>(request);
+    if (!body.settings || typeof body.settings !== 'object' || Array.isArray(body.settings)) {
+      throw new HttpError(400, 'bad_settings', 'settings must be an object');
+    }
+    const v = validateSettings(body.settings as Record<string, unknown>);
+    if (!v.ok) throw new HttpError(400, 'invalid_settings', 'Some settings are not valid', { fields: v.errors });
+    const sheets = await sheetFor(env);
+    await sheets.upsertSettings(v.clean);
+    const stored = await sheets.readSettings();
+    return json({ settings: { ...SETTINGS_DEFAULTS, ...stored } });
+  }
+
+  if (method === 'POST' && path === '/sheet/read') {
+    const body = await readJson<{ tabs?: unknown }>(request);
+    const tabs = Array.isArray(body.tabs) ? body.tabs : [];
+    if (!tabs.length || !tabs.every(isTabName)) throw new HttpError(400, 'bad_tabs', 'tabs must list known tab names');
+    const parsed = await (await sheetFor(env)).readTabs(tabs as TabName[]);
+    const data = Object.fromEntries(Object.entries(parsed).map(([t, p]) => [t, p.rows.map((r) => r.data)]));
+    return json({ data });
+  }
+
+  if (method === 'POST' && (path === '/sheet/append' || path === '/sheet/update')) {
+    const body = await readJson<{ tab?: unknown; rows?: unknown }>(request);
+    if (!isTabName(body.tab)) throw new HttpError(400, 'bad_tab', 'Unknown tab');
+    if (body.tab === 'Settings') throw new HttpError(400, 'use_settings_endpoint', 'Use PUT /sheet/settings for settings');
+    const isUpdate = path === '/sheet/update';
+    const rows = validateRows(body.tab, body.rows, isUpdate);
+    const sheets = await sheetFor(env);
+    const saved = isUpdate ? await sheets.updateById(body.tab, rows) : await sheets.append(body.tab, rows);
+    return json({ rows: saved });
+  }
+
+  throw new HttpError(404, 'not_found', 'Not found');
+}

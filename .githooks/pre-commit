@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Enable once per clone: git config core.hooksPath .githooks
+exec sh scripts/check-secrets.sh

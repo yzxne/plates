@@ -1,0 +1,22 @@
+{
+  "name": "plates",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "build": "npm run build -w frontend",
+    "dev:web": "npm run dev -w frontend",
+    "dev:api": "npm run dev -w backend",
+    "icons": "node scripts/make-icons.mjs",
+    "check-secrets": "sh scripts/check-secrets.sh --all"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261110.1": true
+  }
+}
