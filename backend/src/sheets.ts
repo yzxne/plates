@@ -144,7 +144,7 @@ export class Sheets {
    * Adds missing tabs and missing trailing header columns. Never moves or deletes data.
    * Returns problems it would not fix automatically.
    */
-  async ensureSchema(): Promise<{ addedTabs: string[]; addedColumns: string[]; problems: string[] }> {
+  async ensureSchema(retried = false): Promise<{ addedTabs: string[]; addedColumns: string[]; problems: string[] }> {
     const { tabs } = await this.meta();
     const missing = TAB_NAMES.filter((t) => !tabs.includes(t));
     const existing = TAB_NAMES.filter((t) => tabs.includes(t));
@@ -153,14 +153,20 @@ export class Sheets {
     const headerWrites: { range: string; values: Cell[][] }[] = [];
 
     if (missing.length) {
-      await googleFetch(this.token, this.url(':batchUpdate'), {
-        method: 'POST',
-        body: JSON.stringify({
-          requests: missing.map((title) => ({
-            addSheet: { properties: { title, gridProperties: { frozenRowCount: 1, columnCount: TABS[title].length } } },
-          })),
-        }),
-      });
+      try {
+        await googleFetch(this.token, this.url(':batchUpdate'), {
+          method: 'POST',
+          body: JSON.stringify({
+            requests: missing.map((title) => ({
+              addSheet: { properties: { title, gridProperties: { frozenRowCount: 1, columnCount: TABS[title].length } } },
+            })),
+          }),
+        });
+      } catch (err) {
+        // Two requests right after an update can both try to add the same new tab; the loser just re-checks.
+        if (!retried && err instanceof Error && /already exists/i.test(err.message)) return this.ensureSchema(true);
+        throw err;
+      }
       for (const t of missing) headerWrites.push({ range: `${q(t)}!A1`, values: [[...TABS[t]]] });
     }
 

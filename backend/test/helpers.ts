@@ -171,6 +171,7 @@ export class FakeGoogle {
       for (const rq of body.requests) {
         if (rq.addSheet) {
           const pr = rq.addSheet.properties;
+          if (ss.tabs.has(pr.title)) return err(400, `Invalid requests[0].addSheet: A sheet with the name "${pr.title}" already exists. Please enter another name.`);
           ss.tabs.set(pr.title, { sheetId: this.nextSheetId++, columnCount: pr.gridProperties?.columnCount ?? 26, grid: [] });
         } else if (rq.updateSheetProperties) {
           const pr = rq.updateSheetProperties.properties;

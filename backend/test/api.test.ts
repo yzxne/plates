@@ -311,4 +311,32 @@ describe('automatic schema upgrade', () => {
     expect(rows[1]!.slice(0, 3)).toEqual(['w1', '', '2026-11-01']);
     expect(rows[2]![TABS.Workouts.indexOf('name')]).toBe('Legs');
   });
+
+  it('survives another request adding the same new tab first', async () => {
+    const token = await login();
+    await connectGoogle(token);
+    const { body: setup } = await call('POST', '/sheet/setup', token);
+    const ss = google.spreadsheets.get(setup.spreadsheet_id)!;
+    ss.tabs.delete('FoodArchive'); // sheet from before v4
+    _resetSchemaCheck();
+    // Another request adds the tab between our check and our addSheet call.
+    const orig = globalThis.fetch;
+    let raced = false;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const req = new Request(input, init);
+      if (!raced && req.url.endsWith(':batchUpdate') && (await req.clone().text()).includes('addSheet')) {
+        raced = true;
+        ss.tabs.set('FoodArchive', { sheetId: 999, columnCount: TABS.FoodArchive.length, grid: [] });
+      }
+      return orig(req);
+    };
+    try {
+      const r = await call('POST', '/sheet/read', token, { tabs: ['Weights'] });
+      expect(r.status).toBe(200);
+    } finally {
+      globalThis.fetch = orig;
+    }
+    expect(raced).toBe(true);
+    expect(google.tabValues(setup.spreadsheet_id, 'FoodArchive')[0]).toEqual([...TABS.FoodArchive]);
+  });
 });
