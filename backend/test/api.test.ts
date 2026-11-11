@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SETTINGS_DEFAULTS, TABS, TAB_NAMES } from '../../shared/schema';
 import { hashPasscode } from '../src/crypto';
 import { _resetGoogleCache, KV_KEYS } from '../src/google';
-import { handle } from '../src/index';
+import { _resetSchemaCheck, handle } from '../src/index';
 import { _resetRateLimit } from '../src/lockout';
 import { timing } from '../src/sheets';
 import { FakeGoogle, makeEnv, req, WORKER } from './helpers';
@@ -37,6 +37,7 @@ beforeEach(async () => {
   google.install();
   _resetGoogleCache();
   _resetRateLimit();
+  _resetSchemaCheck();
   timing.sleep = async () => {};
 });
 
@@ -289,5 +290,25 @@ describe('spreadsheet setup and settings (end to end with fake Google)', () => {
     const before = env.PLATES_KV.writes;
     for (let i = 0; i < 10; i++) await call('GET', '/sheet/settings', token);
     expect(env.PLATES_KV.writes - before).toBe(0);
+  });
+});
+
+describe('automatic schema upgrade', () => {
+  it('adds new v2 Workouts columns to an existing v1 sheet on first use', async () => {
+    const token = await login();
+    await connectGoogle(token);
+    const { body: setup } = await call('POST', '/sheet/setup', token);
+    const tab = google.spreadsheets.get(setup.spreadsheet_id)!.tabs.get('Workouts')!;
+    tab.grid[0] = tab.grid[0]!.slice(0, 10); // a v1 sheet: header ends at deleted_at
+    tab.columnCount = 10;
+    tab.grid[1] = ['w1', '', '2026-11-01'];
+    _resetSchemaCheck(); // new Worker instance after the app update
+
+    const r = await call('POST', '/sheet/append', token, { tab: 'Workouts', rows: [{ id: 'w2', date: '2026-11-02', name: 'Legs' }] });
+    expect(r.status).toBe(200);
+    const rows = google.tabValues(setup.spreadsheet_id, 'Workouts');
+    expect(rows[0]).toEqual([...TABS.Workouts]);
+    expect(rows[1]!.slice(0, 3)).toEqual(['w1', '', '2026-11-01']);
+    expect(rows[2]![TABS.Workouts.indexOf('name')]).toBe('Legs');
   });
 });

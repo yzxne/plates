@@ -24,3 +24,8 @@ Updated each phase.
 - **Open Food Facts API v3.6** moved nutrients to a new `nutrition` structure (found 2026-11-12, after Phase 0). Plates reads both the old and new formats. Products with no nutrition data on OFF fall through to USDA.
 - **USDA barcode lookup** tries up to 4 forms of the code (UPC-A, EAN-13, GTIN-14), so one lookup can use up to 4 USDA requests.
 - **No vibration on scan** (iPhone Safari doesn't support it).
+- **Workout history loads every workout and set** each time Train opens. Fine for years of use; may need date filtering later.
+- **Unchecked sets are not saved** when you finish a workout (by design; you're told how many before confirming).
+- **Rest timer sound** needs the phone's ringer on and at least one tap (checking a set counts). No vibration on iPhone.
+- **Rest timer can't notify you while Plates is in the background** — web apps can't schedule sounds when closed; the timer is correct when you come back.
+- **Routines aren't auto-updated** from what you lifted; edit the routine to change targets.

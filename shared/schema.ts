@@ -1,7 +1,7 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const TABS = {
   Settings: ['id', 'key', 'value', 'created_at', 'updated_at'],
@@ -36,6 +36,8 @@ export const TABS = {
   Workouts: [
     'id', 'routine_id', 'date', 'start_time', 'end_time', 'duration_sec', 'notes',
     'created_at', 'updated_at', 'deleted_at',
+    // v2
+    'name', 'exercise_notes_json',
   ],
   Sets: [
     'id', 'workout_id', 'exercise_id', 'exercise_order', 'set_order', 'set_type',

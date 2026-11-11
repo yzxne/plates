@@ -1,4 +1,4 @@
-import { isTabName, SETTINGS_DEFAULTS, TABS, validateSettings, type Row, type TabName } from '../../shared/schema';
+import { isTabName, SCHEMA_VERSION, SETTINGS_DEFAULTS, TABS, validateSettings, type Row, type TabName } from '../../shared/schema';
 import { verifyPasscode } from './crypto';
 import { REQUIRED_SECRETS, type Env } from './env';
 import {
@@ -53,10 +53,24 @@ async function requireSession(request: Request, env: Env): Promise<void> {
   }
 }
 
+// Spreadsheets already checked against the current schema in this Worker instance.
+const schemaChecked = new Set<string>();
+export function _resetSchemaCheck(): void {
+  schemaChecked.clear();
+}
+
 async function sheetFor(env: Env): Promise<Sheets> {
   const id = await env.PLATES_KV.get(KV_KEYS.spreadsheetId);
   if (!id) throw new HttpError(409, 'sheet_not_set_up', 'No Plates spreadsheet yet. Create it in More → Settings.');
-  return new Sheets(await getAccessToken(env), id);
+  const sheets = new Sheets(await getAccessToken(env), id);
+  // After an app update adds columns, upgrade the Sheet once (adds tabs/columns at the end; never moves data).
+  const key = `${id}:v${SCHEMA_VERSION}`;
+  if (!schemaChecked.has(key)) {
+    const r = await sheets.ensureSchema();
+    if (r.problems.length) console.warn('Schema problems', r.problems);
+    schemaChecked.add(key);
+  }
+  return sheets;
 }
 
 function appRedirect(env: Env, params: Record<string, string>): Response {

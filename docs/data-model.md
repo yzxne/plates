@@ -1,6 +1,6 @@
 # Data Model (Google Sheet)
 
-Source of truth: `shared/schema.ts`. Schema version **1**.
+Source of truth: `shared/schema.ts`. Schema version **2** (v2 added `Workouts.name` and `Workouts.exercise_notes_json`).
 
 ## Conventions
 
@@ -64,7 +64,9 @@ Ordered exercises within a routine. `id, routine_id → Routines.id, exercise_id
 ```
 
 ### Workouts
-`id, routine_id (optional), date, start_time, end_time (ISO), duration_sec, notes, created_at, updated_at, deleted_at`
+`id, routine_id (optional), date, start_time, end_time (ISO), duration_sec, notes, created_at, updated_at, deleted_at, name, exercise_notes_json`
+
+`exercise_notes_json`: `{"<exercise_id>": "note"}` for notes written during the workout. Only checked sets are saved.
 
 ### Sets
 One row per set. `id, workout_id → Workouts.id, exercise_id → Exercises.id, exercise_order, set_order, set_type (W|N|F), weight_lb, reps, rep_min, rep_max, completed (bool), rpe, note, created_at, updated_at, deleted_at`
@@ -83,4 +85,4 @@ One row per set. `id, workout_id → Workouts.id, exercise_id → Exercises.id, 
 
 ## Schema changes over time
 
-The backend checks headers on setup. If a tab's header row is an exact **prefix** of the current schema (older version), the missing column names are added to the right — no data moves. Any other mismatch is reported, never auto-fixed.
+The backend checks headers on setup and the first time it uses the Sheet after an app update (once per server instance). If a tab's header row is an exact **prefix** of the current schema (older version), the missing column names are added to the right — no data moves. Any other mismatch is reported, never auto-fixed.

@@ -5,8 +5,13 @@ import { TabBar, type TabId } from './components/TabBar';
 import { ToastHost } from './components/ToastHost';
 import { chicagoHour, today } from './dates';
 import { queue } from './queue';
+import { getActive, startWorkout, subscribeActive } from './activeWorkout';
+import { formatDuration, type Exercise, type Routine, type Workout } from '../../shared/training';
+import { cachedHistory, exerciseMap, loadExercises, loadHistory } from './trainData';
 import { AddFlow } from './screens/AddFlow';
 import { FoodLog } from './screens/FoodLog';
+import { Logger } from './screens/Logger';
+import { Train } from './screens/Train';
 import { Login } from './screens/Login';
 import { More } from './screens/More';
 import { Placeholder } from './screens/Placeholder';
@@ -40,6 +45,23 @@ export function App() {
   const [adding, setAdding] = useState<{ meal: Meal } | null>(null);
   const [foodDate, setFoodDate] = useState(today());
   const [logVersion, setLogVersion] = useState(0);
+  const [trainVersion, setTrainVersion] = useState(0);
+  const [hasActive, setHasActive] = useState(!!getActive());
+  const [logger, setLogger] = useState<{ exercises: Exercise[]; history: Workout[] } | null>(null);
+  useEffect(() => subscribeActive(() => setHasActive(!!getActive())), []);
+
+  async function openLogger() {
+    try {
+      const [exercises, history] = await Promise.all([loadExercises(), loadHistory()]);
+      setLogger({ exercises, history });
+    } catch {
+      setLogger({ exercises: [...exerciseMap().values()], history: cachedHistory() });
+    }
+  }
+  function start(routine?: Routine) {
+    if (!getActive()) startWorkout(routine, (id) => exerciseMap().get(id)?.rest_sec ?? 90);
+    void openLogger();
+  }
   // "+" in the tab bar logs to the Food Log's day if you're on it, otherwise today.
   const addDate = tab === 'food' ? foodDate : today();
 
@@ -72,13 +94,14 @@ export function App() {
   }
 
   return (
-    <div class="app">
+    <div class={`app ${hasActive && !logger ? 'has-active' : ''}`}>
       <main class="screen">
         {tab === 'dashboard' && <Placeholder title="Dashboard" phase={5} text="Your weekly nutrition, expenditure and weight trend will show here." />}
         {tab === 'food' && <FoodLog date={foodDate} onDate={setFoodDate} onAdd={(meal) => setAdding({ meal })} version={logVersion} />}
-        {tab === 'train' && <Placeholder title="Train" phase={4} text="Routines, live workout logging and history." />}
+        {tab === 'train' && <Train onStart={start} version={trainVersion} />}
         {tab === 'more' && <More onLogout={() => setAuthed(false)} />}
       </main>
+      {hasActive && !logger && <ActiveBar onOpen={openLogger} />}
       <TabBar current={tab} onSelect={setTab} onAdd={() => setAdding({ meal: defaultMeal(chicagoHour()) })} />
       {adding && (
         <AddFlow
@@ -91,7 +114,26 @@ export function App() {
           }}
         />
       )}
+      {logger && (
+        <Logger exercises={logger.exercises} history={logger.history}
+          onMinimize={() => setLogger(null)}
+          onDone={() => { setLogger(null); setTrainVersion((v) => v + 1); }} />
+      )}
       <ToastHost />
     </div>
+  );
+}
+
+function ActiveBar({ onOpen }: { onOpen: () => void }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const w = getActive()?.workout;
+  if (!w) return null;
+  const sec = Math.max(0, Math.round((now - Date.parse(w.start_time)) / 1000));
+  return (
+    <button class="active-bar" onClick={onOpen}>
+      <span><strong>{w.name}</strong> in progress</span>
+      <span>{formatDuration(sec)} · Resume</span>
+    </button>
   );
 }

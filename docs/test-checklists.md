@@ -57,3 +57,30 @@ Test in **Safari** first, then again from the **Home Screen icon** (iOS treats t
 - [ ] Repeat the live scan from the Home Screen icon. Tell me if the preview is sideways, black, or it keeps asking for permission (known iOS issues).
 
 Report back: which items failed, and your iOS version (Settings → General → About).
+
+## Phase 4 — Workouts
+
+**Set up**
+- [ ] Train tab → **Add starter exercises** (one time). Exercises list fills in; Sheet **Exercises** tab has ~42 rows.
+- [ ] **+ New** routine → name it → **+ Add exercise** (try the search and muscle filter) → add 2–3 exercises → adjust sets (W/N/F, weight, rep range), rest → **Save**.
+
+**Live workout**
+- [ ] Open the routine → **Start routine**. Sets show your planned weights; reps show the range as a hint.
+- [ ] Type weight/reps → tap **✓**. Row turns green; rest timer bar appears at the bottom with −15 / +15 / Skip.
+- [ ] Let the timer finish: you hear a beep (phone not on silent) and the bar flashes.
+- [ ] Tap the **W/1/F** box on a set → change type, or **Delete set**. **+ Add set** works.
+- [ ] **⋯** on an exercise → change rest time, move up/down, add a note, remove.
+- [ ] **+ Add exercise** mid-workout. Try **New** to create a custom exercise.
+- [ ] Tap **X** (top left) to minimise → a green "in progress" bar shows above the tabs → tap it to resume.
+- [ ] **Close Safari completely**, reopen Plates → the workout is still there.
+- [ ] **Finish** → summary with duration, volume, sets, "New bests", sets per muscle → **Done**.
+- [ ] Sheet: **Workouts** has 1 row (with name), **Sets** has one row per checked set.
+
+**Next session**
+- [ ] Start the same routine again → **Previous** column shows last time's weight × reps; tapping it copies them; checking an empty set fills from previous.
+
+**History & progress**
+- [ ] Train → **History** → open the workout → sets, est. 1RM, sets per muscle; **Delete workout** works (try on a test one).
+- [ ] Routine page → chart with **Volume / Reps / Duration** and **1M / 3M / 1Y / All**.
+- [ ] Train → **Exercises** → an exercise → best set, est. 1RM chart, history; **Edit** works.
+- [ ] Train home → **Last 7 days** sets per muscle updates.

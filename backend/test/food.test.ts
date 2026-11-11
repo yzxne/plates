@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPasscode } from '../src/crypto';
 import { mapOff, mapUsda, OFF_USER_AGENT } from '../src/food';
 import { _resetGoogleCache } from '../src/google';
-import { handle } from '../src/index';
+import { _resetSchemaCheck, handle } from '../src/index';
 import { _resetRateLimit } from '../src/lockout';
 import { applyFilters, timing } from '../src/sheets';
 import { FakeGoogle, makeEnv, req } from './helpers';
@@ -106,6 +106,7 @@ describe('food endpoints (fake services)', () => {
     google.install();
     _resetGoogleCache();
     _resetRateLimit();
+    _resetSchemaCheck();
     timing.sleep = async () => {};
     const res = await handle(req('POST', '/auth/login', { body: { passcode: 'pass-1234' } }), env);
     token = ((await res.json()) as { token: string }).token;
