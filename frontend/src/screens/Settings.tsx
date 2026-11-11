@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { SETTINGS_DEFAULTS, SETTINGS_FIELDS, validateSettings, WEEKDAYS, type SettingField } from '../../../shared/schema';
+import { fieldVisible, presetsFor, SETTINGS_DEFAULTS, SETTINGS_FIELDS, validateSettings, WEEKDAYS, type SettingField } from '../../../shared/schema';
 import { ApiError, errorMessage } from '../api';
 import { loadSettings, saveSettings } from '../settingsStore';
 import { IconBack } from '../components/Icons';
@@ -100,12 +100,12 @@ export function Settings({ onBack }: { onBack: () => void }) {
 
       <form class="card form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
         {SETTINGS_FIELDS.filter((f) => f.key !== 'schema_version' && f.type !== 'hidden' && f.group !== 'advanced').map((f) => (
-          <Field key={f.key} field={f} value={values[f.key] ?? ''} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
+          <Field key={f.key} field={f} value={values[f.key] ?? ''} all={values} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
         ))}
         <details class="advanced">
           <summary>Advanced coaching</summary>
           {SETTINGS_FIELDS.filter((f) => f.group === 'advanced').map((f) => (
-            <Field key={f.key} field={f} value={values[f.key] ?? ''} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
+            <Field key={f.key} field={f} value={values[f.key] ?? ''} all={values} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
           ))}
         </details>
         <button class="btn primary sticky-save" type="submit" disabled={saving || !!loadError || Object.keys(changed).length === 0}>
@@ -121,8 +121,13 @@ export function Settings({ onBack }: { onBack: () => void }) {
   );
 }
 
-export function Field({ field, value, error, onChange }: { field: SettingField; value: string; error?: string; onChange: (v: string) => void }) {
+export function Field({ field, value, error, onChange, all = {} }: {
+  field: SettingField; value: string; error?: string; onChange: (v: string) => void; all?: Record<string, string>;
+}) {
   const id = `f-${field.key}`;
+  if (!fieldVisible(field, all)) return null;
+  const presets = presetsFor(field, all);
+  const picked = presets.find((p) => Number(p.value) === Number(value) && value !== '');
   let control: preact.JSX.Element;
   switch (field.type) {
     case 'select':
@@ -181,7 +186,17 @@ export function Field({ field, value, error, onChange }: { field: SettingField; 
   return (
     <div class={`field ${error ? 'has-error' : ''}`}>
       <label id={`${id}-label`} for={field.type === 'days' ? undefined : id}>{field.label}</label>
+      {presets.length > 0 && (
+        <div class="chips presets" role="group" aria-label={`${field.label} quick picks`}>
+          {presets.map((p) => (
+            <button type="button" key={p.label + p.value} class={`chip ${picked === p ? 'on' : ''}`} aria-pressed={picked === p} onClick={() => onChange(p.value)}>
+              {p.label}{p.label !== p.value && !p.label.startsWith('$') && !/^[d,]+$/.test(p.label) ? <span class="chip-val"> · {p.value}{field.unit ? ` ${field.unit.split('/')[0]!.split(' ')[0]}` : ''}</span> : null}
+            </button>
+          ))}
+        </div>
+      )}
       {control}
+      {picked?.hint && <small class="hint">{picked.hint}</small>}
       {field.help && <small class="muted">{field.help}</small>}
       {error && <small class="error">{error}</small>}
     </div>

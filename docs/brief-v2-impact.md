@@ -56,3 +56,7 @@ Nothing already built is wasted: the backend, Sheet, search, barcode, label pars
 ## Status (2026-11-11)
 
 Done: Phase 0 checks; 4-tab layout + gear Settings; Today (macro bars, weekly grid, quick weigh-in, start next workout, swipe edit/delete with Undo, copy from yesterday, saved meals); first-run wizard; meal time windows; one-screen add with Recent/Favorites, one-tap re-log with Undo, long-press for amount; barcode match logs immediately with Undo/Edit; Train rotation + pre-filled weight/reps + weekly volume/frequency charts; rest-timer push notifications; native-feel CSS. Waiting on: Progress charts (Phase 5), AI features (Phase 6).
+
+## Later (approved idea, not built yet)
+
+- **Apple Health weight import via iPhone Shortcuts** (user OK'd 2026-11-11, "save for later"). Shortcut automation reads latest Weight (and optional body-fat %) from Health each morning and POSTs it to a new backend endpoint (`/ingest/weight`) secured by its own long-lived ingest key (separate from the passcode session; can only add weigh-ins). Plates de-duplicates by date+time. Steps/active energy could be sent but the coaching math wouldn't use them. ~30 min. Changes the brief's "Not included: Apple Health" — user approved.

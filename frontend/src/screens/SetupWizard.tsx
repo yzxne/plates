@@ -73,7 +73,7 @@ export function SetupWizard({ needsConnection, onDone }: { needsConnection: bool
         <p class="muted">{s.intro}</p>
         <div class="card form">
           {s.keys.map((k) => (
-            <Field key={k} field={fields.get(k)!} value={values[k] ?? ''} error={errors[k]}
+            <Field key={k} field={fields.get(k)!} value={values[k] ?? ''} all={values} error={errors[k]}
               onChange={(v) => { setValues((x) => ({ ...x, [k]: v })); setErrors((e) => { const n = { ...e }; delete n[k]; return n; }); }} />
           ))}
           {s.weight && (

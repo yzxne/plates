@@ -85,6 +85,21 @@ export interface SettingField {
   step?: number;
   help?: string;
   group?: 'advanced';
+  /** Quick-pick choices shown as chips under the input. `when` limits a preset to other settings' values. */
+  presets?: Preset[];
+  /** Only show this field when another setting has one of these values. */
+  showIf?: Record<string, string[]>;
+}
+
+export interface Preset { value: string; label: string; hint?: string; when?: Record<string, string> }
+
+/** Presets that apply given the other current values. */
+export function presetsFor(field: SettingField, values: Record<string, string>): Preset[] {
+  return (field.presets ?? []).filter((p) => !p.when || Object.entries(p.when).every(([k, v]) => values[k] === v));
+}
+
+export function fieldVisible(field: SettingField, values: Record<string, string>): boolean {
+  return !field.showIf || Object.entries(field.showIf).every(([k, vs]) => vs.includes(values[k] ?? ''));
 }
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -94,7 +109,7 @@ export const SETTINGS_FIELDS: SettingField[] = [
     options: [{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }] },
   { key: 'birth_date', label: 'Birth date', type: 'date', default: '' },
   { key: 'height_in', label: 'Height', type: 'number', unit: 'in', min: 36, max: 96, step: 0.5, default: '',
-    help: 'Inches. 70 in = 5 ft 10 in.' },
+    help: 'Inches: feet × 12 + inches. 5 ft 10 in = 70 in.' },
   // [Assumption] Common activity multipliers; source documented in docs/algorithm.md (Phase 5).
   { key: 'activity_multiplier', label: 'Activity level', type: 'select', default: '1.375', options: [
     { value: '1.2', label: 'Sedentary (×1.2)' },
@@ -103,14 +118,35 @@ export const SETTINGS_FIELDS: SettingField[] = [
     { value: '1.725', label: 'Very active (×1.725)' },
     { value: '1.9', label: 'Extremely active (×1.9)' },
   ] },
-  { key: 'goal_type', label: 'Goal', type: 'select', default: 'maintain', options: [
+  { key: 'goal_type', label: 'Goal', type: 'select', default: 'maintain', help: 'You can change this any time; the next check-in adjusts.', options: [
     { value: 'lose', label: 'Lose weight' },
     { value: 'maintain', label: 'Maintain' },
     { value: 'gain', label: 'Gain weight' },
   ] },
-  { key: 'goal_rate_lb_per_week', label: 'Goal rate', type: 'number', unit: 'lb/week', min: 0, max: 2, step: 0.1, default: '0.5' },
-  { key: 'protein_g_per_lb', label: 'Protein target', type: 'number', unit: 'g per lb', min: 0.3, max: 1.5, step: 0.05, default: '0.8' },
-  { key: 'fat_min_g', label: 'Fat minimum', type: 'number', unit: 'g/day', min: 0, max: 300, step: 1, default: '50' },
+  { key: 'goal_rate_lb_per_week', label: 'How fast?', type: 'number', unit: 'lb/week', min: 0, max: 2, step: 0.05, default: '0.5',
+    showIf: { goal_type: ['lose', 'gain'] },
+    presets: [
+      { value: '0.25', label: 'Slow', hint: 'Easiest to stick to; best for keeping muscle.', when: { goal_type: 'lose' } },
+      { value: '0.5', label: 'Moderate', hint: 'A good default for most people.', when: { goal_type: 'lose' } },
+      { value: '1', label: 'Fast', hint: 'Aggressive. Many coaches cap loss near 1% of body weight per week.', when: { goal_type: 'lose' } },
+      { value: '0.25', label: 'Slow', hint: 'Lean gain — the least fat added.', when: { goal_type: 'gain' } },
+      { value: '0.5', label: 'Moderate', hint: 'Faster muscle gain with some fat.', when: { goal_type: 'gain' } },
+      { value: '0.75', label: 'Fast', hint: 'Mostly useful for beginners or hard gainers; more fat gain.', when: { goal_type: 'gain' } },
+    ] },
+  { key: 'protein_g_per_lb', label: 'Protein target', type: 'number', unit: 'g per lb', min: 0.3, max: 1.5, step: 0.05, default: '0.8',
+    help: 'Per lb of body weight. Studies on people who lift find benefits up to about 0.7–1.0 g/lb (Morton et al., 2018).',
+    presets: [
+      { value: '0.7', label: 'Standard', hint: 'Enough for most people who lift.' },
+      { value: '0.8', label: 'Recommended', hint: 'A safe margin above the research plateau.' },
+      { value: '1', label: 'High', hint: 'Useful when cutting fast; more filling.' },
+    ] },
+  { key: 'fat_min_g', label: 'Fat minimum', type: 'number', unit: 'g/day', min: 0, max: 300, step: 1, default: '50',
+    help: 'Fat never goes below this. [Assumption] ~0.3 g per lb of body weight is a common floor.',
+    presets: [
+      { value: '40', label: 'Low', hint: 'Leaves more room for carbs.' },
+      { value: '50', label: 'Typical' },
+      { value: '70', label: 'Higher', hint: 'If you prefer higher-fat foods.' },
+    ] },
   { key: 'checkin_weekday', label: 'Check-in day', type: 'select', default: 'Mon',
     options: WEEKDAYS.map((d) => ({ value: d, label: d })) },
   { key: 'training_days', label: 'Training days', type: 'days', default: 'Mon,Wed,Fri' },
@@ -121,20 +157,40 @@ export const SETTINGS_FIELDS: SettingField[] = [
     help: 'Anything outside these windows is a Snack.' },
   { key: 'cafeteria_name', label: 'Cafeteria', type: 'text', default: '', help: 'Default place for "Cafeteria" AI estimates.' },
   { key: 'plate_diameter_in', label: 'Plate diameter', type: 'number', unit: 'in', min: 5, max: 16, step: 0.25, default: '10.5',
-    help: 'Scale reference for AI meal photos.' },
-  { key: 'ai_monthly_cap_usd', label: 'AI monthly cap', type: 'number', unit: 'USD', min: 0, max: 50, step: 0.5, default: '1' },
+    help: 'Scale reference for AI meal photos. Measure across your usual plate.',
+    presets: [
+      { value: '8', label: 'Small', hint: 'Salad / side plate.' },
+      { value: '10.5', label: 'Standard', hint: 'Most dinner plates.' },
+      { value: '12', label: 'Large', hint: 'Big dinner or cafeteria plate.' },
+    ] },
+  { key: 'ai_monthly_cap_usd', label: 'AI monthly cap', type: 'number', unit: 'USD', min: 0, max: 50, step: 0.5, default: '1',
+    presets: [
+      { value: '1', label: '$1', hint: 'About 1,000–2,500 AI estimates a month.' },
+      { value: '2', label: '$2' },
+      { value: '5', label: '$5' },
+    ] },
   // Coaching constants (docs/algorithm.md). [Assumption] defaults — tune after a few weeks of data.
   { key: 'training_day_shift_pct', label: 'Training-day extra', type: 'number', unit: '%', min: 0, max: 40, step: 1, default: '10', group: 'advanced',
-    help: 'Training days get this much more than the daily average; other days get less. Weekly total stays the same.' },
+    help: 'Training days get this much more than the daily average; other days get less. Weekly total stays the same.',
+    presets: [{ value: '0', label: 'Same every day' }, { value: '10', label: 'Some' }, { value: '20', label: 'More' }] },
   { key: 'fat_pct', label: 'Fat share of calories', type: 'number', unit: '%', min: 15, max: 50, step: 1, default: '25', group: 'advanced',
-    help: 'Never below your fat minimum.' },
-  { key: 'min_calories', label: 'Calorie floor', type: 'number', unit: 'kcal', min: 800, max: 3000, step: 50, default: '1200', group: 'advanced' },
-  { key: 'max_target_change', label: 'Max weekly change', type: 'number', unit: 'kcal/day', min: 25, max: 500, step: 25, default: '150', group: 'advanced' },
+    help: 'Never below your fat minimum.',
+    presets: [{ value: '20', label: 'Lower fat' }, { value: '25', label: 'Balanced' }, { value: '30', label: 'Higher fat' }] },
+  { key: 'min_calories', label: 'Calorie floor', type: 'number', unit: 'kcal', min: 800, max: 3000, step: 50, default: '1200', group: 'advanced',
+    help: 'No day goes below this.',
+    presets: [{ value: '1200', label: '1,200' }, { value: '1500', label: '1,500' }, { value: '1800', label: '1,800' }] },
+  { key: 'max_target_change', label: 'Max weekly change', type: 'number', unit: 'kcal/day', min: 25, max: 500, step: 25, default: '150', group: 'advanced',
+    help: 'How far targets can move at one check-in.',
+    presets: [{ value: '100', label: 'Gentle' }, { value: '150', label: 'Normal' }, { value: '250', label: 'Quick' }] },
   { key: 'energy_per_lb', label: 'Energy per lb of weight', type: 'number', unit: 'kcal', min: 1500, max: 3500, step: 50, default: '2700', group: 'advanced',
-    help: 'Used instead of the old 3,500 kcal/lb rule (see docs/algorithm.md).' },
+    help: 'Used instead of the old 3,500 kcal/lb rule. Studies measure ~2,200–3,000 during weight loss (see docs/algorithm.md).',
+    presets: [{ value: '2500', label: '2,500' }, { value: '2700', label: '2,700' }, { value: '3000', label: '3,000' }] },
   { key: 'trend_alpha', label: 'Trend smoothing', type: 'number', min: 0.02, max: 0.5, step: 0.01, default: '0.1', group: 'advanced',
-    help: 'Higher = trend follows the scale faster.' },
-  { key: 'expenditure_window_days', label: 'Expenditure window', type: 'number', unit: 'days', min: 14, max: 42, step: 1, default: '21', group: 'advanced' },
+    help: 'Higher = the trend follows the scale faster but is noisier.',
+    presets: [{ value: '0.05', label: 'Smoother' }, { value: '0.1', label: 'Normal' }, { value: '0.2', label: 'Faster' }] },
+  { key: 'expenditure_window_days', label: 'Expenditure window', type: 'number', unit: 'days', min: 14, max: 42, step: 1, default: '21', group: 'advanced',
+    help: 'Longer = steadier but slower to react.',
+    presets: [{ value: '14', label: '2 weeks' }, { value: '21', label: '3 weeks' }, { value: '28', label: '4 weeks' }] },
   { key: 'setup_complete', label: 'Setup done', type: 'hidden', default: '' },
   { key: 'units', label: 'Units', type: 'readonly', default: 'lb' },
   { key: 'timezone', label: 'Time zone', type: 'readonly', default: 'America/Chicago' },
