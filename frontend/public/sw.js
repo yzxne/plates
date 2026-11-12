@@ -5,13 +5,13 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 // Pushes carry no data; every push means "your rest is over". iOS requires a visible notification for each push.
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
-    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const appOpen = windows.some((c) => c.visibilityState === 'visible');
+    // Never silent, even with the app open: the in-app beep is muted by the silent switch and iPhone Safari
+    // can't vibrate, so the notification is the only thing that buzzes on a silenced phone.
     await self.registration.showNotification('Rest done', {
       body: 'Time for your next set.',
       tag: 'plates-rest',
       renotify: true,
-      silent: appOpen, // the app already beeps when it's on screen
+      silent: false,
       icon: 'icons/icon-192.png',
     });
   })());

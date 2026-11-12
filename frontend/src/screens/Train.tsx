@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { NumInput } from '../components/NumInput';
 import {
   bestSet, bestsFor, deloadWeight, epley1RM, findStall, formatDuration, groupSets, isWorkingSet, WEEKLY_SET_TARGET, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
   type Exercise, type PlannedSet, type Routine, type RoutineItem, type SetType, type Workout,
@@ -335,7 +336,7 @@ function RoutineEditor({ initial, isNew, before, exercises, folders, onCancel, o
             <button class="icon-btn small more-btn" aria-label="Exercise options" onClick={() => setMenu(ii)}>⋯</button>
           </div>
           <div class="grid2">
-            <div class="field"><label>Rest (sec)</label><input type="number" inputMode="numeric" value={it.rest_sec} onInput={(e) => { const v = Number(e.currentTarget.value) || 0; edit((x) => { x.items[ii]!.rest_sec = v; }); }} /></div>
+            <div class="field"><label>Rest (sec)</label><input type="text" inputMode="numeric" value={it.rest_sec} onInput={(e) => { const v = Number(e.currentTarget.value) || 0; edit((x) => { x.items[ii]!.rest_sec = v; }); }} /></div>
             <div class="field"><label>Note</label><input value={it.notes} onInput={(e) => { const v = e.currentTarget.value; edit((x) => { x.items[ii]!.notes = v; }); }} /></div>
           </div>
           <div class="plan-grid plan-head"><span>Type</span><span>lb</span><span>Min reps</span><span>Max reps</span><span /></div>
@@ -344,9 +345,9 @@ function RoutineEditor({ initial, isNew, before, exercises, folders, onCancel, o
               <select value={s.type} aria-label="Set type" onChange={(e) => { const v = e.currentTarget.value as SetType; edit((x) => { x.items[ii]!.sets[si]!.type = v; }); }}>
                 <option value="W">W</option><option value="N">N</option><option value="F">F</option>
               </select>
-              <input type="number" inputMode="decimal" step="any" aria-label="Target weight" value={s.weight_lb ?? ''} onInput={(e) => { const v = numOrNull(e.currentTarget.value); edit((x) => { x.items[ii]!.sets[si]!.weight_lb = v; }); }} />
-              <input type="number" inputMode="numeric" aria-label="Min reps" value={s.rep_min ?? ''} onInput={(e) => { const v = numOrNull(e.currentTarget.value); edit((x) => { x.items[ii]!.sets[si]!.rep_min = v; }); }} />
-              <input type="number" inputMode="numeric" aria-label="Max reps" value={s.rep_max ?? ''} onInput={(e) => { const v = numOrNull(e.currentTarget.value); edit((x) => { x.items[ii]!.sets[si]!.rep_max = v; }); }} />
+              <NumInput aria-label="Target weight" value={s.weight_lb} onValue={(v) => edit((x) => { x.items[ii]!.sets[si]!.weight_lb = v; })} />
+              <NumInput decimal={false} aria-label="Min reps" value={s.rep_min} onValue={(v) => edit((x) => { x.items[ii]!.sets[si]!.rep_min = v; })} />
+              <NumInput decimal={false} aria-label="Max reps" value={s.rep_max} onValue={(v) => edit((x) => { x.items[ii]!.sets[si]!.rep_max = v; })} />
               <button class="icon-btn small" aria-label="Remove set" onClick={() => edit((x) => { x.items[ii]!.sets.splice(si, 1); })}>×</button>
             </div>
           ))}

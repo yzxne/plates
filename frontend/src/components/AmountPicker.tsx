@@ -32,7 +32,7 @@ export function AmountPicker({ food, usualGrams, initialGrams, onChange, id = 'a
     <div class="field amount">
       <label for={id}>Amount</label>
       <div class="with-unit">
-        <input id={id} type="number" inputMode="decimal" min="0" step="any" value={text} onInput={(e) => setText(e.currentTarget.value)} />
+        <input id={id} type="text" inputMode="decimal" min="0" step="any" value={text} onInput={(e) => setText(e.currentTarget.value)} />
         <div class="seg">
           <button type="button" class={unit === 'serving' ? 'on' : ''} onClick={() => switchUnit('serving')}>{value === 1 && unit === 'serving' ? 'serving' : 'servings'}</button>
           <button type="button" class={unit === 'g' ? 'on' : ''} onClick={() => switchUnit('g')}>g</button>

@@ -79,7 +79,7 @@ export function SetupWizard({ needsConnection, onDone }: { needsConnection: bool
           {s.weight && (
             <div class={`field ${errors.weight ? 'has-error' : ''}`}>
               <label for="wiz-weight">Current weight (optional)</label>
-              <div class="with-unit"><input id="wiz-weight" type="number" inputMode="decimal" step="0.1" value={weight} onInput={(e) => setWeight(e.currentTarget.value)} /><span class="unit">lb</span></div>
+              <div class="with-unit"><input id="wiz-weight" type="text" inputMode="decimal" step="0.1" value={weight} onInput={(e) => setWeight(e.currentTarget.value)} /><span class="unit">lb</span></div>
               {errors.weight && <small class="error">{errors.weight}</small>}
             </div>
           )}

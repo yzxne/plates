@@ -550,7 +550,7 @@ function LabelPaste({ onSaved, barcode, manual }: { onSaved: (f: Food) => void; 
       <label for={`lf-${k}`}>{label}</label>
       <div class="with-unit">
         {opts.numeric
-          ? <input id={`lf-${k}`} type="number" inputMode="decimal" step="any" value={form[k]} onInput={set(k)} />
+          ? <input id={`lf-${k}`} type="text" inputMode="decimal" step="any" value={form[k]} onInput={set(k)} />
           : <input id={`lf-${k}`} type="text" value={form[k]} onInput={set(k)} />}
         {opts.unit && <span class="unit">{opts.unit}</span>}
       </div>
@@ -610,11 +610,11 @@ function QuickAdd({ date, meal, onLogged }: { date: string; meal: Meal; onLogged
   return (
     <div class="card form">
       <div class="field"><label for="qa-name">Name (optional)</label><input id="qa-name" value={name} onInput={(e) => setName(e.currentTarget.value)} /></div>
-      <div class="field"><label for="qa-k">Calories</label><div class="with-unit"><input id="qa-k" type="number" inputMode="decimal" value={kcal} onInput={(e) => setKcal(e.currentTarget.value)} /><span class="unit">kcal</span></div></div>
+      <div class="field"><label for="qa-k">Calories</label><div class="with-unit"><input id="qa-k" type="text" inputMode="decimal" value={kcal} onInput={(e) => setKcal(e.currentTarget.value)} /><span class="unit">kcal</span></div></div>
       <div class="grid3">
-        <div class="field"><label for="qa-p">Protein g</label><input id="qa-p" type="number" inputMode="decimal" value={p} onInput={(e) => setP(e.currentTarget.value)} /></div>
-        <div class="field"><label for="qa-c">Carbs g</label><input id="qa-c" type="number" inputMode="decimal" value={c} onInput={(e) => setC(e.currentTarget.value)} /></div>
-        <div class="field"><label for="qa-f">Fat g</label><input id="qa-f" type="number" inputMode="decimal" value={f} onInput={(e) => setF(e.currentTarget.value)} /></div>
+        <div class="field"><label for="qa-p">Protein g</label><input id="qa-p" type="text" inputMode="decimal" value={p} onInput={(e) => setP(e.currentTarget.value)} /></div>
+        <div class="field"><label for="qa-c">Carbs g</label><input id="qa-c" type="text" inputMode="decimal" value={c} onInput={(e) => setC(e.currentTarget.value)} /></div>
+        <div class="field"><label for="qa-f">Fat g</label><input id="qa-f" type="text" inputMode="decimal" value={f} onInput={(e) => setF(e.currentTarget.value)} /></div>
       </div>
       <button class="btn primary" disabled={busy || !(Number(kcal) > 0)} onClick={log}>Log to {MEAL_LABELS[meal]}</button>
     </div>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bestSet, epley1RM, exerciseToRow, MUSCLES, nextRoutine, previousSets, weeklyTotals, routineRows, rowsToRoutines, rowsToWorkouts, rowToExercise,
-  setsPerMuscle, starterExercises, volume, workoutRows, workoutTotals, type Exercise, type LoggedSet, type Routine, type Workout,
+  muscleProgress, setsPerMuscle, starterExercises, volume, workoutRows, workoutTotals, type Exercise, type LoggedSet, type Routine, type Workout,
 } from '../../shared/training';
 
 let n = 0;
@@ -46,6 +46,16 @@ describe('training math', () => {
     });
     expect(workoutTotals(w)).toEqual({ volume: 185 * 10 + 360, sets: 3, reps: 22, durationSec: 3600 });
     expect(setsPerMuscle(w, exMap)).toEqual({ Chest: 2, Biceps: 1 });
+  });
+
+  it('tracks planned vs checked sets per muscle for the body map', () => {
+    const w = workout('2026-11-12', '2026-11-12T10:00:00.000Z', {
+      bench: [set({ type: 'W' }), set({}), set({ completed: false })],
+      curl: [set({ completed: false })],
+    }, '');
+    expect(muscleProgress(w, exMap)).toEqual({
+      Chest: { planned: 2, done: 1 }, Triceps: { planned: 1, done: 0.5 }, Biceps: { planned: 1, done: 0 },
+    });
   });
 
   it('finds the previous session and best set', () => {

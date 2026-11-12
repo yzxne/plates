@@ -15,7 +15,7 @@ export function PlateCalc({ initial, onClose }: { initial: number | null; onClos
       <div class="sheet" role="dialog" aria-modal="true" aria-label="Plate calculator" onClick={(e) => e.stopPropagation()}>
         <h2>Plates per side</h2>
         <div class="with-unit mb">
-          <input type="number" inputMode="decimal" step="any" aria-label="Total weight" value={weight} onInput={(e) => setWeight(e.currentTarget.value)} />
+          <input type="text" inputMode="decimal" step="any" aria-label="Total weight" value={weight} onInput={(e) => setWeight(e.currentTarget.value)} />
           <span class="unit">lb</span>
         </div>
         <div class="chips mb">

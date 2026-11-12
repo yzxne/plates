@@ -152,7 +152,7 @@ export function Field({ field, value, error, onChange, all = {} }: {
     case 'number':
       control = (
         <div class="with-unit">
-          <input id={id} type="number" inputMode="decimal" step={field.step} min={field.min} max={field.max}
+          <input id={id} type="text" inputMode="decimal" step={field.step} min={field.min} max={field.max}
             value={value} onInput={(e) => onChange(e.currentTarget.value)} />
           {field.unit && <span class="unit">{field.unit}</span>}
         </div>

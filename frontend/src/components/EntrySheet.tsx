@@ -9,6 +9,7 @@ import { fmt } from '../format';
 import { showToast } from '../toast';
 import { ActionSheet } from './ActionSheet';
 import { IconBack } from './Icons';
+import { NumInput } from './NumInput';
 
 interface Props {
   entry: LogEntry;
@@ -120,8 +121,8 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
   }
 
   const numberField = (k: keyof Nutrients) => (
-    <input type="number" inputMode="decimal" aria-label={k} value={String(base[k] ?? '')}
-      onInput={(e) => { const v = e.currentTarget.value; setBase((b) => ({ ...b, [k]: v === '' ? (k === 'kcal' || k === 'protein_g' || k === 'carbs_g' || k === 'fat_g' ? 0 : null) : Number(v) })); }} />
+    <NumInput aria-label={k} value={base[k] as number | null | undefined}
+      onValue={(v) => setBase((b) => ({ ...b, [k]: v ?? (k === 'kcal' || k === 'protein_g' || k === 'carbs_g' || k === 'fat_g' ? 0 : null) }))} />
   );
   const editing = !food && editNumbers;
 
@@ -158,7 +159,7 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
           <span>{food && mode !== 'serving' ? (mode === 'g' ? 'Grams' : 'Ounces') : 'Number of servings'}</span>
           <div class="stepper">
             <button aria-label="Less" onClick={() => step(-stepSize)}>−</button>
-            <input type="number" inputMode="decimal" step="any" aria-label="Amount" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
+            <input type="text" inputMode="decimal" step="any" aria-label="Amount" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
             <button aria-label="More" onClick={() => step(stepSize)}>+</button>
           </div>
         </div>

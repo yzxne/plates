@@ -207,7 +207,7 @@ export function AiEstimate({ mode: initialMode, initialText = '', date, meal, on
         {portion === 'grams' && (
           <div class="field">
             <div class="with-unit">
-              <input type="number" inputMode="decimal" aria-label="Total grams" placeholder="Total weight" value={portionGrams} onInput={(e) => setPortionGrams(e.currentTarget.value)} />
+              <input type="text" inputMode="decimal" aria-label="Total grams" placeholder="Total weight" value={portionGrams} onInput={(e) => setPortionGrams(e.currentTarget.value)} />
               <span class="unit">g</span>
             </div>
           </div>
@@ -226,7 +226,7 @@ export function AiEstimate({ mode: initialMode, initialText = '', date, meal, on
               <div class="ing-row" key={i}>
                 <input placeholder="Ingredient" aria-label={`Ingredient ${i + 1}`} value={ing.name}
                   onInput={(e) => { const v = e.currentTarget.value; setIngredients((list) => list.map((x, j) => (j === i ? { ...x, name: v } : x))); }} />
-                <input type="number" inputMode="decimal" placeholder="g" aria-label={`Grams for ingredient ${i + 1}`} value={ing.grams}
+                <input type="text" inputMode="decimal" placeholder="g" aria-label={`Grams for ingredient ${i + 1}`} value={ing.grams}
                   onInput={(e) => { const v = e.currentTarget.value; setIngredients((list) => list.map((x, j) => (j === i ? { ...x, grams: v } : x))); }} />
               </div>
             ))}
@@ -404,7 +404,7 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
             {l.item.notes && <p class="muted tiny-pad">{l.item.notes}</p>}
             <div class="field">
               <div class="with-unit">
-                <input type="number" inputMode="decimal" aria-label={`Grams of ${l.item.name}`} value={l.grams} onInput={(e) => update(i, { grams: e.currentTarget.value })} />
+                <input type="text" inputMode="decimal" aria-label={`Grams of ${l.item.name}`} value={l.grams} onInput={(e) => update(i, { grams: e.currentTarget.value })} />
                 <span class="unit">g</span>
               </div>
               <small class="muted">

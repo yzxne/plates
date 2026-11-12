@@ -61,6 +61,11 @@ a { color: var(--link); }
 
 .screen-head { margin-bottom: 16px; }
 .screen-head.with-back { display: flex; align-items: center; gap: 8px; }
+/* Back arrow stays reachable while you scroll: the header sticks under the status bar. */
+.screen-head.with-back {
+  position: sticky; top: 0; z-index: 6; background: var(--bg);
+  margin: calc(-1 * (var(--safe-top) + 16px)) -16px 8px; padding: calc(var(--safe-top) + 10px) 16px 8px;
+}
 
 .card {
   background: var(--surface);
@@ -382,6 +387,22 @@ textarea {
 .set-grid { display: grid; grid-template-columns: 44px 1fr 1fr 1fr 44px; gap: 6px; align-items: center; }
 .set-head { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center; }
 .set-row { margin-top: 6px; border-radius: 10px; }
+/* Body map: muscles fill in as sets are checked */
+.body-map { display: flex; justify-content: center; gap: 12px; margin: 0 0 12px; }
+.bm-fig { margin: 0; width: 88px; text-align: center; }
+.bm-fig svg { width: 100%; height: auto; display: block; }
+.bm-fig figcaption { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.bm-body > * { fill: #22252c; }
+.bm-m { fill: #343944; stroke: var(--bg); stroke-width: 0.6; }
+.bm-m.on { fill: #ff6b5b; stroke: rgba(255, 107, 91, 0.6); }
+@media (prefers-reduced-motion: no-preference) { .bm-m { transition: fill-opacity 0.4s ease-out; } }
+
+/* Swipe a set left to delete */
+.swipe-del-wrap { position: relative; border-radius: 10px; overflow: hidden; margin-top: 6px; }
+.swipe-del-wrap > .set-row { margin-top: 0; position: relative; z-index: 1; background: var(--surface); touch-action: pan-y; transition: transform 0.15s ease-out, background-color 0.25s ease-out; }
+.swipe-del-wrap > .set-row.done { background: #1b2d25; }
+.swipe-del-under { position: absolute; inset: 0; display: flex; justify-content: flex-end; align-items: center; padding: 0 16px; background: #4a1f1f; color: #ffd2d2; font-weight: 600; font-size: 14px; border-radius: 10px; }
+.swipe-del-under.armed { background: #a33a3a; color: #fff; }
 .set-row.done { background: rgba(76, 195, 138, 0.14); }
 .set-row input { min-height: 40px; padding: 6px 4px; text-align: center; }
 .set-type { min-height: 40px; padding: 0; text-align: center; text-align-last: center; font-weight: 700; -webkit-appearance: none; appearance: none; }
@@ -397,6 +418,8 @@ textarea {
   display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center;
   padding: 10px 16px calc(var(--safe-bottom) + 10px); background: var(--surface); border-top: 1px solid var(--border);
 }
+/* Typing in a set or note: the keyboard is up, so the rest bar steps aside instead of covering the field. */
+.logger:has(input:focus, textarea:focus) .rest-bar { display: none; }
 .rest-progress { position: absolute; left: 0; top: 0; height: 3px; background: var(--link); transition: width 0.25s linear; }
 .rest-time { text-align: center; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rest-bar .btn { min-height: 40px; padding: 0 12px; }

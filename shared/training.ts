@@ -125,6 +125,29 @@ export function setsPerMuscle(w: Workout | Workout[], exercises: Map<string, Exe
   return out;
 }
 
+/**
+ * Muscles worked in one workout, for the body map: working sets planned (checked or not) and checked so far.
+ * Primary muscles count a full set, secondary muscles half. Warm-ups don't count.
+ */
+export function muscleProgress(w: Workout, exercises: Map<string, Exercise>): Record<string, { planned: number; done: number }> {
+  const out: Record<string, { planned: number; done: number }> = {};
+  const add = (m: string, k: number, done: boolean) => {
+    const r = (out[m] ??= { planned: 0, done: 0 });
+    r.planned += k;
+    if (done) r.done += k;
+  };
+  for (const e of w.exercises) {
+    const ex = exercises.get(e.exercise_id);
+    if (!ex) continue;
+    for (const s of e.sets) {
+      if (s.type === 'W') continue;
+      for (const m of ex.primary) add(m, 1, s.completed);
+      for (const m of ex.secondary) if (!ex.primary.includes(m)) add(m, 0.5, s.completed);
+    }
+  }
+  return out;
+}
+
 /** Six broad groups for the balance radar. */
 export const MUSCLE_GROUPS: Record<string, string[]> = {
   Back: ['Back', 'Lats', 'Traps'],

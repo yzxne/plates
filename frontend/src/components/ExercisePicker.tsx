@@ -135,7 +135,7 @@ export function NewExercise({ initialName = '', existing, onSaved, onCancel }: {
         </select>
       </div>
       <div class="field"><label for="ex-rest">Default rest</label>
-        <div class="with-unit"><input id="ex-rest" type="number" inputMode="numeric" value={rest} onInput={(e) => setRest(e.currentTarget.value)} /><span class="unit">sec</span></div>
+        <div class="with-unit"><input id="ex-rest" type="text" inputMode="numeric" value={rest} onInput={(e) => setRest(e.currentTarget.value)} /><span class="unit">sec</span></div>
       </div>
       <button class="btn primary" disabled={busy} onClick={save}>{existing ? 'Save' : 'Create exercise'}</button>
       <button class="btn link center" onClick={onCancel}>Cancel</button>

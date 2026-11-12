@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  epley1RM, findPrs, formatDuration, isWorkingSet, previousSets, PR_LABELS, setIsPr, setsPerMuscle, updatedRoutine, workoutTotals,
+  epley1RM, findPrs, formatDuration, isWorkingSet, muscleProgress, previousSets, PR_LABELS, setIsPr, setsPerMuscle, updatedRoutine, workoutTotals,
   type Exercise, type LoggedSet, type Pr, type Routine, type RoutineUpdate, type SetType, type Workout, type WorkoutExercise,
 } from '../../../shared/training';
 import { getActive, newSet, setActive, subscribeActive, type ActiveState, type RestTimer as Rest } from '../activeWorkout';
 import { errorMessage } from '../api';
+import { BodyMap } from '../components/BodyMap';
 import { MuscleBars } from '../components/Charts';
 import { ActionSheet } from '../components/ActionSheet';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { IconClose } from '../components/Icons';
+import { NumInput } from '../components/NumInput';
+import { SwipeDelete } from '../components/SwipeDelete';
+import { showUndo } from '../undo';
 import { PlateCalc } from '../components/PlateCalc';
 import { RestTimer } from '../components/RestTimer';
 import { fmt } from '../format';
@@ -109,6 +113,22 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       if (s >= 0) return describe(e, s);
     }
     return { title: 'Last set done', next: 'Tap Finish when you’re ready' };
+  }
+
+  /** Remove a set (swipe left or the set-type menu), with Undo. */
+  function deleteSet(ei: number, si: number) {
+    const cur = getActive();
+    const removed = cur?.workout.exercises[ei]?.sets[si];
+    if (!removed) return;
+    const exId = cur!.workout.exercises[ei]!.exercise_id;
+    update((x) => { x.exercises[ei]!.sets.splice(si, 1); return x; });
+    showUndo(`Set ${si + 1} deleted`, {
+      undo: () => update((x) => {
+        const ex = x.exercises[ei];
+        if (ex && ex.exercise_id === exId) ex.sets.splice(Math.min(si, ex.sets.length), 0, removed);
+        return x;
+      }),
+    });
   }
 
   function addSet(ei: number) {
@@ -232,6 +252,8 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
           <div><span>Sets</span><strong>{totals.sets}</strong></div>
         </div>
 
+        <BodyMap progress={muscleProgress(w, exMap)} />
+
         {w.exercises.length === 0 && <p class="muted center">Add your first exercise.</p>}
 
         {w.exercises.map((ex, ei) => {
@@ -270,11 +292,11 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                   ? (s.rep_min === s.rep_max || s.rep_max == null ? `${s.rep_min}` : s.rep_min == null ? `${s.rep_max}` : `${s.rep_min}-${s.rep_max}`)
                   : '';
                 return (
-                  <div class={`set-grid set-row ${s.completed ? 'done' : ''}`} key={s.id}>
+                  <SwipeDelete key={s.id} class={`set-grid set-row ${s.completed ? 'done' : ''}`} onDelete={() => deleteSet(ei, si)}>
                     <select class={`set-type t-${s.type}`} aria-label="Set type" value={s.type}
                       onChange={(e) => {
                         const v = e.currentTarget.value;
-                        if (v === 'del') update((x) => { x.exercises[ei]!.sets.splice(si, 1); return x; });
+                        if (v === 'del') deleteSet(ei, si);
                         else patchSet(ei, si, { type: v as SetType });
                       }}>
                       <option value="W">W</option>
@@ -285,13 +307,13 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                     <button class="prev" disabled={!p} onClick={() => p && patchSet(ei, si, { weight_lb: p.weight_lb, reps: p.reps })}>
                       {p ? `${p.weight_lb != null ? fmt(p.weight_lb, 1) : 'BW'} × ${p.reps ?? 0}` : '–'}
                     </button>
-                    <input type="number" inputMode="decimal" step="any" aria-label="Weight lb" placeholder={p?.weight_lb != null ? String(p.weight_lb) : p ? 'BW' : ''}
+                    <NumInput aria-label="Weight lb" placeholder={p?.weight_lb != null ? String(p.weight_lb) : p ? 'BW' : ''}
                       class={s.suggested ? 'suggested' : ''} title={s.suggested ? 'Suggested increase: you hit the top of the rep range last time' : undefined}
-                      value={s.weight_lb ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { weight_lb: v === '' ? null : Number(v), suggested: false }); }} />
-                    <input type="number" inputMode="numeric" aria-label="Reps" placeholder={range || (p?.reps != null ? String(p.reps) : '')}
-                      value={s.reps ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { reps: v === '' ? null : Math.round(Number(v)) }); }} />
+                      value={s.weight_lb} onValue={(v) => patchSet(ei, si, { weight_lb: v, suggested: false })} />
+                    <NumInput decimal={false} aria-label="Reps" placeholder={range || (p?.reps != null ? String(p.reps) : '')}
+                      value={s.reps} onValue={(v) => patchSet(ei, si, { reps: v })} />
                     <button class={`check ${s.completed ? 'on' : ''}`} aria-pressed={s.completed} aria-label="Set done" onClick={() => toggleDone(ei, si)}>✓</button>
-                  </div>
+                  </SwipeDelete>
                 );
               })}
               <button class="btn add-set" onClick={() => addSet(ei)}>+ Add set</button>
@@ -301,7 +323,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
 
         <button class="btn primary" onClick={() => setPicking(true)}>+ Add exercise</button>
         <button class="btn link danger center" onClick={discard}>Discard workout</button>
-        <div style={{ height: state.rest ? '72px' : '0' }} />
+        <div style={{ height: state.rest ? '128px' : '0' }} />
       </div>
 
       {state.rest && <RestTimer rest={state.rest} onChange={setRest} />}
@@ -417,6 +439,7 @@ function Summary({ data, exMap, onDone }: { data: SummaryData; exMap: Map<string
 
         <div class="card">
           <h2>Sets per muscle</h2>
+          <BodyMap progress={muscleProgress(workout, exMap)} />
           <MuscleBars counts={setsPerMuscle(workout, exMap)} />
           <small class="muted">Completed working sets (warm-ups not counted), by main muscle.</small>
         </div>

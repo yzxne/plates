@@ -515,7 +515,7 @@ function QuickWeigh({ date }: { date: string }) {
       <form class="card weigh" onSubmit={save}>
         <label for="weigh">Weight</label>
         <div class="with-unit">
-          <input id="weigh" ref={input} type="number" inputMode="decimal" step="0.1" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
+          <input id="weigh" ref={input} type="text" inputMode="decimal" step="0.1" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
           <span class="unit">lb</span>
           <button class="btn primary small-btn" type="submit">Save</button>
         </div>
