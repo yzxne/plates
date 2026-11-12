@@ -673,3 +673,10 @@ table.plan tr.today td { color: var(--text); font-weight: 700; }
 .rest-info strong { font-size: 15px; }
 .rest-info small { font-size: 13px; }
 .rest-bar .btn.skip { background: #2f7fe0; border-color: #2f7fe0; color: #fff; font-weight: 700; }
+
+/* Workout summary: records + routine choice */
+.routine-choice { border-color: #2b4a66; }
+.pr-ex { padding: 8px 0; border-top: 1px solid var(--border); }
+.pr-ex:first-of-type { border-top: none; }
+.pr-line { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.pr-up { color: var(--ok); font-weight: 700; }

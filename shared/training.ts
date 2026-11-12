@@ -378,3 +378,127 @@ export function starterExercises(makeId: () => string): Exercise[] {
     id: makeId(), name, equipment, primary: list(primary), secondary: list(secondary), rest_sec: rest, notes: '',
   }));
 }
+
+// ---------- Personal records ----------
+
+export type PrKind = 'e1rm' | 'weight' | 'set_volume' | 'session_volume';
+export const PR_LABELS: Record<PrKind, string> = {
+  e1rm: 'Est. 1-rep max',
+  weight: 'Heaviest weight',
+  set_volume: 'Best set (weight × reps)',
+  session_volume: 'Total volume',
+};
+export interface Pr { exercise_id: string; kind: PrKind; before: number | null; after: number }
+
+interface Bests { e1rm: number; weight: number; set_volume: number; session_volume: number }
+
+/** Best numbers for an exercise across workouts (working sets only). */
+export function bestsFor(exerciseId: string, workouts: Workout[]): Bests {
+  const b: Bests = { e1rm: 0, weight: 0, set_volume: 0, session_volume: 0 };
+  for (const w of workouts) {
+    let session = 0;
+    for (const e of w.exercises) {
+      if (e.exercise_id !== exerciseId) continue;
+      for (const s of e.sets) {
+        if (!isWorkingSet(s) || !s.weight_lb || !s.reps) continue;
+        b.e1rm = Math.max(b.e1rm, epley1RM(s.weight_lb, s.reps));
+        b.weight = Math.max(b.weight, s.weight_lb);
+        b.set_volume = Math.max(b.set_volume, s.weight_lb * s.reps);
+        session += s.weight_lb * s.reps;
+      }
+    }
+    b.session_volume = Math.max(b.session_volume, session);
+  }
+  return b;
+}
+
+/** New records set in `workout` compared with `history` (exercises done before get "before"; first-timers get null). */
+export function findPrs(workout: Workout, history: Workout[]): Pr[] {
+  const before = history.filter((h) => h.id !== workout.id);
+  const out: Pr[] = [];
+  for (const id of new Set(workout.exercises.map((e) => e.exercise_id))) {
+    const now = bestsFor(id, [workout]);
+    if (!now.weight) continue;
+    const old = bestsFor(id, before);
+    const seen = old.weight > 0;
+    for (const kind of ['e1rm', 'weight', 'set_volume', 'session_volume'] as const) {
+      if (now[kind] > old[kind] + 1e-9 && (seen || kind === 'e1rm')) out.push({ exercise_id: id, kind, before: seen ? old[kind] : null, after: now[kind] });
+    }
+  }
+  return out;
+}
+
+/** Is this one set a new record (est. 1RM or heaviest weight) versus history? For the live 🏆 pop-up. */
+export function setIsPr(exerciseId: string, set: Pick<LoggedSet, 'type' | 'weight_lb' | 'reps'>, history: Workout[], earlierToday: LoggedSet[] = []): PrKind | null {
+  if (set.type === 'W' || !set.weight_lb || !set.reps) return null;
+  const old = bestsFor(exerciseId, history);
+  if (!old.weight) return null; // first time doing it: no "record" yet
+  const today = bestsFor(exerciseId, [{ id: '_', routine_id: '', name: '', date: '', start_time: '', end_time: '', notes: '', exercises: [{ exercise_id: exerciseId, rest_sec: 0, note: '', sets: earlierToday }] }]);
+  const e1 = epley1RM(set.weight_lb, set.reps);
+  if (e1 > Math.max(old.e1rm, today.e1rm) + 1e-9) return 'e1rm';
+  if (set.weight_lb > Math.max(old.weight, today.weight)) return 'weight';
+  return null;
+}
+
+// ---------- Updating a routine after a workout ----------
+
+export interface RoutineUpdate {
+  routine: Routine; // what to save
+  structureChanged: boolean; // exercises added / removed / swapped / reordered vs the routine
+  weightChanges: { exercise_id: string; from: number | null; to: number }[];
+}
+
+/**
+ * The routine after a workout started from it.
+ * keepChanges = true → exercise list/order follows the workout; false → the routine's own list stays.
+ * Either way each planned weight becomes the heavier of (planned, lifted today) — weights never go down.
+ * `done` = the workout's exercises including unchecked sets (so skipping a set doesn't delete it from the routine).
+ */
+export function updatedRoutine(routine: Routine, done: WorkoutExercise[], keepChanges: boolean, makeId: () => string): RoutineUpdate {
+  const ids = (xs: { exercise_id: string }[]) => xs.map((x) => x.exercise_id).join('|');
+  const structureChanged = ids(routine.items) !== ids(done);
+  const weightChanges: RoutineUpdate['weightChanges'] = [];
+  const used = new Set<number>();
+  const findDone = (exId: string) => {
+    const i = done.findIndex((d, k) => !used.has(k) && d.exercise_id === exId);
+    if (i >= 0) used.add(i);
+    return i >= 0 ? done[i]! : undefined;
+  };
+  const maxed = (item: RoutineItem, d: WorkoutExercise | undefined): PlannedSet[] => {
+    const sets = item.sets.map((p) => ({ ...p }));
+    if (!d) return sets;
+    // More sets done than planned (structure kept) → add them.
+    if (keepChanges) for (let i = sets.length; i < d.sets.length; i++) {
+      const s = d.sets[i]!;
+      sets.push({ type: s.type, weight_lb: s.weight_lb, rep_min: s.rep_min ?? s.reps, rep_max: s.rep_max ?? s.reps });
+    }
+    const before = Math.max(0, ...item.sets.map((p) => p.weight_lb ?? 0));
+    sets.forEach((p, i) => {
+      const s = d.sets[i];
+      if (s?.completed && s.weight_lb != null && s.weight_lb > (p.weight_lb ?? 0) && s.type === p.type) p.weight_lb = s.weight_lb;
+    });
+    const after = Math.max(0, ...sets.map((p) => p.weight_lb ?? 0));
+    if (after > before) weightChanges.push({ exercise_id: item.exercise_id, from: before || null, to: after });
+    return sets;
+  };
+
+  let items: RoutineItem[];
+  if (keepChanges && structureChanged) {
+    const pool = [...routine.items];
+    items = done.map((d, position) => {
+      const k = pool.findIndex((it) => it.exercise_id === d.exercise_id);
+      if (k >= 0) {
+        const it = pool.splice(k, 1)[0]!;
+        used.add(done.indexOf(d));
+        return { ...it, position, sets: maxed(it, d) };
+      }
+      const sets: PlannedSet[] = d.sets.map((s) => ({ type: s.type, weight_lb: s.weight_lb, rep_min: s.rep_min ?? s.reps, rep_max: s.rep_max ?? s.reps }));
+      const w = Math.max(0, ...sets.map((s) => s.weight_lb ?? 0));
+      if (w) weightChanges.push({ exercise_id: d.exercise_id, from: null, to: w });
+      return { id: makeId(), exercise_id: d.exercise_id, position, rest_sec: d.rest_sec, sets, notes: '' };
+    });
+  } else {
+    items = routine.items.map((it) => ({ ...it, sets: maxed(it, findDone(it.exercise_id)) }));
+  }
+  return { routine: { ...routine, items }, structureChanged, weightChanges };
+}

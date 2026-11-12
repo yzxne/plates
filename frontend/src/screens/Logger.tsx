@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  bestSet, formatDuration, isWorkingSet, previousSets, setsPerMuscle, workoutTotals,
-  type Exercise, type LoggedSet, type SetType, type Workout,
+  epley1RM, findPrs, formatDuration, isWorkingSet, previousSets, PR_LABELS, setIsPr, setsPerMuscle, updatedRoutine, workoutTotals,
+  type Exercise, type LoggedSet, type Pr, type Routine, type RoutineUpdate, type SetType, type Workout, type WorkoutExercise,
 } from '../../../shared/training';
 import { getActive, newSet, setActive, subscribeActive, type ActiveState, type RestTimer as Rest } from '../activeWorkout';
 import { errorMessage } from '../api';
@@ -13,7 +13,8 @@ import { fmt } from '../format';
 import { cancelRestPush, scheduleRestPush } from '../push';
 import { unlockAudio } from '../sound';
 import { showToast } from '../toast';
-import { saveWorkout } from '../trainData';
+import { uuid } from '../foodData';
+import { loadRoutines, saveRoutine, saveWorkout } from '../trainData';
 
 interface Props {
   exercises: Exercise[];
@@ -29,14 +30,15 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const [state, setState] = useState<ActiveState | null>(getActive());
   const [now, setNow] = useState(Date.now());
   const [picking, setPicking] = useState(false);
-  const [summary, setSummary] = useState<Workout | null>(null);
+  const [replacing, setReplacing] = useState<number | null>(null);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
   const [saving, setSaving] = useState(false);
   const exMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
 
   useEffect(() => subscribeActive(() => setState(getActive())), []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
-  if (summary) return <Summary workout={summary} history={history} exMap={exMap} onDone={onDone} />;
+  if (summary) return <Summary data={summary} exMap={exMap} onDone={onDone} />;
   if (!state) return null;
   const w = state.workout;
 
@@ -69,6 +71,16 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     const rest = ex.rest_sec > 0 ? { endsAt: Date.now() + ex.rest_sec * 1000, total: ex.rest_sec, ...nextUp(ei, si) } : null;
     if (rest) scheduleRestPush(ex.rest_sec);
     update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
+    // Live record check: beats your best est. 1RM or heaviest weight (history + earlier sets today)?
+    const done = { ...s, ...fill };
+    const earlier = w.exercises.filter((x) => x.exercise_id === ex.exercise_id).flatMap((x) => x.sets).filter((x) => x.completed && x.id !== s.id);
+    const pr = setIsPr(ex.exercise_id, done, history, earlier);
+    if (pr) {
+      const name = exMap.get(ex.exercise_id)?.name ?? 'Exercise';
+      showToast(pr === 'e1rm'
+        ? `🏆 New PR · ${name}: est. 1RM ${fmt(epley1RM(done.weight_lb!, done.reps!))} lb`
+        : `🏆 New PR · ${name}: heaviest ${fmt(done.weight_lb!, 1)} lb`, 'ok', 5000);
+    }
   }
 
   /** What comes after set `si` of exercise `ei` (for the rest bar): the next unchecked set here, else the next exercise. */
@@ -109,11 +121,31 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       update((x) => { const [e] = x.exercises.splice(ei, 1); x.exercises.splice(ei + 1, 0, e!); return x; });
     } else if (action === 'note') {
       update((x) => { x.exercises[ei]!.note ||= ' '; return x; });
+    } else if (action === 'replace') {
+      setReplacing(ei);
     } else if (action === 'remove') {
       if (confirm(`Remove ${exMap.get(w.exercises[ei]!.exercise_id)?.name ?? 'this exercise'} from the workout?`)) {
         update((x) => { x.exercises.splice(ei, 1); return x; });
       }
     }
+  }
+
+  /** Swap one exercise for another mid-workout: same number/type of sets, last time's weights for the new one. */
+  function replaceExercise(ei: number, e: Exercise) {
+    setReplacing(null);
+    const cur = w.exercises[ei]!;
+    const oldName = exMap.get(cur.exercise_id)?.name ?? 'this exercise';
+    const doneSets = cur.sets.filter((s) => s.completed).length;
+    if (doneSets && !confirm(`Replace ${oldName} with ${e.name}? The ${doneSets} set${doneSets > 1 ? 's' : ''} you checked off for ${oldName} will be removed.`)) return;
+    const prev = previousSets(e.id, history);
+    update((x) => {
+      x.exercises[ei] = {
+        exercise_id: e.id, rest_sec: e.rest_sec, note: '',
+        sets: cur.sets.map((s, i) => newSet({ type: s.type, weight_lb: prev[i]?.weight_lb ?? null, rep_min: s.rep_min, rep_max: s.rep_max })),
+      };
+      return x;
+    });
+    showToast(`Swapped in ${e.name}`, 'info');
   }
 
   function addExercise(e: Exercise) {
@@ -152,7 +184,23 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       const ok = await saveWorkout(final);
       setActive(null);
       if (!ok) showToast('Saved on this phone — will upload when the connection is back', 'error', 6000);
-      setSummary(final);
+      const prs = findPrs(final, history);
+      // Routine follow-up: heavier weights always carry over; changed exercises wait for your Keep/Discard choice.
+      let routineInfo: SummaryData['routine'] = null;
+      if (w.routine_id) {
+        try {
+          const routine = (await loadRoutines()).find((r) => r.id === w.routine_id);
+          if (routine) {
+            const allSets = structuredClone(w.exercises) as WorkoutExercise[];
+            const probe = updatedRoutine(routine, allSets, false, uuid);
+            if (!probe.structureChanged && probe.weightChanges.length) await saveRoutine(probe.routine, routine);
+            routineInfo = { routine, done: allSets, structureChanged: probe.structureChanged, applied: probe.structureChanged ? null : probe };
+          }
+        } catch (err) {
+          showToast(`Routine not updated: ${errorMessage(err)}`, 'error');
+        }
+      }
+      setSummary({ workout: final, prs, routine: routineInfo });
     } catch (err) {
       showToast(`Not saved: ${errorMessage(err)}. Your workout is still here.`, 'error', 7000);
     } finally {
@@ -186,6 +234,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                 <h2 class="clip ex-name">{info?.name ?? 'Unknown exercise'}</h2>
                 <select class="ex-menu" aria-label="Exercise options" value="" onChange={(e) => { exerciseAction(ei, e.currentTarget.value); e.currentTarget.value = ''; }}>
                   <option value="" disabled>⋯</option>
+                  <option value="replace">Replace exercise</option>
                   {ei > 0 && <option value="up">Move up</option>}
                   {ei < w.exercises.length - 1 && <option value="down">Move down</option>}
                   <option value="remove">Remove exercise</option>
@@ -250,19 +299,48 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
 
       {state.rest && <RestTimer rest={state.rest} onChange={setRest} />}
       {picking && <ExercisePicker exercises={exercises} onPick={addExercise} onClose={() => setPicking(false)} />}
+      {replacing != null && <ExercisePicker exercises={exercises} onPick={(e) => replaceExercise(replacing, e)} onClose={() => setReplacing(null)} />}
     </div>
   );
 }
 
-function Summary({ workout, history, exMap, onDone }: { workout: Workout; history: Workout[]; exMap: Map<string, Exercise>; onDone: () => void }) {
+interface SummaryData {
+  workout: Workout;
+  prs: Pr[];
+  routine: { routine: Routine; done: WorkoutExercise[]; structureChanged: boolean; applied: RoutineUpdate | null } | null;
+}
+
+const prValue = (p: Pr, v: number) => (p.kind === 'e1rm' || p.kind === 'weight' ? `${fmt(v, p.kind === 'weight' ? 1 : 0)} lb` : `${fmt(v)} lb`);
+
+function Summary({ data, exMap, onDone }: { data: SummaryData; exMap: Map<string, Exercise>; onDone: () => void }) {
+  const { workout, prs } = data;
   const t = workoutTotals(workout);
-  const before = history.filter((h) => h.id !== workout.id);
-  const prs = workout.exercises.flatMap((e) => {
-    const now = bestSet(e.exercise_id, [workout]);
-    const old = bestSet(e.exercise_id, before);
-    if (!now || (old && now.e1rm <= old.e1rm)) return [];
-    return [{ name: exMap.get(e.exercise_id)?.name ?? 'Exercise', set: now, first: !old }];
-  });
+  const name = (id: string) => exMap.get(id)?.name ?? 'Exercise';
+  const [routineResult, setRoutineResult] = useState<RoutineUpdate | null>(data.routine?.applied ?? null);
+  const [deciding, setDeciding] = useState(false);
+  const needsChoice = !!data.routine?.structureChanged && !routineResult;
+
+  async function decide(keep: boolean) {
+    if (!data.routine) return;
+    setDeciding(true);
+    try {
+      const u = updatedRoutine(data.routine.routine, data.routine.done, keep, uuid);
+      if (keep || u.weightChanges.length) await saveRoutine(u.routine, data.routine.routine);
+      setRoutineResult(u);
+      showToast(keep ? `${data.routine.routine.name} updated` : 'Routine kept as it was', 'ok');
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+    } finally {
+      setDeciding(false);
+    }
+  }
+
+  async function done() {
+    if (needsChoice) await decide(false); // leaving without choosing = keep the routine as it was (weights still carry over)
+    onDone();
+  }
+
+  const byEx = [...new Set(prs.map((p) => p.exercise_id))];
   return (
     <div class="overlay" role="dialog" aria-modal="true" aria-label="Workout summary">
       <div class="overlay-body">
@@ -273,32 +351,70 @@ function Summary({ workout, history, exMap, onDone }: { workout: Workout; histor
           <div><strong>{fmt(t.volume)}</strong><span>Volume lb</span></div>
           <div><strong>{t.sets}</strong><span>Sets</span></div>
         </div>
-        {prs.length > 0 && (
-          <div class="card">
-            <h2>New bests</h2>
-            {prs.map((p) => (
-              <p key={p.name}><strong>{p.name}</strong>: {fmt(p.set.weight_lb, 1)} lb × {p.set.reps}
-                <span class="muted"> · est. 1RM {fmt(p.set.e1rm)} lb{p.first ? ' (first time)' : ''}</span></p>
-            ))}
-            <small class="muted">Estimated 1RM uses the Epley formula: weight × (1 + reps ÷ 30).</small>
+
+        {needsChoice && data.routine && (
+          <div class="card routine-choice">
+            <h2>You changed {data.routine.routine.name}</h2>
+            <p class="muted tiny">
+              Today: {data.routine.done.map((e) => name(e.exercise_id)).join(', ')}.<br />
+              Routine: {data.routine.routine.items.map((i) => name(i.exercise_id)).join(', ')}.
+            </p>
+            <div class="btn-row">
+              <button class="btn" disabled={deciding} onClick={() => decide(false)}>Discard changes</button>
+              <button class="btn primary" disabled={deciding} onClick={() => decide(true)}>Keep changes</button>
+            </div>
+            <small class="muted">Either way, any heavier weights you lifted become the routine's new weights.</small>
           </div>
         )}
+
+        {byEx.length > 0 && (
+          <div class="card pr-card">
+            <h2>🏆 New records</h2>
+            {byEx.map((id) => (
+              <div class="pr-ex" key={id}>
+                <strong>{name(id)}</strong>
+                {prs.filter((p) => p.exercise_id === id).map((p) => (
+                  <div class="pr-line" key={p.kind}>
+                    <span class="muted">{PR_LABELS[p.kind]}</span>
+                    <span>
+                      {p.before != null ? <><span class="muted">{prValue(p, p.before)} → </span><strong>{prValue(p, p.after)}</strong> <span class="pr-up">+{p.kind === 'weight' ? fmt(p.after - p.before, 1) : fmt(Math.round(p.after) - Math.round(p.before))}</span></>
+                        : <><strong>{prValue(p, p.after)}</strong> <span class="muted">first time</span></>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <small class="muted">Est. 1-rep max uses the Epley formula: weight × (1 + reps ÷ 30). Warm-ups don't count.</small>
+          </div>
+        )}
+
+        {routineResult && routineResult.weightChanges.length > 0 && (
+          <div class="card">
+            <h2>Routine weights updated</h2>
+            {routineResult.weightChanges.map((c) => (
+              <p class="tiny" key={c.exercise_id}><strong>{name(c.exercise_id)}</strong>: {c.from != null ? `${fmt(c.from, 1)} → ` : ''}{fmt(c.to, 1)} lb</p>
+            ))}
+          </div>
+        )}
+
         <div class="card">
           <h2>Sets per muscle</h2>
           <MuscleBars counts={setsPerMuscle(workout, exMap)} />
           <small class="muted">Completed working sets (warm-ups not counted), by main muscle.</small>
         </div>
         <div class="card">
-          {workout.exercises.map((e) => (
-            <p key={e.exercise_id}>
-              <strong>{exMap.get(e.exercise_id)?.name ?? 'Exercise'}</strong>
-              <span class="muted"> · {e.sets.filter(isWorkingSet).map((s) => `${fmt(s.weight_lb ?? 0, 1)}×${s.reps}`).join(', ') || 'warm-ups only'}</span>
-            </p>
-          ))}
+          {workout.exercises.map((e, i) => {
+            const top = Math.max(0, ...e.sets.filter(isWorkingSet).map((s) => s.weight_lb ?? 0));
+            return (
+              <p key={`${e.exercise_id}-${i}`}>
+                <strong>{name(e.exercise_id)}</strong>{top ? <span class="muted"> · max {fmt(top, 1)} lb</span> : null}<br />
+                <span class="muted tiny">{e.sets.filter(isWorkingSet).map((s) => `${s.weight_lb != null ? fmt(s.weight_lb, 1) : 'BW'}×${s.reps}`).join(', ') || 'warm-ups only'}</span>
+              </p>
+            );
+          })}
         </div>
-        <button class="btn primary" onClick={onDone}>Done</button>
+        <button class="btn primary" disabled={deciding} onClick={done}>Done</button>
       </div>
     </div>
   );
 }
-
