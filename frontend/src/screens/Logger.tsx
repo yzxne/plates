@@ -66,9 +66,30 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     if (s.weight_lb == null && prev?.weight_lb != null) fill.weight_lb = prev.weight_lb;
     if (s.reps == null) fill.reps = prev?.reps ?? s.rep_max ?? s.rep_min ?? null;
     if (fill.reps == null && s.reps == null) { showToast('Enter reps first', 'error'); return; }
-    const rest = ex.rest_sec > 0 ? { endsAt: Date.now() + ex.rest_sec * 1000, total: ex.rest_sec } : null;
+    const rest = ex.rest_sec > 0 ? { endsAt: Date.now() + ex.rest_sec * 1000, total: ex.rest_sec, ...nextUp(ei, si) } : null;
     if (rest) scheduleRestPush(ex.rest_sec);
     update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
+  }
+
+  /** What comes after set `si` of exercise `ei` (for the rest bar): the next unchecked set here, else the next exercise. */
+  function nextUp(ei: number, si: number): { title?: string; next?: string } {
+    const describe = (e: number, s: number) => {
+      const ex = w.exercises[e]!;
+      const set = ex.sets[s]!;
+      const reps = set.rep_min != null && set.rep_max != null && set.rep_min !== set.rep_max ? `${set.rep_min}–${set.rep_max}` : set.reps ?? set.rep_max ?? set.rep_min;
+      const load = set.weight_lb != null ? `${fmt(set.weight_lb, 1)} lb` : 'BW';
+      return {
+        title: exMap.get(ex.exercise_id)?.name ?? 'Next exercise',
+        next: `Next: set ${s + 1} of ${ex.sets.length}${reps != null ? ` · ${load} × ${reps}` : ''}`,
+      };
+    };
+    const here = w.exercises[ei]!.sets.findIndex((s, i) => i > si && !s.completed);
+    if (here >= 0) return describe(ei, here);
+    for (let e = ei + 1; e < w.exercises.length; e++) {
+      const s = w.exercises[e]!.sets.findIndex((x) => !x.completed);
+      if (s >= 0) return describe(e, s);
+    }
+    return { title: 'Last set done', next: 'Tap Finish when you’re ready' };
   }
 
   function addSet(ei: number) {

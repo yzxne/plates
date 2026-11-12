@@ -7,7 +7,8 @@ import { uuid } from './foodData';
 
 const KEY = 'plates.activeWorkout.v1';
 
-export interface RestTimer { endsAt: number; total: number }
+/** `title`/`next` describe what comes after the rest, e.g. "Incline Chest Press" / "Set 2 of 3 · 180 lb × 8–10". */
+export interface RestTimer { endsAt: number; total: number; title?: string; next?: string }
 export interface ActiveState { workout: Workout; rest: RestTimer | null }
 
 type Listener = () => void;

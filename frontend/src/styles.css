@@ -667,3 +667,9 @@ table.plan tr.today td { color: var(--text); font-weight: 700; }
 .tl-tot .p { color: var(--protein); } .tl-tot .f { color: var(--fat); } .tl-tot .c { color: var(--carbs); }
 .tl-card { padding: 0 14px; overflow: hidden; margin-bottom: 4px; }
 .tl-card .swipe-wrap:first-child { border-top: none; }
+
+/* Rest bar: what's next (inspired by lock-screen workout widgets) */
+.rest-info { grid-column: 1 / -1; display: flex; flex-direction: column; min-width: 0; padding-bottom: 2px; }
+.rest-info strong { font-size: 15px; }
+.rest-info small { font-size: 13px; }
+.rest-bar .btn.skip { background: #2f7fe0; border-color: #2f7fe0; color: #fff; font-weight: 700; }
