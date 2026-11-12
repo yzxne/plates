@@ -790,3 +790,29 @@ h2.inline { display: inline; margin: 0; }
 .amount-chips { margin-top: 8px; }
 .amount-chips .chip { min-width: 52px; }
 .field.amount small { margin-top: 6px; }
+
+/* Edit food page */
+.entry-edit .overlay-title.center { align-items: center; }
+.time-pill { display: inline-block; background: var(--surface-2); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.ee-title { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.ee-name { font-size: 24px; line-height: 1.2; margin: 0 0 4px; }
+.ee-name .tag { font-size: 11px; vertical-align: middle; }
+.ee-amount { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 2px; font-weight: 700; }
+.stepper { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: 14px; overflow: hidden; flex: none; }
+.stepper button { width: 44px; min-height: 48px; background: var(--surface-2); border: none; color: var(--text); font-size: 22px; cursor: pointer; }
+.stepper input { width: 84px; min-height: 48px; border: none; border-radius: 0; text-align: center; font-size: 20px; font-weight: 700; background: transparent; }
+.ee-kcal { display: flex; align-items: center; gap: 16px; padding: 18px; margin-top: 14px; }
+.ee-flame { font-size: 28px; }
+.ee-kcal strong { display: block; font-size: 34px; line-height: 1.1; }
+.ee-kcal input, .ee-macro input { margin-top: 4px; font-size: 20px; font-weight: 700; }
+.ee-macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ee-macro { padding: 12px; margin: 0; }
+.ee-macro small { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.ee-macro small i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ee-macro.p small i { background: var(--protein); } .ee-macro.c small i { background: var(--carbs); } .ee-macro.f small i { background: var(--fat); }
+.ee-macro strong { display: block; font-size: 22px; margin-top: 4px; }
+.ee-more { margin-top: 12px; padding: 0 4px; font: inherit; font-weight: 700; color: var(--text); cursor: pointer; border-bottom: none; }
+.ee-facts { padding: 6px 16px; }
+.ee-fact { display: flex; justify-content: space-between; align-items: center; min-height: 40px; border-top: 1px solid var(--border); }
+.ee-fact:first-child { border-top: none; }
+.ee-fact input { width: 100px; text-align: right; }
