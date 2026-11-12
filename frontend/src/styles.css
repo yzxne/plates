@@ -387,6 +387,20 @@ textarea {
 .set-grid { display: grid; grid-template-columns: 44px 1fr 1fr 1fr 44px; gap: 6px; align-items: center; }
 .set-head { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center; }
 .set-row { margin-top: 6px; border-radius: 10px; }
+/* Exercise history */
+.ex-name-btn { all: unset; cursor: pointer; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ex-name-btn:focus-visible { outline: 2px solid var(--link); border-radius: 4px; }
+.overlay-h1 { font-size: 20px; }
+.hist-session { padding: 12px 14px; margin-bottom: 8px; }
+.hist-session.pr { box-shadow: inset 0 0 0 1.5px #e8b84a; }
+.hist-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.grow-right { margin-left: auto; font-size: 13px; }
+.pr-badge { font-size: 11px; font-weight: 700; color: #1a1406; background: #e8b84a; padding: 1px 7px; border-radius: 999px; }
+.hist-sets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.hist-set { background: var(--surface-2); border-radius: 8px; padding: 4px 9px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.hist-set small { color: var(--warn); font-weight: 700; margin-right: 3px; }
+.hist-set.warm { opacity: 0.6; }
+
 /* Body map: muscles fill in as sets are checked */
 .body-map { display: flex; justify-content: center; gap: 12px; margin: 0 0 12px; }
 .bm-fig { margin: 0; width: 88px; text-align: center; }
@@ -401,6 +415,19 @@ textarea {
 .swipe-del-wrap { position: relative; border-radius: 10px; overflow: hidden; margin-top: 6px; }
 .swipe-del-wrap > .set-row { margin-top: 0; position: relative; z-index: 1; background: var(--surface); touch-action: pan-y; transition: transform 0.15s ease-out, background-color 0.25s ease-out; }
 .swipe-del-wrap > .set-row.done { background: #1b2d25; }
+/* Record set: gold outline, one shimmer pass when it's checked */
+.swipe-del-wrap > .set-row.pr { box-shadow: inset 0 0 0 2px #e8b84a; background: #2b2717; overflow: hidden; }
+.swipe-del-wrap > .set-row.pr .check { background: #e8b84a; border-color: #e8b84a; color: #1a1406; }
+@media (prefers-reduced-motion: no-preference) {
+  .swipe-del-wrap > .set-row.pr::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 221, 140, 0.45) 50%, transparent 70%);
+    transform: translateX(-100%); animation: pr-shine 1.1s ease-out 0.1s 1 forwards;
+  }
+  .swipe-del-wrap > .set-row.pr .check { animation: pr-pop 0.45s ease-out 1; }
+}
+@keyframes pr-shine { to { transform: translateX(100%); } }
+@keyframes pr-pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
 .swipe-del-under { position: absolute; inset: 0; display: flex; justify-content: flex-end; align-items: center; padding: 0 16px; background: #4a1f1f; color: #ffd2d2; font-weight: 600; font-size: 14px; border-radius: 10px; }
 .swipe-del-under.armed { background: #a33a3a; color: #fff; }
 .set-row.done { background: rgba(76, 195, 138, 0.14); }
@@ -706,7 +733,9 @@ table.plan tr.today td { color: var(--text); font-weight: 700; }
 
 /* Progression suggestion */
 .set-row input.suggested { border-color: var(--ok); color: var(--ok); font-weight: 700; }
-.suggest-note { font-size: 12px; color: var(--ok); margin: 8px 0 0; }
+.suggest-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.suggest-note.up { color: var(--ok); font-weight: 600; }
+.suggest-note.back { color: var(--link); }
 
 /* Weekly muscle targets + stalls */
 .mb-track { position: relative; }

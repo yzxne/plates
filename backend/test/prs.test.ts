@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deloadWeight, findPrs, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
+import { deloadWeight, findPrs, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, suggestSets, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
 
 const set = (weight_lb: number | null, reps: number, type: LoggedSet['type'] = 'N', completed = true): LoggedSet =>
   ({ id: Math.random().toString(36), type, weight_lb, reps, rep_min: null, rep_max: null, completed, rpe: null, note: '' });
@@ -80,6 +80,31 @@ describe('progression suggestions', () => {
     const light = [{ type: 'N' as const, weight_lb: 30, rep_min: 10, rep_max: 15 }];
     expect(progressionFor(light, [set(30, 15)]).weights).toEqual([32.5]);
     expect(progressionFor(planned, []).increased).toBe(false);
+  });
+});
+
+describe('suggested weights from recent best', () => {
+  const plan = [{ type: 'N' as const, weight_lb: 185, rep_min: 6, rep_max: 8 }, { type: 'N' as const, weight_lb: 185, rep_min: 6, rep_max: 8 }];
+  it('goes up when every set hit the top of the range', () => {
+    const s = suggestSets(plan, [[set(185, 8), set(185, 8)]]);
+    expect(s).toMatchObject({ weights: [190, 190], increased: true, mode: 'up' });
+    expect(s.why).toBe('↑ 190 lb: you hit 8/8 at 185 lb');
+  });
+  it('holds and says how many reps are left', () => {
+    const s = suggestSets(plan, [[set(185, 8), set(185, 6)]]);
+    expect(s).toMatchObject({ weights: [185, 185], mode: 'hold', why: '185 lb: 2 more reps across your sets to move up' });
+  });
+  it('one light day → back to your recent best', () => {
+    const s = suggestSets(plan, [[set(165, 8), set(165, 8)], [set(185, 7), set(185, 6)]]);
+    expect(s).toMatchObject({ weights: [185, 185], mode: 'back', increased: false });
+    expect(s.reps).toEqual([7, 6]);
+  });
+  it('two light sessions in a row → follows the lighter weight', () => {
+    const s = suggestSets(plan, [[set(165, 7), set(165, 7)], [set(165, 8), set(165, 8)], [set(185, 7), set(185, 6)]]);
+    expect(s).toMatchObject({ weights: [165, 165], mode: 'follow' });
+  });
+  it('no history → routine weights, no note', () => {
+    expect(suggestSets(plan, [])).toMatchObject({ weights: [185, 185], mode: 'new', why: '' });
   });
 });
 

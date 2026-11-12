@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { Meal } from '../../shared/nutrition';
-import { formatDuration, nextRoutine, previousSets, type Exercise, type Routine, type Workout } from '../../shared/training';
+import { formatDuration, nextRoutine, recentSessions, type Exercise, type Routine, type Workout } from '../../shared/training';
 import { getActive, startWorkout, subscribeActive } from './activeWorkout';
 import { ApiError, errorMessage, getToken, onUnauthorized } from './api';
 import { TabBar, type TabId } from './components/TabBar';
@@ -142,7 +142,7 @@ export function App() {
     if (!getActive()) {
       let history: Workout[] = cachedHistory();
       try { await loadExercises(); history = await loadHistory(); } catch { /* start anyway */ }
-      startWorkout(routine, (id) => exerciseMap().get(id)?.rest_sec ?? 90, (id) => previousSets(id, history));
+      startWorkout(routine, (id) => exerciseMap().get(id)?.rest_sec ?? 90, (id) => recentSessions(id, history));
     }
     void openLogger();
   }

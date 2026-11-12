@@ -54,6 +54,8 @@ export interface LoggedSet {
   id: string;
   /** UI only: weight pre-filled as a suggested increase (double progression). Not saved. */
   suggested?: boolean;
+  /** UI only: this set beat your record when checked off (gold outline). Not saved. */
+  pr?: boolean;
   type: SetType;
   weight_lb: number | null;
   reps: number | null;
@@ -68,6 +70,8 @@ export interface WorkoutExercise {
   exercise_id: string;
   rest_sec: number;
   note: string;
+  /** UI only: why the weights were pre-filled this way ("↑ 190 lb: you hit 8/8/8 at 185 lb"). Not saved. */
+  why?: string;
   sets: LoggedSet[];
 }
 
@@ -554,6 +558,60 @@ export function progressionFor(planned: PlannedSet[], prev: LoggedSet[]): { weig
     return base + weightStep(base);
   });
   return { weights, increased: ready };
+}
+
+/** Completed sets of your last `n` sessions of an exercise, most recent first. */
+export function recentSessions(exerciseId: string, history: Workout[], n = 3): LoggedSet[][] {
+  const out: LoggedSet[][] = [];
+  const sorted = [...history].filter((w) => w.end_time).sort((a, b) => b.start_time.localeCompare(a.start_time));
+  for (const w of sorted) {
+    const sets = w.exercises.filter((x) => x.exercise_id === exerciseId).flatMap((x) => x.sets.filter((s) => s.completed));
+    if (sets.length) out.push(sets);
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
+export type SuggestMode = 'up' | 'hold' | 'back' | 'follow' | 'new';
+export interface Suggestion { weights: (number | null)[]; reps: (number | null)[]; increased: boolean; mode: SuggestMode; why: string }
+
+const topWorking = (sets: LoggedSet[]) => Math.max(0, ...sets.filter((s) => s.type !== 'W').map((s) => s.weight_lb ?? 0));
+
+/**
+ * Next weights, built so one off day doesn't set you back:
+ * - Start from your recent best (heaviest of the last 3 sessions), not just last time.
+ * - Two lighter sessions in a row = on purpose (deload, injury, form reset) → follow the lighter weight.
+ * - The +5 lb still has to be earned: every working set at the top of its rep range at that weight.
+ * `sessions` = recentSessions(), most recent first.
+ */
+export function suggestSets(planned: PlannedSet[], sessions: LoggedSet[][]): Suggestion {
+  const [last, before] = sessions;
+  if (!last) {
+    return { weights: planned.map((p) => p.weight_lb), reps: planned.map(() => null), increased: false, mode: 'new', why: '' };
+  }
+  const bestIdx = sessions.reduce((bi, s, i) => (topWorking(s) > topWorking(sessions[bi]!) ? i : bi), 0);
+  const best = topWorking(sessions[bestIdx]!);
+  const lastLight = topWorking(last) < best;
+  const twoLight = lastLight && !!before && topWorking(before) < best;
+  const basis = lastLight && !twoLight ? sessions[bestIdx]! : last;
+  const mode: SuggestMode = twoLight ? 'follow' : lastLight ? 'back' : 'hold';
+  const prog = progressionFor(planned, basis);
+  const top = Math.max(0, ...prog.weights.filter((_, i) => planned[i]?.type !== 'W').map((w) => w ?? 0));
+  const reps = planned.map((p, i) => (prog.increased && p.type !== 'W' ? null : basis[i]?.reps ?? null));
+  const lb = (w: number) => `${Math.round(w * 10) / 10} lb`;
+  let why: string;
+  if (prog.increased) {
+    const hit = basis.filter((s) => s.type !== 'W').map((s) => s.reps).join('/');
+    why = `↑ ${lb(top)}: you hit ${hit} at ${lb(topWorking(basis))}${mode === 'back' ? ' (your recent best)' : ''}`;
+  } else if (mode === 'back') {
+    why = `↩ Back to ${lb(top)}, your recent best. Last time was lighter.`;
+  } else if (mode === 'follow') {
+    why = `${lb(top)}: following your last two lighter sessions`;
+  } else {
+    const short = planned.reduce((n, p, i) => (p.type === 'W' || p.rep_max == null ? n : n + Math.max(0, p.rep_max - (basis[i]?.reps ?? 0))), 0);
+    why = short > 0 ? `${lb(top)}: ${short} more rep${short > 1 ? 's' : ''} across your sets to move up` : `${lb(top)}: same as last time`;
+  }
+  return { weights: prog.weights, reps, increased: prog.increased, mode: prog.increased ? 'up' : mode, why: top > 0 ? why : '' };
 }
 
 // ---------- Stalls, deloads, plates, weekly muscle targets ----------

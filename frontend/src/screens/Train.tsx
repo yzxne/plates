@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { NumInput } from '../components/NumInput';
+import { ExerciseHistory } from '../components/ExerciseHistory';
 import {
-  bestSet, bestsFor, deloadWeight, epley1RM, findStall, formatDuration, groupSets, isWorkingSet, WEEKLY_SET_TARGET, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
+  deloadWeight, epley1RM, findStall, formatDuration, groupSets, isWorkingSet, WEEKLY_SET_TARGET, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
   type Exercise, type PlannedSet, type Routine, type RoutineItem, type SetType, type Workout,
 } from '../../../shared/training';
 import { getActive } from '../activeWorkout';
@@ -478,18 +479,6 @@ function Exercises({ exercises, onBack, onOpen, onChanged }: { exercises: Exerci
 
 function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Exercise; history: Workout[]; onBack: () => void; onChanged: () => void }) {
   const [editing, setEditing] = useState(false);
-  const [range, setRange] = useState(365);
-  const best = bestSet(exercise.id, history);
-  const records = bestsFor(exercise.id, history);
-  const stall = findStall(exercise.id, history, today());
-  const sessions = history
-    .filter((w) => w.exercises.some((e) => e.exercise_id === exercise.id))
-    .sort((a, b) => a.start_time.localeCompare(b.start_time));
-  const from = shiftDate(today(), -range);
-  const points: Point[] = sessions.filter((w) => w.date >= from).map((w) => {
-    const b = bestSet(exercise.id, [w]);
-    return { label: w.date.slice(5).replace('-', '/'), value: b ? Math.round(b.e1rm) : 0 };
-  });
 
   if (editing) {
     return (
@@ -503,36 +492,7 @@ function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Ex
     <section>
       <Back title={exercise.name} onBack={onBack} right={<button class="btn link" onClick={() => setEditing(true)}>Edit</button>} />
       <p class="muted">{[exercise.primary.join(', '), exercise.secondary.length ? `also ${exercise.secondary.join(', ')}` : '', exercise.equipment].filter(Boolean).join(' · ')}</p>
-      <div class="card">
-        <h2>Records</h2>
-        {best ? (
-          <div class="stat-grid">
-            <div><small>Est. 1-rep max</small><strong>{fmt(records.e1rm)} lb</strong><small>{best.date}</small></div>
-            <div><small>Heaviest</small><strong>{fmt(records.weight, 1)} lb</strong><small /></div>
-            <div><small>Best set</small><strong>{fmt(best.weight_lb, 1)} × {best.reps}</strong><small /></div>
-            <div><small>Best session volume</small><strong>{fmt(records.session_volume)} lb</strong><small /></div>
-          </div>
-        ) : <p class="muted">No working sets logged yet.</p>}
-        {stall && <p class="warn tiny mt">No new best in {Math.round(stall.days / 7)} weeks ({stall.sessions} sessions). Try a lighter week (Train → Stalled) or a variation.</p>}
-        <small class="muted">Estimated 1RM = weight × (1 + reps ÷ 30) (Epley formula).</small>
-      </div>
-      <div class="card">
-        <h2>Estimated 1RM per session</h2>
-        <BarChart points={points} unit="lb" />
-        <div class="chips">
-          {RANGES.map(([label, d]) => <button key={label} class={`chip ${range === d ? 'on' : ''}`} onClick={() => setRange(d)}>{label}</button>)}
-        </div>
-      </div>
-      <div class="card">
-        <h2>History</h2>
-        {sessions.length === 0 && <p class="muted">Not logged yet.</p>}
-        {[...sessions].reverse().slice(0, 30).map((w) => (
-          <p key={w.id}>
-            <span class="muted">{w.date}</span>{' '}
-            {w.exercises.filter((e) => e.exercise_id === exercise.id).flatMap((e) => e.sets.filter(isWorkingSet)).map((s) => `${s.weight_lb != null ? fmt(s.weight_lb, 1) : 'BW'}×${s.reps}`).join(', ')}
-          </p>
-        ))}
-      </div>
+      <ExerciseHistory exerciseId={exercise.id} history={history} />
     </section>
   );
 }

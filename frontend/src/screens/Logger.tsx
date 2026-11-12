@@ -9,7 +9,8 @@ import { BodyMap } from '../components/BodyMap';
 import { MuscleBars } from '../components/Charts';
 import { ActionSheet } from '../components/ActionSheet';
 import { ExercisePicker } from '../components/ExercisePicker';
-import { IconClose } from '../components/Icons';
+import { IconBack, IconClose } from '../components/Icons';
+import { ExerciseHistory } from '../components/ExerciseHistory';
 import { NumInput } from '../components/NumInput';
 import { SwipeDelete } from '../components/SwipeDelete';
 import { showUndo } from '../undo';
@@ -44,6 +45,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const [added, setAdded] = useState<Exercise[]>([]);
   const exMap = useMemo(() => new Map([...exercises, ...added].map((e) => [e.id, e])), [exercises, added]);
   const [menu, setMenu] = useState<number | null>(null);
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
   const known = (e: Exercise) => { if (!exMap.has(e.id)) setAdded((a) => [...a, e]); };
 
   useEffect(() => subscribeActive(() => setState(getActive())), []);
@@ -73,7 +75,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     unlockAudio(); // a tap is needed before iPhone allows the timer beep
     const ex = w.exercises[ei]!;
     const s = ex.sets[si]!;
-    if (s.completed) { patchSet(ei, si, { completed: false }); return; }
+    if (s.completed) { patchSet(ei, si, { completed: false, pr: false }); return; }
     const prev = previousSets(ex.exercise_id, history)[si];
     const fill: Partial<LoggedSet> = { completed: true };
     if (s.weight_lb == null && prev?.weight_lb != null) fill.weight_lb = prev.weight_lb;
@@ -81,11 +83,12 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     if (fill.reps == null && s.reps == null) { showToast('Enter reps first', 'error'); return; }
     const rest = ex.rest_sec > 0 ? { endsAt: Date.now() + ex.rest_sec * 1000, total: ex.rest_sec, ...nextUp(ei, si) } : null;
     if (rest) scheduleRestPush(ex.rest_sec);
-    update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
     // Live record check: beats your best est. 1RM or heaviest weight (history + earlier sets today)?
     const done = { ...s, ...fill };
     const earlier = w.exercises.filter((x) => x.exercise_id === ex.exercise_id).flatMap((x) => x.sets).filter((x) => x.completed && x.id !== s.id);
     const pr = setIsPr(ex.exercise_id, done, history, earlier);
+    fill.pr = !!pr;
+    update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
     if (pr) {
       const name = exMap.get(ex.exercise_id)?.name ?? 'Exercise';
       showToast(pr === 'e1rm'
@@ -263,7 +266,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
           return (
             <div class="card ex-card" key={`${ex.exercise_id}-${ei}`}>
               <div class="ex-head">
-                <h2 class="clip ex-name">{info?.name ?? 'Unknown exercise'}</h2>
+                <h2 class="clip ex-name"><button class="ex-name-btn" onClick={() => setHistoryFor(ex.exercise_id)} aria-label={`${info?.name ?? 'Exercise'} history`}>{info?.name ?? 'Unknown exercise'}</button></h2>
                 <button class="chip ex-chip" onClick={() => setReplacing(ei)} aria-label={`Replace ${info?.name ?? 'exercise'}`}>⇄ Replace</button>
                 <button class="icon-btn small more-btn" aria-label="Exercise options" onClick={() => setMenu(ei)}>⋯</button>
               </div>
@@ -281,7 +284,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                 <textarea class="ex-note" rows={1} placeholder="Note" value={ex.note.trim() ? ex.note : ''}
                   onInput={(e) => { const v = e.currentTarget.value; update((x) => { x.exercises[ei]!.note = v; return x; }); }} />
               )}
-              {ex.sets.some((s) => s.suggested) && <p class="suggest-note">↑ Weight up: you hit the top of your rep range last time.</p>}
+              {ex.why && <p class={`suggest-note ${ex.why.startsWith('↑') ? 'up' : ex.why.startsWith('↩') ? 'back' : ''}`}>{ex.why}</p>}
               <div class="set-grid set-head">
                 <span>Set</span><span>Previous</span><span>lb</span><span>Reps</span><span aria-label="Done">✓</span>
               </div>
@@ -292,7 +295,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                   ? (s.rep_min === s.rep_max || s.rep_max == null ? `${s.rep_min}` : s.rep_min == null ? `${s.rep_max}` : `${s.rep_min}-${s.rep_max}`)
                   : '';
                 return (
-                  <SwipeDelete key={s.id} class={`set-grid set-row ${s.completed ? 'done' : ''}`} onDelete={() => deleteSet(ei, si)}>
+                  <SwipeDelete key={s.id} class={`set-grid set-row ${s.completed ? 'done' : ''} ${s.completed && s.pr ? 'pr' : ''}`} onDelete={() => deleteSet(ei, si)}>
                     <select class={`set-type t-${s.type}`} aria-label="Set type" value={s.type}
                       onChange={(e) => {
                         const v = e.currentTarget.value;
@@ -330,8 +333,18 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       {picking && <ExercisePicker exercises={[...exMap.values()]} onPick={(e) => { known(e); addExercise(e); }} onClose={() => setPicking(false)} />}
       {plates !== undefined && <PlateCalc initial={plates} onClose={() => setPlates(undefined)} />}
       {replacing != null && <ExercisePicker title="Replace with" exercises={[...exMap.values()]} onPick={(e) => { known(e); replaceExercise(replacing, e); }} onClose={() => setReplacing(null)} />}
+      {historyFor && (
+        <div class="overlay" role="dialog" aria-modal="true" aria-label="Exercise history">
+          <header class="overlay-head">
+            <button class="icon-btn" aria-label="Back to workout" onClick={() => setHistoryFor(null)}><IconBack /></button>
+            <h1 class="clip grow overlay-h1">{exMap.get(historyFor)?.name ?? 'Exercise'}</h1>
+          </header>
+          <div class="overlay-body"><ExerciseHistory exerciseId={historyFor} history={history} /></div>
+        </div>
+      )}
       {menu != null && w.exercises[menu] && (
         <ActionSheet title={exMap.get(w.exercises[menu]!.exercise_id)?.name} onClose={() => setMenu(null)} actions={[
+          { label: 'History', onClick: () => setHistoryFor(w.exercises[menu]!.exercise_id) },
           { label: 'Replace exercise', onClick: () => setReplacing(menu) },
           { label: 'Add note', onClick: () => exerciseAction(menu, 'note'), disabled: w.exercises[menu]!.note !== '' },
           { label: 'Plate calculator', onClick: () => exerciseAction(menu, 'plates') },

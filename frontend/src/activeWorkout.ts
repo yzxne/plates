@@ -1,7 +1,7 @@
 // The workout in progress lives on the phone (saved on every change) until you tap Finish.
 // Closing Safari or the app mid-workout loses nothing.
 import { chicagoDate } from '../../shared/schema';
-import { progressionFor, type LoggedSet, type Routine, type Workout } from '../../shared/training';
+import { suggestSets, type LoggedSet, type Routine, type Workout } from '../../shared/training';
 import { safeStore } from './storage';
 import { uuid } from './foodData';
 
@@ -45,7 +45,7 @@ export function newSet(p: Partial<LoggedSet> = {}): LoggedSet {
 export function startWorkout(
   routine?: Routine,
   restFor: (exerciseId: string) => number = () => 90,
-  previousFor: (exerciseId: string) => LoggedSet[] = () => [],
+  recentFor: (exerciseId: string) => LoggedSet[][] = () => [],
 ): ActiveState {
   const workout: Workout = {
     id: uuid(),
@@ -58,17 +58,19 @@ export function startWorkout(
     exercises: (routine?.items ?? []).map((it) => ({
       exercise_id: it.exercise_id,
       rest_sec: it.rest_sec || restFor(it.exercise_id),
-      note: it.notes,
-      sets: (() => {
+      ...(() => {
         const planned = it.sets.length ? it.sets : [{ type: 'N' as const, weight_lb: null, rep_min: null, rep_max: null }];
-        const prev = previousFor(it.exercise_id);
-        // Hit the top of the rep range on every working set last time → suggest the next weight up, reps start fresh.
-        const prog = progressionFor(planned, prev);
-        return planned.map((p, i) => newSet({
-          type: p.type, weight_lb: prog.weights[i] ?? null, rep_min: p.rep_min, rep_max: p.rep_max,
-          reps: prog.increased && p.type !== 'W' ? null : prev[i]?.reps ?? null,
-          suggested: prog.increased && p.type !== 'W',
-        }));
+        // Recent best (not just last time) → +5 lb once every working set hits the top of the range. See suggestSets().
+        const sug = suggestSets(planned, recentFor(it.exercise_id));
+        return {
+          note: it.notes,
+          why: sug.why,
+          sets: planned.map((p, i) => newSet({
+            type: p.type, weight_lb: sug.weights[i] ?? null, rep_min: p.rep_min, rep_max: p.rep_max,
+            reps: sug.reps[i] ?? null,
+            suggested: sug.increased && p.type !== 'W',
+          })),
+        };
       })(),
     })),
   };
