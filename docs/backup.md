@@ -8,12 +8,15 @@ All your data lives in **one Google Sheet** called "Plates" in your Google Drive
 2. **Soft deletes.** When you delete something in Plates it stays in the Sheet with a `deleted_at` date; it is only hidden.
 3. **Retry queue.** If a save fails (no signal), Plates keeps it on the phone and retries; Settings shows anything still waiting.
 
-## Do this once a month (1 minute)
+## Automatic weekly backups (nothing to do)
 
-1. Open Plates → gear icon on Today → **Import & export** → **Export to Excel (.xlsx)**.
-2. Save the file somewhere that isn't Google Drive (your PC, iCloud Drive, OneDrive, a USB stick).
+Every **Monday at 10:00 UTC** the Plates server asks Google to export your Sheet as Excel and stores the file on Cloudflare (outside Google). The newest **8** are kept (about 2 months).
 
-That gives you a full copy even if your Google account had a problem.
+- See or download them: Plates → gear → **Import & export** → **Automatic backups**.
+- **Back up now** makes one immediately (e.g. before a big import).
+- Now and then, download one to your PC / iCloud Drive for a third copy.
+
+Manual export (**Export to Excel**) still works the same.
 
 ## If something goes wrong
 

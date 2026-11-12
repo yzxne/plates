@@ -15,12 +15,17 @@ import { addSub, cancelRest, removeSub, scheduleRest, sendToAll, validEndpoint }
 export { RestTimer } from './push';
 import { checkTypedCode } from '../../shared/barcode';
 import { applyFilters, Sheets, type Filters } from './sheets';
+import { getBackup, KEEP, listBackups, runBackup, XLSX_TYPE } from './backups';
 import {
   createShortcutKey, requireShortcutKey, revokeShortcutKey, shortcutKeyStatus, shortcutLog, shortcutSummary, shortcutWeight,
 } from './shortcuts';
 
 export default {
   fetch: (request: Request, env: Env) => handle(request, env),
+  // Weekly backup (cron in wrangler.jsonc). Failures are logged; the next run tries again.
+  scheduled: (_event: ScheduledController, env: Env, ctx: ExecutionContext) => {
+    ctx.waitUntil(runBackup(env).catch((err) => console.error('Scheduled backup failed', err)));
+  },
 } satisfies ExportedHandler<Env>;
 
 export async function handle(request: Request, env: Env): Promise<Response> {
@@ -176,6 +181,21 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   await requireSession(request, env);
+
+  // ---------- Automatic backups ----------
+  if (method === 'GET' && path === '/backups') return json({ backups: await listBackups(env.PLATES_KV), keep: KEEP });
+  if (method === 'POST' && path === '/backups/run') return json(await runBackup(env));
+  const backupMatch = /^\/backups\/(\d{4}-\d{2}-\d{2})$/.exec(path);
+  if (method === 'GET' && backupMatch) {
+    const buf = await getBackup(env.PLATES_KV, backupMatch[1]!);
+    if (!buf) throw new HttpError(404, 'not_found', 'That backup is gone (only the newest 8 are kept).');
+    return new Response(buf, {
+      headers: {
+        'Content-Type': XLSX_TYPE, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+        'Content-Disposition': `attachment; filename="plates-backup-${backupMatch[1]}.xlsx"`,
+      },
+    });
+  }
 
   if (method === 'GET' && path === '/shortcut-key') return json(await shortcutKeyStatus(env.PLATES_KV));
   if (method === 'POST' && path === '/shortcut-key') return json(await createShortcutKey(env.PLATES_KV));

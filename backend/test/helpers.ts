@@ -3,12 +3,15 @@ import type { Env } from '../src/env';
 import { b64urlEncode, randomBytes } from '../src/crypto';
 
 export class MemoryKV {
-  store = new Map<string, string>();
+  store = new Map<string, string | ArrayBuffer>();
   writes = 0;
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) ?? null;
+  async get(key: string, type?: 'text' | 'arrayBuffer'): Promise<any> {
+    const v = this.store.get(key);
+    if (v == null) return null;
+    if (type === 'arrayBuffer') return typeof v === 'string' ? new TextEncoder().encode(v).buffer : v;
+    return typeof v === 'string' ? v : new TextDecoder().decode(v);
   }
-  async put(key: string, value: string, _opts?: { expirationTtl?: number }): Promise<void> {
+  async put(key: string, value: string | ArrayBuffer, _opts?: { expirationTtl?: number }): Promise<void> {
     this.writes++;
     this.store.set(key, value);
   }

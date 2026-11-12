@@ -2,6 +2,7 @@
 import { useState } from 'preact/hooks';
 import { addDays } from '../../../shared/coaching';
 import { errorMessage } from '../api';
+import { BackupsCard } from '../components/BackupsCard';
 import { IconBack } from '../components/Icons';
 import { today } from '../dates';
 import { exportWeekly, exportXlsx } from '../exportData';
@@ -79,10 +80,11 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
         </div>
         <button class="btn" style="width:100%" disabled={!!busy} onClick={() => run('Building summary…', () => exportWeekly(week))}>Export weekly summary (.md)</button>
         <p class="muted tiny mt">
-          Backups: Google keeps every version of your Sheet (in the Sheet: File → Version history), so mistakes can be undone.
-          Export to Excel about once a month and keep the file outside Google Drive.
+          Undo mistakes with Google's version history (in the Sheet: File → Version history).
         </p>
       </div>
+
+      <BackupsCard />
 
       <div class="card">
         <h2>Import</h2>

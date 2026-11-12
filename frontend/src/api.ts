@@ -58,6 +58,26 @@ export async function api<T = unknown>(method: 'GET' | 'POST' | 'PUT', path: str
   return data as T;
 }
 
+/** GET that returns a file (e.g. a backup) instead of JSON. */
+export async function apiBlob(path: string, timeoutMs = 60_000): Promise<Blob> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(API_BASE + path, { headers: { Authorization: `Bearer ${getToken() ?? ''}` }, signal: ctrl.signal });
+    if (!res.ok) {
+      let data: any = null;
+      try { data = await res.json(); } catch { /* not JSON */ }
+      throw new ApiError(res.status, data?.error ?? 'error', data?.message ?? `Download failed (${res.status})`);
+    }
+    return await res.blob();
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(0, 'network', "Can't reach the server. Check your connection.");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) return err.message;
   if (err instanceof Error) return err.message;
