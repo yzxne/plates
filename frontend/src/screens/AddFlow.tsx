@@ -18,6 +18,7 @@ import { fmt, foodSummary, macroLine, sourceLabel } from '../format';
 import { showToast } from '../toast';
 import { showUndo } from '../undo';
 import { SkeletonRows } from '../components/Skeleton';
+import { AmountPicker } from '../components/AmountPicker';
 
 type View =
   | { kind: 'home' }
@@ -389,21 +390,11 @@ const SparkIcon = () => (
 
 function Detail({ food: initial, method, date, meal, onLogged }: { food: Food; method: string; date: string; meal: Meal; onLogged: (e: LogEntry, ok: boolean, food?: Food) => void }) {
   const [food, setFood] = useState(initial);
-  const hasServing = !!food.grams_per_serving;
-  const startGrams = defaultGrams(food);
-  const [unit, setUnit] = useState<'g' | 'serving'>(hasServing ? 'serving' : 'g');
-  const [amount, setAmount] = useState(hasServing ? String(Math.round((startGrams / food.grams_per_serving!) * 100) / 100) : String(startGrams));
+  const usual = defaultGrams(food);
+  // Start at exactly 1 serving (label serving, or your usual amount when there's no label).
+  const [grams, setGrams] = useState(food.grams_per_serving ?? usual);
   const [busy, setBusy] = useState(false);
-
-  const value = Number(amount);
-  const grams = unit === 'serving' ? value * (food.grams_per_serving ?? 0) : value;
   const preview = grams > 0 ? makeEntry({ id: 'preview', date, meal, food, grams, method }) : null;
-
-  function switchUnit(u: 'g' | 'serving') {
-    if (u === unit || !food.grams_per_serving) return;
-    setAmount(u === 'g' ? String(Math.round(grams * 10) / 10) : String(Math.round((grams / food.grams_per_serving) * 100) / 100));
-    setUnit(u);
-  }
 
   async function toggleFavorite() {
     try {
@@ -437,21 +428,7 @@ function Detail({ food: initial, method, date, meal, onLogged }: { food: Food; m
           <button class={`icon-btn star ${food.favorite ? 'on' : ''}`} aria-pressed={!!food.favorite} aria-label="Favorite" onClick={toggleFavorite}>{food.favorite ? '★' : '☆'}</button>
         </div>
         <p class="muted">{[food.brand, sourceLabel(food)].filter(Boolean).join(' · ')}</p>
-        {food.serving_size && <p class="muted tiny-pad">Serving: {food.serving_size}</p>}
-
-        <div class="field">
-          <label for="amount">Amount</label>
-          <div class="with-unit">
-            <input id="amount" type="number" inputMode="decimal" min="0" step="any" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
-            {hasServing ? (
-              <div class="seg">
-                <button type="button" class={unit === 'g' ? 'on' : ''} onClick={() => switchUnit('g')}>g</button>
-                <button type="button" class={unit === 'serving' ? 'on' : ''} onClick={() => switchUnit('serving')}>serving</button>
-              </div>
-            ) : <span class="unit">g</span>}
-          </div>
-          {unit === 'serving' && grams > 0 && <small class="muted">= {fmt(grams, 1)} g</small>}
-        </div>
+        <AmountPicker food={food} usualGrams={usual} initialGrams={food.grams_per_serving ?? usual} onChange={setGrams} />
 
         {preview && <NutrientTable n={preview.n} />}
         {food.source === 'off' && <p class="muted tiny">Data © Open Food Facts contributors, ODbL</p>}

@@ -785,3 +785,8 @@ h2.inline { display: inline; margin: 0; }
 .folder-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 4px; background: none; border: none; color: var(--text); font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; text-align: left; }
 .folder-caret { display: inline-block; color: var(--muted); font-size: 20px; transition: transform 0.15s; }
 .folder-caret.open { transform: rotate(90deg); }
+
+/* Serving-first amount */
+.amount-chips { margin-top: 8px; }
+.amount-chips .chip { min-width: 52px; }
+.field.amount small { margin-top: 6px; }

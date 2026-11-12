@@ -4,6 +4,7 @@ import { errorMessage } from '../api';
 import { deleteEntry, findFood, loadFoods, updateEntry } from '../foodData';
 import { fmt, macroLine } from '../format';
 import { showToast } from '../toast';
+import { AmountPicker } from './AmountPicker';
 import { IconClose } from './Icons';
 
 interface Props {
@@ -17,8 +18,7 @@ interface Props {
 export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
   const [food, setFood] = useState<Food | undefined>(entry.food_id ? findFood(entry.food_id) : undefined);
   const [meal, setMeal] = useState<Meal>(entry.meal);
-  const [unit, setUnit] = useState<'g' | 'serving'>(entry.servings != null && entry.grams != null ? 'serving' : 'g');
-  const [amount, setAmount] = useState(String(unit === 'serving' ? entry.servings ?? '' : entry.grams ?? ''));
+  const [grams, setGrams] = useState(entry.grams ?? 0);
   // Quick-add entries (no saved food): edit the numbers directly.
   const [kcal, setKcal] = useState(String(entry.n.kcal));
   const [p, setP] = useState(String(entry.n.protein_g));
@@ -30,8 +30,7 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
     if (entry.food_id && !food) void loadFoods().then(() => setFood(findFood(entry.food_id)));
   }, []);
 
-  const grams = food ? (unit === 'serving' && food.grams_per_serving ? Number(amount) * food.grams_per_serving : Number(amount)) : null;
-  const preview: LogEntry | null = food && grams && grams > 0
+  const preview: LogEntry | null = food && grams > 0
     ? {
       ...makeEntry({
         id: entry.id, date: entry.date, meal, food, grams, method: entry.entry_method, notes: entry.notes,
@@ -85,19 +84,10 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
         </div>
 
         {food && (
-          <div class="field">
-            <label for="amt">Amount</label>
-            <div class="with-unit">
-              <input id="amt" type="number" inputMode="decimal" min="0" step="any" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
-              {food.grams_per_serving ? (
-                <div class="seg">
-                  <button type="button" class={unit === 'g' ? 'on' : ''} onClick={() => { if (unit !== 'g') { setUnit('g'); setAmount(String(grams ?? '')); } }}>g</button>
-                  <button type="button" class={unit === 'serving' ? 'on' : ''} onClick={() => { if (unit !== 'serving' && grams) { setUnit('serving'); setAmount(String(Math.round((grams / food.grams_per_serving!) * 100) / 100)); } }}>serving</button>
-                </div>
-              ) : <span class="unit">g</span>}
-            </div>
-            {preview && <small class="muted">{fmt(preview.n.kcal)} kcal · {macroLine(preview.n)}</small>}
-          </div>
+          <>
+            <AmountPicker id="amt" food={food} usualGrams={entry.grams ?? food.grams_per_serving ?? 100} initialGrams={entry.grams ?? food.grams_per_serving ?? 100} onChange={setGrams} />
+            {preview && <p class="muted tiny-pad">{fmt(preview.n.kcal)} kcal · {macroLine(preview.n)}</p>}
+          </>
         )}
 
         {!food && (
