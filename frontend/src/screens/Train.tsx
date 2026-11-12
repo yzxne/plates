@@ -5,12 +5,14 @@ import {
 } from '../../../shared/training';
 import { getActive } from '../activeWorkout';
 import { ApiError, errorMessage } from '../api';
+import { ActionSheet } from '../components/ActionSheet';
 import { BarChart, MuscleBars, MuscleRadar, type Point } from '../components/Charts';
 import { ExercisePicker, NewExercise } from '../components/ExercisePicker';
 import { IconBack, IconChevron } from '../components/Icons';
 import { shiftDate, today } from '../dates';
 import { uuid, write } from '../foodData';
 import { fmt } from '../format';
+import { safeStore } from '../storage';
 import { showToast } from '../toast';
 import { SkeletonScreen } from '../components/Skeleton';
 import {
@@ -79,7 +81,7 @@ export function Train({ onStart, version }: Props) {
         onEdit={() => setView({ kind: 'edit', routine: structuredClone(r), isNew: false })} />;
     }
     case 'edit':
-      return <RoutineEditor initial={view.routine} isNew={view.isNew} exercises={exercises} before={routines.find((x) => x.id === view.routine.id)}
+      return <RoutineEditor initial={view.routine} isNew={view.isNew} exercises={exercises} folders={[...new Set(routines.map((x) => x.folder).filter(Boolean))]} before={routines.find((x) => x.id === view.routine.id)}
         onCancel={() => setView(view.isNew ? { kind: 'home' } : { kind: 'routine', id: view.routine.id })}
         onSaved={async (id) => { await load(); setView(id ? { kind: 'routine', id } : { kind: 'home' }); }}
         onExercisesChanged={() => loadExercises().then(setExercises)} />;
@@ -108,10 +110,15 @@ export function Train({ onStart, version }: Props) {
   const active = getActive();
   const next = nextRoutine(routines, history);
 
-  async function move(i: number, dir: -1 | 1) {
+  /** Moves a routine up/down among the routines in the same folder. */
+  async function move(id: string, dir: -1 | 1) {
     const list = [...(routines ?? [])];
-    const [r] = list.splice(i, 1);
-    list.splice(i + dir, 0, r!);
+    const i = list.findIndex((x) => x.id === id);
+    const folder = list[i]!.folder;
+    let j = i + dir;
+    while (j >= 0 && j < list.length && list[j]!.folder !== folder) j += dir;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j]!, list[i]!];
     const reordered = list.map((x, idx) => ({ ...x, sort_order: idx }));
     setRoutines(reordered);
     try {
@@ -144,25 +151,12 @@ export function Train({ onStart, version }: Props) {
 
       <div class="section-head">
         <h2>Routines</h2>
-        <button class="btn link" onClick={() => setView({ kind: 'edit', isNew: true, routine: { id: uuid(), name: '', notes: '', sort_order: routines.length, items: [] } })}>+ New</button>
+        <button class="btn link" onClick={() => setView({ kind: 'edit', isNew: true, routine: { id: uuid(), name: '', notes: '', sort_order: routines.length, folder: '', items: [] } })}>+ New</button>
       </div>
       {routines.length === 0 && <p class="muted">No routines yet. Create one, or start an empty workout.</p>}
-      {routines.length > 1 && <p class="muted tiny-pad">Rotation goes top to bottom. Use ↑ ↓ to reorder.</p>}
-      {routines.map((r, i) => (
-        <div class={`card routine-card ${next?.id === r.id ? 'is-next' : ''}`} key={r.id}>
-          <button class="routine-main" onClick={() => setView({ kind: 'routine', id: r.id })}>
-            <strong>{r.name}{next?.id === r.id ? <span class="tag next">next</span> : null}</strong>
-            <small class="muted clip">{r.items.map((it) => exMap.get(it.exercise_id)?.name ?? '?').join(', ') || 'No exercises'}</small>
-          </button>
-          {routines.length > 1 && (
-            <span class="reorder">
-              <button class="icon-btn small" aria-label={`Move ${r.name} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
-              <button class="icon-btn small" aria-label={`Move ${r.name} down`} disabled={i === routines.length - 1} onClick={() => move(i, 1)}>↓</button>
-            </span>
-          )}
-          <button class="btn" disabled={!!active} onClick={() => onStart(r)}>Start</button>
-        </div>
-      ))}
+      {routines.length > 1 && <p class="muted tiny-pad">Rotation goes top to bottom{routines.some((r) => r.folder) ? ' within a folder' : ''}. Use ↑ ↓ to reorder.</p>}
+      <RoutineList routines={routines} next={next} exMap={exMap} active={!!active}
+        onOpen={(id) => setView({ kind: 'routine', id })} onStart={onStart} onMove={move} />
 
       <div class="card">
         <h2>Last 7 days</h2>
@@ -267,14 +261,17 @@ const repText = (s: PlannedSet) =>
 
 // ---------- Routine editor ----------
 
-function RoutineEditor({ initial, isNew, before, exercises, onCancel, onSaved, onExercisesChanged }: {
-  initial: Routine; isNew: boolean; before?: Routine; exercises: Exercise[];
+function RoutineEditor({ initial, isNew, before, exercises, folders, onCancel, onSaved, onExercisesChanged }: {
+  initial: Routine; isNew: boolean; before?: Routine; exercises: Exercise[]; folders: string[];
   onCancel: () => void; onSaved: (id: string | null) => void; onExercisesChanged: () => void;
 }) {
   const [r, setR] = useState<Routine>(initial);
   const [picking, setPicking] = useState(false);
+  const [replacing, setReplacing] = useState<number | null>(null);
+  const [menu, setMenu] = useState<number | null>(null);
+  const [extra, setExtra] = useState<Exercise[]>([]); // picked from the library just now
   const [busy, setBusy] = useState(false);
-  const exMap = new Map(exercises.map((e) => [e.id, e]));
+  const exMap = new Map([...exercises, ...extra].map((e) => [e.id, e]));
   const edit = (fn: (x: Routine) => void) => setR((cur) => { const x = structuredClone(cur); fn(x); return x; });
   const numOrNull = (v: string) => (v.trim() === '' ? null : Number(v));
 
@@ -282,7 +279,7 @@ function RoutineEditor({ initial, isNew, before, exercises, onCancel, onSaved, o
     if (!r.name.trim()) { showToast('Name the routine', 'error'); return; }
     setBusy(true);
     try {
-      await saveRoutine({ ...r, name: r.name.trim() }, isNew ? undefined : before);
+      await saveRoutine({ ...r, name: r.name.trim(), folder: r.folder.trim() }, isNew ? undefined : before);
       showToast('Routine saved', 'ok');
       onSaved(r.id);
     } catch (err) {
@@ -306,6 +303,7 @@ function RoutineEditor({ initial, isNew, before, exercises, onCancel, onSaved, o
   const addItem = (e: Exercise) => {
     setPicking(false);
     onExercisesChanged();
+    setExtra((a) => (exMap.has(e.id) ? a : [...a, e]));
     edit((x) => {
       const item: RoutineItem = { id: uuid(), exercise_id: e.id, position: x.items.length, rest_sec: e.rest_sec, notes: '',
         sets: [1, 2, 3].map(() => ({ type: 'N' as SetType, weight_lb: null, rep_min: 8, rep_max: 12 })) };
@@ -318,15 +316,23 @@ function RoutineEditor({ initial, isNew, before, exercises, onCancel, onSaved, o
       <Back title={isNew ? 'New routine' : 'Edit routine'} onBack={onCancel} right={<button class="btn link" disabled={busy} onClick={save}>Save</button>} />
       <div class="card form">
         <div class="field"><label for="r-name">Name</label><input id="r-name" value={r.name} placeholder="e.g. Push A" onInput={(e) => { const v = e.currentTarget.value; edit((x) => { x.name = v; }); }} /></div>
+        <div class="field"><label for="r-folder">Folder (optional)</label>
+          <input id="r-folder" list="r-folders" value={r.folder} placeholder="e.g. PPL, Summer cut" onInput={(e) => { const v = e.currentTarget.value; edit((x) => { x.folder = v; }); }} />
+          <datalist id="r-folders">{folders.map((f) => <option key={f} value={f} />)}</datalist>
+          {folders.length > 0 && (
+            <div class="chips mt">{folders.map((f) => <button type="button" key={f} class={`chip ${r.folder === f ? 'on' : ''}`} onClick={() => edit((x) => { x.folder = x.folder === f ? '' : f; })}>{f}</button>)}</div>
+          )}
+          <small class="muted">Routines in the same folder rotate together.</small>
+        </div>
         <div class="field"><label for="r-notes">Notes (optional)</label><input id="r-notes" value={r.notes} onInput={(e) => { const v = e.currentTarget.value; edit((x) => { x.notes = v; }); }} /></div>
       </div>
 
       {r.items.map((it, ii) => (
         <div class="card" key={it.id}>
           <div class="ex-head">
-            <h2 class="clip grow">{exMap.get(it.exercise_id)?.name ?? 'Unknown exercise'}</h2>
-            <button class="icon-btn small" aria-label="Move up" disabled={ii === 0} onClick={() => edit((x) => { const [m] = x.items.splice(ii, 1); x.items.splice(ii - 1, 0, m!); })}>↑</button>
-            <button class="icon-btn small" aria-label="Move down" disabled={ii === r.items.length - 1} onClick={() => edit((x) => { const [m] = x.items.splice(ii, 1); x.items.splice(ii + 1, 0, m!); })}>↓</button>
+            <h2 class="clip grow ex-name">{exMap.get(it.exercise_id)?.name ?? 'Unknown exercise'}</h2>
+            <button class="chip ex-chip" onClick={() => setReplacing(ii)}>⇄ Replace</button>
+            <button class="icon-btn small more-btn" aria-label="Exercise options" onClick={() => setMenu(ii)}>⋯</button>
           </div>
           <div class="grid2">
             <div class="field"><label>Rest (sec)</label><input type="number" inputMode="numeric" value={it.rest_sec} onInput={(e) => { const v = Number(e.currentTarget.value) || 0; edit((x) => { x.items[ii]!.rest_sec = v; }); }} /></div>
@@ -345,10 +351,7 @@ function RoutineEditor({ initial, isNew, before, exercises, onCancel, onSaved, o
             </div>
           ))}
           <small class="muted">W = warm-up (not counted in volume) · N = normal · F = to failure</small>
-          <div class="btn-row">
-            <button class="btn" onClick={() => edit((x) => { const last = x.items[ii]!.sets.at(-1); x.items[ii]!.sets.push(last ? { ...last } : { type: 'N', weight_lb: null, rep_min: 8, rep_max: 12 }); })}>+ Set</button>
-            <button class="btn danger" onClick={() => edit((x) => { x.items.splice(ii, 1); })}>Remove exercise</button>
-          </div>
+          <button class="btn add-set" onClick={() => edit((x) => { const last = x.items[ii]!.sets.at(-1); x.items[ii]!.sets.push(last ? { ...last } : { type: 'N', weight_lb: null, rep_min: 8, rep_max: 12 }); })}>+ Add set</button>
         </div>
       ))}
 
@@ -356,6 +359,23 @@ function RoutineEditor({ initial, isNew, before, exercises, onCancel, onSaved, o
       <button class="btn primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save routine'}</button>
       {!isNew && <button class="btn link danger center" disabled={busy} onClick={remove}>Delete routine</button>}
       {picking && <ExercisePicker exercises={exercises} onPick={addItem} onClose={() => setPicking(false)} />}
+      {replacing != null && r.items[replacing] && (
+        <ExercisePicker title="Replace with" exercises={exercises} onClose={() => setReplacing(null)} onPick={(e) => {
+          const at = replacing;
+          setReplacing(null);
+          onExercisesChanged();
+          setExtra((a) => (exMap.has(e.id) ? a : [...a, e]));
+          edit((x) => { x.items[at]!.exercise_id = e.id; x.items[at]!.rest_sec = e.rest_sec; });
+        }} />
+      )}
+      {menu != null && r.items[menu] && (
+        <ActionSheet title={exMap.get(r.items[menu]!.exercise_id)?.name} onClose={() => setMenu(null)} actions={[
+          { label: 'Replace exercise', onClick: () => setReplacing(menu) },
+          { label: 'Move up', disabled: menu === 0, onClick: () => edit((x) => { const [m] = x.items.splice(menu, 1); x.items.splice(menu - 1, 0, m!); }) },
+          { label: 'Move down', disabled: menu === r.items.length - 1, onClick: () => edit((x) => { const [m] = x.items.splice(menu, 1); x.items.splice(menu + 1, 0, m!); }) },
+          { label: 'Remove exercise', danger: true, onClick: () => edit((x) => { x.items.splice(menu, 1); }) },
+        ]} />
+      )}
     </section>
   );
 }
@@ -599,5 +619,58 @@ function Stalled({ routines, history, exMap, onChanged }: { routines: Routine[];
         </div>
       ))}
     </div>
+  );
+}
+
+/** Routines grouped by folder (collapsible). Without any folders it's a plain list, as before. */
+function RoutineList({ routines, next, exMap, active, onOpen, onStart, onMove }: {
+  routines: Routine[]; next: Routine | null; exMap: Map<string, Exercise>; active: boolean;
+  onOpen: (id: string) => void; onStart: (r: Routine) => void; onMove: (id: string, dir: -1 | 1) => void;
+}) {
+  const KEY = 'plates.train.collapsed';
+  const [collapsed, setCollapsed] = useState<string[]>(() => { try { return JSON.parse(safeStore.getItem(KEY) ?? '[]'); } catch { return []; } });
+  const toggle = (f: string) => setCollapsed((c) => {
+    const n = c.includes(f) ? c.filter((x) => x !== f) : [...c, f];
+    safeStore.setItem(KEY, JSON.stringify(n));
+    return n;
+  });
+  const folders = [...new Set(routines.map((r) => r.folder))];
+  const grouped = folders.some((f) => f !== '');
+  const card = (r: Routine, inFolder: Routine[]) => {
+    const k = inFolder.indexOf(r);
+    return (
+      <div class={`card routine-card ${next?.id === r.id ? 'is-next' : ''}`} key={r.id}>
+        <button class="routine-main" onClick={() => onOpen(r.id)}>
+          <strong>{r.name}{next?.id === r.id ? <span class="tag next">next</span> : null}</strong>
+          <small class="muted clip">{r.items.map((it) => exMap.get(it.exercise_id)?.name ?? '?').join(', ') || 'No exercises'}</small>
+        </button>
+        {inFolder.length > 1 && (
+          <span class="reorder">
+            <button class="icon-btn small" aria-label={`Move ${r.name} up`} disabled={k === 0} onClick={() => onMove(r.id, -1)}>↑</button>
+            <button class="icon-btn small" aria-label={`Move ${r.name} down`} disabled={k === inFolder.length - 1} onClick={() => onMove(r.id, 1)}>↓</button>
+          </span>
+        )}
+        <button class="btn" disabled={active} onClick={() => onStart(r)}>Start</button>
+      </div>
+    );
+  };
+  if (!grouped) return <>{routines.map((r) => card(r, routines))}</>;
+  return (
+    <>
+      {folders.map((f) => {
+        const inFolder = routines.filter((r) => r.folder === f);
+        const open = !collapsed.includes(f);
+        return (
+          <div class="folder" key={f || '_none'}>
+            <button class="folder-head" aria-expanded={open} onClick={() => toggle(f)}>
+              <span class={`folder-caret ${open ? 'open' : ''}`} aria-hidden="true">›</span>
+              <span class="grow">{f || 'No folder'}</span>
+              <small class="muted">{inFolder.length}{inFolder.some((r) => r.id === next?.id) ? ' · next' : ''}</small>
+            </button>
+            {open && inFolder.map((r) => card(r, inFolder))}
+          </div>
+        );
+      })}
+    </>
   );
 }

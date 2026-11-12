@@ -45,6 +45,8 @@ export interface Routine {
   name: string;
   notes: string;
   sort_order: number;
+  /** Optional folder name; '' = no folder. */
+  folder: string;
   items: RoutineItem[];
 }
 
@@ -176,8 +178,11 @@ export function nextRoutine(routines: Routine[], history: Workout[]): Routine | 
   const last = [...history].filter((w) => w.end_time).sort((a, b) => b.start_time.localeCompare(a.start_time))
     .find((w) => routines.some((r) => r.id === w.routine_id));
   if (!last) return routines[0]!;
-  const i = routines.findIndex((r) => r.id === last.routine_id);
-  return routines[(i + 1) % routines.length]!;
+  // Stay inside the folder (program) you're running: next routine in that folder's order, wrapping around.
+  const lastRoutine = routines.find((r) => r.id === last.routine_id)!;
+  const group = routines.filter((r) => (r.folder ?? '') === (lastRoutine.folder ?? ''));
+  const i = group.findIndex((r) => r.id === lastRoutine.id);
+  return group[(i + 1) % group.length]!;
 }
 
 /** Totals per calendar week (Mon start) for the last `weeks` weeks, oldest first. */
@@ -248,7 +253,7 @@ export function parsePlannedSets(json: unknown): PlannedSet[] {
 
 export function routineRows(r: Routine): { routine: Row; items: Row[] } {
   return {
-    routine: { id: r.id, name: r.name, notes: r.notes, sort_order: r.sort_order },
+    routine: { id: r.id, name: r.name, notes: r.notes, sort_order: r.sort_order, folder: r.folder ?? '' },
     items: r.items.map((it, i) => ({
       id: it.id, routine_id: r.id, exercise_id: it.exercise_id, position: i, rest_sec: it.rest_sec,
       planned_sets_json: JSON.stringify(it.sets), notes: it.notes,
@@ -263,6 +268,7 @@ export function rowsToRoutines(routines: Row[], items: Row[]): Routine[] {
       name: String(r.name ?? ''),
       notes: String(r.notes ?? ''),
       sort_order: num(r.sort_order) ?? 0,
+      folder: String(r.folder ?? '').trim(),
       items: items
         .filter((i) => String(i.routine_id) === String(r.id))
         .map((i) => ({

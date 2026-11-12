@@ -6,6 +6,7 @@ import {
 import { getActive, newSet, setActive, subscribeActive, type ActiveState, type RestTimer as Rest } from '../activeWorkout';
 import { errorMessage } from '../api';
 import { MuscleBars } from '../components/Charts';
+import { ActionSheet } from '../components/ActionSheet';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { IconClose } from '../components/Icons';
 import { PlateCalc } from '../components/PlateCalc';
@@ -35,7 +36,11 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const [plates, setPlates] = useState<number | null | undefined>(undefined); // undefined = closed
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [saving, setSaving] = useState(false);
-  const exMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
+  // Exercises created or added from the library during this workout aren't in the list we were opened with.
+  const [added, setAdded] = useState<Exercise[]>([]);
+  const exMap = useMemo(() => new Map([...exercises, ...added].map((e) => [e.id, e])), [exercises, added]);
+  const [menu, setMenu] = useState<number | null>(null);
+  const known = (e: Exercise) => { if (!exMap.has(e.id)) setAdded((a) => [...a, e]); };
 
   useEffect(() => subscribeActive(() => setState(getActive())), []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
@@ -237,14 +242,8 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
             <div class="card ex-card" key={`${ex.exercise_id}-${ei}`}>
               <div class="ex-head">
                 <h2 class="clip ex-name">{info?.name ?? 'Unknown exercise'}</h2>
-                <select class="ex-menu" aria-label="Exercise options" value="" onChange={(e) => { exerciseAction(ei, e.currentTarget.value); e.currentTarget.value = ''; }}>
-                  <option value="" disabled>⋯</option>
-                  <option value="replace">Replace exercise</option>
-                  <option value="plates">Plate calculator</option>
-                  {ei > 0 && <option value="up">Move up</option>}
-                  {ei < w.exercises.length - 1 && <option value="down">Move down</option>}
-                  <option value="remove">Remove exercise</option>
-                </select>
+                <button class="chip ex-chip" onClick={() => setReplacing(ei)} aria-label={`Replace ${info?.name ?? 'exercise'}`}>⇄ Replace</button>
+                <button class="icon-btn small more-btn" aria-label="Exercise options" onClick={() => setMenu(ei)}>⋯</button>
               </div>
               <div class="ex-chips">
                 <label class="chip ex-chip">
@@ -306,9 +305,19 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       </div>
 
       {state.rest && <RestTimer rest={state.rest} onChange={setRest} />}
-      {picking && <ExercisePicker exercises={exercises} onPick={addExercise} onClose={() => setPicking(false)} />}
+      {picking && <ExercisePicker exercises={[...exMap.values()]} onPick={(e) => { known(e); addExercise(e); }} onClose={() => setPicking(false)} />}
       {plates !== undefined && <PlateCalc initial={plates} onClose={() => setPlates(undefined)} />}
-      {replacing != null && <ExercisePicker exercises={exercises} onPick={(e) => replaceExercise(replacing, e)} onClose={() => setReplacing(null)} />}
+      {replacing != null && <ExercisePicker title="Replace with" exercises={[...exMap.values()]} onPick={(e) => { known(e); replaceExercise(replacing, e); }} onClose={() => setReplacing(null)} />}
+      {menu != null && w.exercises[menu] && (
+        <ActionSheet title={exMap.get(w.exercises[menu]!.exercise_id)?.name} onClose={() => setMenu(null)} actions={[
+          { label: 'Replace exercise', onClick: () => setReplacing(menu) },
+          { label: 'Add note', onClick: () => exerciseAction(menu, 'note'), disabled: w.exercises[menu]!.note !== '' },
+          { label: 'Plate calculator', onClick: () => exerciseAction(menu, 'plates') },
+          { label: 'Move up', onClick: () => exerciseAction(menu, 'up'), disabled: menu === 0 },
+          { label: 'Move down', onClick: () => exerciseAction(menu, 'down'), disabled: menu === w.exercises.length - 1 },
+          { label: 'Remove exercise', onClick: () => exerciseAction(menu, 'remove'), danger: true },
+        ]} />
+      )}
     </div>
   );
 }

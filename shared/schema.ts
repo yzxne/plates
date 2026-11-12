@@ -1,7 +1,7 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const FOOD_LOG_COLUMNS = [
   'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
@@ -34,7 +34,9 @@ export const TABS = {
     'id', 'name', 'primary_muscles', 'secondary_muscles', 'equipment', 'default_rest_sec', 'notes',
     'created_at', 'updated_at', 'deleted_at',
   ],
-  Routines: ['id', 'name', 'notes', 'sort_order', 'created_at', 'updated_at', 'deleted_at'],
+  Routines: ['id', 'name', 'notes', 'sort_order', 'created_at', 'updated_at', 'deleted_at',
+    // v5: optional folder (e.g. "PPL", "Summer cut"); rotation stays inside a folder
+    'folder'],
   RoutineExercises: [
     'id', 'routine_id', 'exercise_id', 'position', 'rest_sec', 'planned_sets_json', 'notes',
     'created_at', 'updated_at', 'deleted_at',

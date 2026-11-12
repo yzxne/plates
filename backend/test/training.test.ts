@@ -67,7 +67,7 @@ describe('training sheet rows', () => {
 
   it('round-trips routines with ordered items and planned sets', () => {
     const r: Routine = {
-      id: 'r1', name: 'Push A', notes: '', sort_order: 0,
+      id: 'r1', name: 'Push A', notes: '', sort_order: 0, folder: 'PPL',
       items: [
         { id: 'i1', exercise_id: 'bench', position: 0, rest_sec: 150, notes: 'pause reps', sets: [{ type: 'W', weight_lb: 95, rep_min: 10, rep_max: 10 }, { type: 'N', weight_lb: 185, rep_min: 5, rep_max: 8 }] },
         { id: 'i2', exercise_id: 'curl', position: 1, rest_sec: 60, notes: '', sets: [{ type: 'N', weight_lb: null, rep_min: 10, rep_max: 12 }] },

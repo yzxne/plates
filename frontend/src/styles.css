@@ -770,3 +770,18 @@ h2.inline { display: inline; margin: 0; }
 @media (prefers-reduced-motion: no-preference) { .complete-btn.on { animation: tick-pulse 0.28s ease-out; } .complete-btn { transition: background-color 0.2s, color 0.2s; } }
 
 .nudge .btn { white-space: nowrap; flex: none; }
+
+/* Exercise header: name · Replace · ⋯ ; action sheet */
+.ex-head .ex-chip { flex: none; }
+.more-btn { font-size: 20px; line-height: 1; }
+.action-sheet .list.card { margin-bottom: 10px; }
+.action-sheet .row { min-height: 52px; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.action-sheet .row.danger { color: var(--danger); }
+.action-sheet .row:disabled { color: var(--muted); opacity: 0.5; }
+.action-title { font-weight: 700; margin: 4px 4px 10px; }
+
+/* Routine folders */
+.folder { margin-bottom: 4px; }
+.folder-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 4px; background: none; border: none; color: var(--text); font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; text-align: left; }
+.folder-caret { display: inline-block; color: var(--muted); font-size: 20px; transition: transform 0.15s; }
+.folder-caret.open { transform: rotate(90deg); }

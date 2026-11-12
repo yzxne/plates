@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deloadWeight, findPrs, findStall, platesPerSide, progressionFor, setIsPr, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
+import { deloadWeight, findPrs, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
 
 const set = (weight_lb: number | null, reps: number, type: LoggedSet['type'] = 'N', completed = true): LoggedSet =>
   ({ id: Math.random().toString(36), type, weight_lb, reps, rep_min: null, rep_max: null, completed, rpe: null, note: '' });
@@ -37,7 +37,7 @@ describe('personal records', () => {
 
 describe('routine update after a workout', () => {
   const routine: Routine = {
-    id: 'r', name: 'Pull', notes: '', sort_order: 0, items: [
+    id: 'r', name: 'Pull', notes: '', sort_order: 0, folder: '', items: [
       { id: 'i1', exercise_id: 'lat', position: 0, rest_sec: 90, notes: '', sets: [{ type: 'W', weight_lb: 100, rep_min: 10, rep_max: 10 }, { type: 'N', weight_lb: 160, rep_min: 8, rep_max: 12 }, { type: 'N', weight_lb: 160, rep_min: 8, rep_max: 12 }] },
       { id: 'i2', exercise_id: 'row', position: 1, rest_sec: 90, notes: '', sets: [{ type: 'N', weight_lb: 120, rep_min: 8, rep_max: 12 }] },
     ],
@@ -99,5 +99,18 @@ describe('stalls, deloads and plates', () => {
     expect(platesPerSide(137.5, 45)).toEqual({ plates: [45], left: 1.25 }); // 46.25 per side can't be made exactly
 
     expect(platesPerSide(40, 45).plates).toEqual([]);
+  });
+});
+
+describe('routine folders', () => {
+  const R = (id: string, folder: string, sort_order: number): Routine => ({ id, name: id, notes: '', sort_order, folder, items: [] });
+  const routines = [R('push', 'PPL', 0), R('pull', 'PPL', 1), R('legs', 'PPL', 2), R('upper', 'UL', 3), R('lower', 'UL', 4)];
+  const did = (routine_id: string): Workout => ({ ...wk('w-' + routine_id, []), routine_id });
+  it('rotates inside the folder of your last workout, wrapping around', () => {
+    expect(nextRoutine(routines, [did('pull')])?.id).toBe('legs');
+    expect(nextRoutine(routines, [did('legs')])?.id).toBe('push');
+    expect(nextRoutine(routines, [did('upper')])?.id).toBe('lower');
+    expect(nextRoutine(routines, [did('lower')])?.id).toBe('upper');
+    expect(nextRoutine(routines, [])?.id).toBe('push');
   });
 });

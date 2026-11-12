@@ -1,6 +1,6 @@
 # Data Model (Google Sheet)
 
-Source of truth: `shared/schema.ts`. Schema version **4**. v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
+Source of truth: `shared/schema.ts`. Schema version **5**. v5 added `Routines.folder` (optional; rotation stays inside a folder). v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
 
 ## Conventions
 

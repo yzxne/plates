@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
+import { EXERCISE_LIBRARY } from '../../../shared/exerciseLibrary';
+import { matchExercise } from '../../../shared/importers';
 import { EQUIPMENT, MUSCLES, type Exercise } from '../../../shared/training';
 import { errorMessage } from '../api';
 import { uuid } from '../foodData';
@@ -19,12 +21,27 @@ export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exerci
   const [muscle, setMuscle] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const shown = useMemo(() => {
+  const [adding, setAdding] = useState('');
+  const fits = (e: Omit<Exercise, 'id'>) => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return exercises.filter((e) =>
-      (!muscle || e.primary.includes(muscle) || e.secondary.includes(muscle))
-      && words.every((w) => `${e.name} ${e.equipment}`.toLowerCase().includes(w)));
-  }, [exercises, q, muscle]);
+    return (!muscle || e.primary.includes(muscle) || e.secondary.includes(muscle))
+      && words.every((w) => `${e.name} ${e.equipment}`.toLowerCase().includes(w));
+  };
+  const shown = useMemo(() => exercises.filter(fits), [exercises, q, muscle]);
+  // Library lifts you don't have yet (same name, or the same lift with the same equipment, counts as having it).
+  const more = useMemo(() => EXERCISE_LIBRARY.filter((l) => !matchExercise(l.name, exercises) && fits(l)), [exercises, q, muscle]);
+
+  async function pickLibrary(l: Omit<Exercise, 'id'>) {
+    setAdding(l.name);
+    try {
+      const e: Exercise = { ...l, id: uuid() };
+      await saveExercise(e, true);
+      onPick(e);
+    } catch (err) {
+      showToast(errorMessage(err), 'error');
+      setAdding('');
+    }
+  }
 
   return (
     <div class="overlay picker" role="dialog" aria-modal="true" aria-label={title}>
@@ -43,7 +60,8 @@ export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exerci
               <button class={`chip ${muscle === '' ? 'on' : ''}`} onClick={() => setMuscle('')}>All</button>
               {MUSCLES.map((m) => <button key={m} class={`chip ${muscle === m ? 'on' : ''}`} onClick={() => setMuscle(m)}>{m}</button>)}
             </div>
-            {shown.length === 0 && <p class="muted">No match. Tap <strong>New</strong> to create it.</p>}
+            {shown.length === 0 && more.length === 0 && <p class="muted">No match. Tap <strong>New</strong> to create it.</p>}
+            {shown.length > 0 && more.length > 0 && <h3>Your exercises</h3>}
             <div class="list card">
               {shown.map((e) => (
                 <button class="row" key={e.id} onClick={() => onPick(e)}>
@@ -51,6 +69,19 @@ export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exerci
                 </button>
               ))}
             </div>
+            {more.length > 0 && (
+              <>
+                <h3>More exercises</h3>
+                <div class="list card">
+                  {more.slice(0, q || muscle ? 60 : 200).map((l) => (
+                    <button class="row" key={l.name} disabled={!!adding} onClick={() => pickLibrary(l)}>
+                      <span class="row-text"><span>{l.name}</span><small class="muted">{[l.primary.join(', '), l.equipment].filter(Boolean).join(' · ')}</small></span>
+                      <span class="plus-chip" aria-hidden="true">{adding === l.name ? '…' : '+'}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
