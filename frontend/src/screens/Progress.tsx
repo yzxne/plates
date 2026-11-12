@@ -9,6 +9,7 @@ import { today } from '../dates';
 import { fmt } from '../format';
 import { getSettings } from '../settingsStore';
 import { showToast } from '../toast';
+import { SkeletonScreen } from '../components/Skeleton';
 
 const RANGES = [['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 100000]] as const;
 export type ProgressSection = 'weight' | 'expenditure' | 'calories' | null;
@@ -75,7 +76,7 @@ export function Progress({ focus }: { focus?: ProgressSection }) {
   }, [data, from]);
 
   if (error) return <section><header class="screen-head"><h1>Progress</h1></header><div class="card"><p class="error">{error}</p></div></section>;
-  if (!data) return <section><header class="screen-head"><h1>Progress</h1></header><p class="muted">Loading…</p></section>;
+  if (!data) return <SkeletonScreen title="Progress" cards={3} />;
 
   return (
     <section>

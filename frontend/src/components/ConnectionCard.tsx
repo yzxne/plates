@@ -94,7 +94,7 @@ export function ConnectionCard({ onStatus }: { onStatus?: (s: Status | null) => 
       </div>
     );
   }
-  if (!status) return <div class="card"><h2>Google connection</h2><p class="muted">Checking…</p></div>;
+  if (!status) return <div class="card"><h2>Google connection</h2><span class="skel skel-line" style={{ width: '55%' }} /><span class="skel skel-line" style={{ width: '80%' }} /></div>;
 
   const { backend, google, sheet } = status;
   return (

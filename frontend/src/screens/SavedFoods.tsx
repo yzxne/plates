@@ -6,6 +6,7 @@ import { deleteFood, loadFoods } from '../foodData';
 import { foodSummary, macroLine, sourceLabel } from '../format';
 import { scale } from '../../../shared/nutrition';
 import { showToast } from '../toast';
+import { SkeletonRows } from '../components/Skeleton';
 
 export function SavedFoods({ onBack }: { onBack: () => void }) {
   const [foods, setFoods] = useState<Food[] | null>(null);
@@ -42,7 +43,7 @@ export function SavedFoods({ onBack }: { onBack: () => void }) {
       {error && <p class="error">{error}</p>}
       <input type="search" placeholder="Filter" value={q} onInput={(e) => setQ(e.currentTarget.value)} class="mb" />
       {foods && shown.length === 0 && <p class="muted">No saved foods{q ? ' match' : ' yet'}.</p>}
-      {!foods && !error && <p class="muted">Loading…</p>}
+      {!foods && !error && <SkeletonRows rows={5} />}
       <div class="list card">
         {shown.map((f) => (
           <div key={f.id}>

@@ -12,6 +12,7 @@ import { shiftDate, today } from '../dates';
 import { uuid, write } from '../foodData';
 import { fmt } from '../format';
 import { showToast } from '../toast';
+import { SkeletonScreen } from '../components/Skeleton';
 import {
   deleteRoutine, deleteWorkout, loadExercises, loadHistory, loadRoutines, saveRoutine, seedStarterExercises,
 } from '../trainData';
@@ -66,7 +67,7 @@ export function Train({ onStart, version }: Props) {
       </section>
     );
   }
-  if (!exercises || !routines || !history) return <section><header class="screen-head"><h1>Train</h1></header><p class="muted">Loading…</p></section>;
+  if (!exercises || !routines || !history) return <SkeletonScreen title="Train" cards={3} />;
 
   const home = () => setView({ kind: 'home' });
 

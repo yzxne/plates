@@ -96,8 +96,10 @@ async function dayTotals(sheets: Sheets, date: string) {
   return { entries, t: totals(entries), target, complete: day?.day_complete === true || day?.day_complete === 'TRUE' };
 }
 
-export async function shortcutSummary(sheets: Sheets, now = new Date()) {
-  const date = chicagoDate(now);
+/** `day`: "today" (default), "yesterday", or YYYY-MM-DD — e.g. a morning Shortcut sends yesterday's totals to Apple Health. */
+export async function shortcutSummary(sheets: Sheets, now = new Date(), day = 'today') {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(day) ? day
+    : day === 'yesterday' ? chicagoDate(new Date(now.getTime() - 86400000)) : chicagoDate(now);
   const { entries, t, target, complete } = await dayTotals(sheets, date);
   const left = target ? target.kcal - t.kcal : null;
   const k = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -106,6 +108,7 @@ export async function shortcutSummary(sheets: Sheets, now = new Date()) {
     : `${k(t.kcal)}${target ? ` of ${k(target.kcal)}` : ''} kcal${left != null ? ` · ${left >= 0 ? `${k(left)} left` : `${k(-left)} over`}` : ''} · protein ${k(t.protein_g)}${target ? `/${k(target.protein_g)}` : ''} g.${complete ? '' : ' Day not marked complete.'}`;
   return {
     date, kcal: t.kcal, protein_g: t.protein_g, carbs_g: t.carbs_g, fat_g: t.fat_g,
+    fiber_g: t.fiber_g ?? 0, sugar_g: t.sugar_g ?? 0, sodium_mg: t.sodium_mg ?? 0,
     kcal_target: target?.kcal ?? null, kcal_left: left, items: entries.length, day_complete: complete, text,
   };
 }

@@ -13,7 +13,7 @@ export function AiUsageCard() {
     <div class="card">
       <h2>AI estimates</h2>
       {error && <p class="error">{error}</p>}
-      {!u && !error && <p class="muted">Loading…</p>}
+      {!u && !error && <><span class="skel skel-line" style={{ width: '60%' }} /><span class="skel skel-line" style={{ width: '90%' }} /></>}
       {u && !u.configured && (
         <p class="warn">Not set up yet — the Anthropic API key isn't on the backend. "Paste AI result" still works for free.</p>
       )}

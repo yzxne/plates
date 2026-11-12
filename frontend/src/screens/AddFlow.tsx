@@ -17,6 +17,7 @@ import {
 import { fmt, foodSummary, macroLine, sourceLabel } from '../format';
 import { showToast } from '../toast';
 import { showUndo } from '../undo';
+import { SkeletonRows } from '../components/Skeleton';
 
 type View =
   | { kind: 'home' }
@@ -260,7 +261,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
           </div>
           <p class="muted tiny-pad">Tap to log your usual amount · press and hold to change it first.</p>
           {list === 'recent' && (
-            recents === null ? <p class="muted">Loading…</p>
+            recents === null ? <SkeletonRows rows={4} />
               : recents.length === 0 ? <p class="muted">Foods you log show up here.</p>
                 : <FoodRows foods={recents.map((r) => r.food)} gramsFor={(f) => defaultGrams(f)} onTap={(f) => onQuickLog(f, defaultGrams(f))} onHold={onOpen} />
           )}

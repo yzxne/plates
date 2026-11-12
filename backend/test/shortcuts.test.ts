@@ -106,5 +106,8 @@ describe('Shortcut endpoints', () => {
     const s = await as(key, 'GET', '/shortcut/summary');
     expect(s.body).toMatchObject({ kcal: 155, items: 1, day_complete: false });
     expect(s.body.text).toMatch(/155 kcal/);
+    // For the morning "send yesterday to Apple Health" Shortcut
+    expect((await as(key, 'GET', `/shortcut/summary?day=${s.body.date}`)).body).toMatchObject({ kcal: 155, protein_g: 13, fiber_g: 0 });
+    expect((await as(key, 'GET', '/shortcut/summary?day=yesterday')).body).toMatchObject({ kcal: 0, items: 0 });
   });
 });

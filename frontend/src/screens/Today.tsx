@@ -17,6 +17,7 @@ import { showUndo } from '../undo';
 import { addWeight, deleteWeight, lastWeight, loadWeights, type WeighIn } from '../weightData';
 import { cachedCoach, ensureCheckIn, expenditureSeries, loadCoach, subscribeCoach, targetsForDate } from '../coachData';
 import { Sparkline } from '../components/UChart';
+import { SkeletonCard, SkeletonRows } from '../components/Skeleton';
 
 type Targets = { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
 
@@ -271,7 +272,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
           </span>
         </label>
       )}
-      {!week && !error && <p class="muted center">Loading…</p>}
+      {!week && !error && <><SkeletonCard tall lines={1} /><SkeletonCard lines={3} /><SkeletonCard lines={2} /></>}
 
       {editing && day && (
         <EntrySheet entry={editing} onClose={() => setEditing(null)}
@@ -501,7 +502,7 @@ function SavedMealPicker({ onPick, onClose }: { onPick: (m: SavedMeal) => void; 
     <div class="sheet-backdrop" onClick={onClose}>
       <div class="sheet" role="dialog" aria-modal="true" aria-label="Saved meals" onClick={(e) => e.stopPropagation()}>
         <h2>Log a saved meal</h2>
-        {!meals && <p class="muted">Loading…</p>}
+        {!meals && <SkeletonRows rows={3} />}
         {meals?.length === 0 && <p class="muted">No saved meals yet. Log a meal, then use ⋯ → Save as a meal.</p>}
         <div class="list">
           {meals?.map((m) => (

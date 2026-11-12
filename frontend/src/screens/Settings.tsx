@@ -10,6 +10,14 @@ type Values = Record<string, string>;
 
 const SETTINGS_KEY = 'settings';
 
+// Fields shown in titled cards; everything else editable goes under Advanced.
+const GROUPS: [string, string[]][] = [
+  ['Body', ['sex', 'birth_date', 'height_in', 'activity_multiplier']],
+  ['Goal & training', ['goal_type', 'goal_rate_lb_per_week', 'protein_g_per_lb', 'fat_min_g', 'checkin_weekday', 'training_days']],
+  ['Meals & places', ['breakfast_window', 'lunch_window', 'dinner_window', 'cafeteria_name', 'plate_diameter_in', 'ai_monthly_cap_usd']],
+];
+const GROUPED = new Set(GROUPS.flatMap(([, keys]) => keys));
+
 function pendingSettings(): Values {
   const p = queue.find(SETTINGS_KEY);
   return ((p?.body as { settings?: Values })?.settings) ?? {};
@@ -84,7 +92,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
     <section>
       <header class="screen-head with-back">
         <button class="icon-btn" aria-label="Back" onClick={onBack}><IconBack /></button>
-        <h1>Settings</h1>
+        <h1>Profile & goals</h1>
       </header>
 
       {loadError && (
@@ -96,27 +104,30 @@ export function Settings({ onBack }: { onBack: () => void }) {
         </div>
       )}
       {banner && <div class="card warn" role="alert">{banner}</div>}
-      {hasPending && !banner && <div class="card warn">Some changes haven't reached the Sheet yet. Save again or use Retry on the More screen.</div>}
+      {hasPending && !banner && <div class="card warn">Some changes haven't reached the Sheet yet. Save again, or retry from the Settings page.</div>}
 
-      <form class="card form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        {SETTINGS_FIELDS.filter((f) => f.key !== 'schema_version' && f.type !== 'hidden' && f.group !== 'advanced').map((f) => (
-          <Field key={f.key} field={f} value={values[f.key] ?? ''} all={values} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
+      <form class="form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        {GROUPS.map(([title, keys]) => (
+          <div class="card" key={title}>
+            <h2>{title}</h2>
+            {keys.map((k) => SETTINGS_FIELDS.find((f) => f.key === k)).filter((f): f is SettingField => !!f).map((f) => (
+              <Field key={f.key} field={f} value={values[f.key] ?? ''} all={values} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
+            ))}
+          </div>
         ))}
-        <details class="advanced">
-          <summary>Advanced coaching</summary>
-          {SETTINGS_FIELDS.filter((f) => f.group === 'advanced').map((f) => (
+        <details class="card advanced">
+          <summary><h2 class="inline">Advanced</h2> <small class="muted">coaching math, corrections, gestures</small></summary>
+          {SETTINGS_FIELDS.filter((f) => f.group === 'advanced' || (!GROUPED.has(f.key) && f.type !== 'hidden' && f.type !== 'readonly' && f.key !== 'schema_version')).map((f) => (
             <Field key={f.key} field={f} value={values[f.key] ?? ''} all={values} error={fieldErrors[f.key]} onChange={(v) => set(f.key, v)} />
           ))}
         </details>
-        <button class="btn primary sticky-save" type="submit" disabled={saving || !!loadError || Object.keys(changed).length === 0}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+        <p class="muted tiny center">Passcode: change it from your PC with <code>npm run setup-secrets -w backend -- --passcode</code></p>
+        {Object.keys(changed).length > 0 && (
+          <div class="save-bar">
+            <button class="btn primary" type="submit" disabled={saving || !!loadError}>{saving ? 'Saving…' : 'Save changes'}</button>
+          </div>
+        )}
       </form>
-
-      <div class="card">
-        <h2>Passcode</h2>
-        <p class="muted">Change it from your PC: <code>npm run setup-secrets -w backend -- --passcode</code></p>
-      </div>
     </section>
   );
 }

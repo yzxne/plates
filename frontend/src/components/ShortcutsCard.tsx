@@ -39,7 +39,7 @@ export function ShortcutsCard() {
     <div class="card">
       <h2>iPhone Shortcuts</h2>
       <p class="muted tiny">Log weight from Apple Health, quick-log food with Siri, get an evening reminder, or jump into your next workout. <a href={GUIDE} target="_blank" rel="noopener">Setup guide</a></p>
-      {status == null ? <p class="muted">Loading…</p> : (
+      {status == null ? <><span class="skel skel-line" style={{ width: '50%' }} /><span class="skel skel-line" style={{ width: '80%' }} /></> : (
         <>
           <p class="tiny">{status.exists ? `Key active since ${new Date(status.created_at ?? '').toLocaleDateString()}.` : 'No key yet.'}</p>
           {key && (
