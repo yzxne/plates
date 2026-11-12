@@ -1,6 +1,6 @@
 # Proposal: swipe between tabs (Today ↔ Progress ↔ Train)
 
-Brief §8 "ideas for later": propose how it avoids conflicts before building. Not built yet.
+**Built** (frontend/src/swipeTabs.ts). On by default; off switch in Settings → Advanced → Swipe between tabs.
 
 ## Gestures that already use horizontal swipes
 
@@ -20,7 +20,7 @@ So a tab swipe only starts on **empty space or card backgrounds** in the middle 
 - Counts only if the finger moves **≥ 80 px sideways** and at least **2× more sideways than up/down** (so normal scrolling never switches tabs).
 - Left → next tab, right → previous; order Today → Progress → Train (the **+** button isn't a tab). No wrap-around.
 - Short slide animation on release; tabs still work exactly as now (taps remain the main navigation).
-- Behind a Settings switch **"Swipe between tabs"**, off by default, so you can try it on your iPhone and turn it off if it gets in the way.
+- Settings → Advanced → **Swipe between tabs** turns it off if it gets in the way.
 
 ## Effort
 

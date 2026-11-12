@@ -703,3 +703,10 @@ table.plan tr.today td { color: var(--text); font-weight: 700; }
 .plate.p10 { height: 44px; background: #f0f2f5; }
 .plate.p5 { height: 36px; background: var(--protein); }
 .plate.p2_5 { height: 30px; background: #b49cff; }
+
+/* Swipe between tabs: short slide-in */
+.screen.slide-l { animation: slide-l 0.22s ease-out; }
+.screen.slide-r { animation: slide-r 0.22s ease-out; }
+@keyframes slide-l { from { transform: translateX(28px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes slide-r { from { transform: translateX(-28px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .screen.slide-l, .screen.slide-r { animation: none; } }

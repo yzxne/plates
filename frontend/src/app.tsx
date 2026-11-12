@@ -16,7 +16,8 @@ import { Progress, type ProgressSection } from './screens/Progress';
 import { SetupWizard } from './screens/SetupWizard';
 import { Today } from './screens/Today';
 import { NextWorkoutCard, Train } from './screens/Train';
-import { loadSettings, mealNow } from './settingsStore';
+import { getSettings, loadSettings, mealNow } from './settingsStore';
+import { swipeHandlers } from './swipeTabs';
 import { ensureCheckIn } from './coachData';
 import { showToast } from './toast';
 import { cachedHistory, exerciseMap, loadExercises, loadHistory, loadRoutines } from './trainData';
@@ -47,7 +48,10 @@ type Setup = 'checking' | 'needs-connection' | 'needs-setup' | 'done';
 
 export function App() {
   const [authed, setAuthed] = useState(!!getToken());
-  const [tab, setTab] = useState<TabId>('today');
+  const [tab, setTabState] = useState<TabId>('today');
+  const [slide, setSlide] = useState('');
+  const setTab = (t: TabId) => { if (t !== tab) setTabState(t); };
+  useEffect(() => { if (slide) { const id = setTimeout(() => setSlide(''), 250); return () => clearTimeout(id); } return undefined; }, [slide, tab]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [progressFocus, setProgressFocus] = useState<ProgressSection>(null);
   const [setup, setSetup] = useState<Setup>('checking');
@@ -152,12 +156,16 @@ export function App() {
     );
   }
 
+  // Swipe between tabs (off switch: Settings → Advanced).
+  const swipe = swipeHandlers(() => tab, (t, dir) => { setProgressFocus(null); setSlide(dir > 0 ? 'slide-l' : 'slide-r'); setTab(t); },
+    () => getSettings().swipe_tabs !== 'off');
+
   // Logging on Today keeps the day you're looking at; elsewhere it's today. The meal comes from the time windows.
   const addDate = tab === 'today' ? foodDate : today();
 
   return (
     <div class={`app ${hasActive && !logger ? 'has-active' : ''}`}>
-      <main class="screen">
+      <main class={`screen ${slide}`} key={tab} {...swipe}>
         {tab === 'today' && (
           <Today date={foodDate} onDate={setFoodDate} onAdd={(meal) => setAdding({ meal })} onSettings={() => setSettingsOpen(true)} version={logVersion}
             onOpenProgress={(sec) => { setProgressFocus(sec); setTab('progress'); }}

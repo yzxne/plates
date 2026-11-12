@@ -201,6 +201,9 @@ export const SETTINGS_FIELDS: SettingField[] = [
     key: `correction_${k}`, label: `${label} estimate correction`, type: 'number', min: 0.5, max: 2, step: 0.05, default: '1', group: 'advanced',
     help: '× the AI\'s grams for this source. 1 = no correction. See Progress → Estimate accuracy.',
   })),
+  { key: 'swipe_tabs', label: 'Swipe between tabs', type: 'select', default: 'on', group: 'advanced',
+    help: 'Swipe left/right on empty space to move between Today, Progress and Train.',
+    options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }] },
   { key: 'setup_complete', label: 'Setup done', type: 'hidden', default: '' },
   // Last date that has entries in the FoodArchive tab (set by imports). Days on or before it also read FoodArchive.
   { key: 'archive_through', label: 'Food archive through', type: 'hidden', default: '' },
