@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findPrs, setIsPr, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
+import { deloadWeight, findPrs, findStall, platesPerSide, progressionFor, setIsPr, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
 
 const set = (weight_lb: number | null, reps: number, type: LoggedSet['type'] = 'N', completed = true): LoggedSet =>
   ({ id: Math.random().toString(36), type, weight_lb, reps, rep_min: null, rep_max: null, completed, rpe: null, note: '' });
@@ -67,5 +67,37 @@ describe('routine update after a workout', () => {
     const u = updatedRoutine(routine, [ex('lat', [set(100, 10, 'W'), set(160, 10), set(160, 9)]), ex('row', [set(130, 10)])], true, () => 'x');
     expect(u.structureChanged).toBe(false);
     expect(u.weightChanges).toEqual([{ exercise_id: 'row', from: 120, to: 130 }]);
+  });
+});
+
+describe('progression suggestions', () => {
+  const planned = [{ type: 'W' as const, weight_lb: 100, rep_min: 10, rep_max: 10 }, { type: 'N' as const, weight_lb: 160, rep_min: 8, rep_max: 12 }, { type: 'N' as const, weight_lb: 160, rep_min: 8, rep_max: 12 }];
+  it('bumps working sets when every one hit the top of the range', () => {
+    expect(progressionFor(planned, [set(100, 10, 'W'), set(160, 12), set(160, 12)])).toEqual({ weights: [100, 165, 165], increased: true });
+  });
+  it('keeps last weights when any set fell short, and uses small steps for light weights', () => {
+    expect(progressionFor(planned, [set(100, 10, 'W'), set(160, 12), set(160, 10)])).toEqual({ weights: [100, 160, 160], increased: false });
+    const light = [{ type: 'N' as const, weight_lb: 30, rep_min: 10, rep_max: 15 }];
+    expect(progressionFor(light, [set(30, 15)]).weights).toEqual([32.5]);
+    expect(progressionFor(planned, []).increased).toBe(false);
+  });
+});
+
+describe('stalls, deloads and plates', () => {
+  const day = (d: string, w: number, reps: number) => ({ ...wk(d, [ex('lat', [set(w, reps)])]), date: d, start_time: `${d}T20:00:00Z` });
+  it('flags an exercise with no new best for 4+ weeks over 3+ sessions', () => {
+    const h = [day('2026-09-01', 150, 10), day('2026-09-10', 160, 10), day('2026-09-20', 160, 9), day('2026-10-01', 155, 10), day('2026-10-15', 160, 8)];
+    expect(findStall('lat', h, '2026-11-11')).toMatchObject({ since: '2026-09-10', sessions: 3, days: 62 });
+    expect(findStall('lat', h.slice(0, 3), '2026-11-11')).toBeNull(); // only 1 session since the best
+    expect(findStall('lat', [...h, day('2026-11-05', 170, 10)], '2026-11-11')).toBeNull(); // new best
+  });
+  it('deloads ~10% and calculates plates per side', () => {
+    expect(deloadWeight(180)).toBe(160);
+    expect(deloadWeight(30)).toBe(27.5);
+    expect(platesPerSide(225, 45)).toEqual({ plates: [45, 45], left: 0 });
+    expect(platesPerSide(185, 45)).toEqual({ plates: [45, 25], left: 0 });
+    expect(platesPerSide(137.5, 45)).toEqual({ plates: [45], left: 1.25 }); // 46.25 per side can't be made exactly
+
+    expect(platesPerSide(40, 45).plates).toEqual([]);
   });
 });

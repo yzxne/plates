@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  bestSet, epley1RM, formatDuration, groupSets, isWorkingSet, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
+  bestSet, bestsFor, deloadWeight, epley1RM, findStall, formatDuration, groupSets, isWorkingSet, WEEKLY_SET_TARGET, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
   type Exercise, type PlannedSet, type Routine, type RoutineItem, type SetType, type Workout,
 } from '../../../shared/training';
 import { getActive } from '../activeWorkout';
@@ -165,9 +165,11 @@ export function Train({ onStart, version }: Props) {
 
       <div class="card">
         <h2>Last 7 days</h2>
-        <p class="muted">{thisWeek.length} workout{thisWeek.length === 1 ? '' : 's'} · sets per muscle</p>
-        <MuscleBars counts={setsPerMuscle(thisWeek, exMap)} />
+        <p class="muted">{thisWeek.length} workout{thisWeek.length === 1 ? '' : 's'} · hard sets per muscle (aim {WEEKLY_SET_TARGET.min}–{WEEKLY_SET_TARGET.max})</p>
+        <MuscleBars counts={setsPerMuscle(thisWeek, exMap)} target={WEEKLY_SET_TARGET} />
       </div>
+
+      <Stalled routines={routines} history={history} exMap={exMap} onChanged={() => load(true)} />
 
       <Last30 history={history} exMap={exMap} />
 
@@ -456,6 +458,8 @@ function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Ex
   const [editing, setEditing] = useState(false);
   const [range, setRange] = useState(365);
   const best = bestSet(exercise.id, history);
+  const records = bestsFor(exercise.id, history);
+  const stall = findStall(exercise.id, history, today());
   const sessions = history
     .filter((w) => w.exercises.some((e) => e.exercise_id === exercise.id))
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -478,8 +482,16 @@ function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Ex
       <Back title={exercise.name} onBack={onBack} right={<button class="btn link" onClick={() => setEditing(true)}>Edit</button>} />
       <p class="muted">{[exercise.primary.join(', '), exercise.secondary.length ? `also ${exercise.secondary.join(', ')}` : '', exercise.equipment].filter(Boolean).join(' · ')}</p>
       <div class="card">
-        <h2>Best set</h2>
-        {best ? <p><strong>{fmt(best.weight_lb, 1)} lb × {best.reps}</strong> <span class="muted">· est. 1RM {fmt(best.e1rm)} lb · {best.date}</span></p> : <p class="muted">No working sets logged yet.</p>}
+        <h2>Records</h2>
+        {best ? (
+          <div class="stat-grid">
+            <div><small>Est. 1-rep max</small><strong>{fmt(records.e1rm)} lb</strong><small>{best.date}</small></div>
+            <div><small>Heaviest</small><strong>{fmt(records.weight, 1)} lb</strong><small /></div>
+            <div><small>Best set</small><strong>{fmt(best.weight_lb, 1)} × {best.reps}</strong><small /></div>
+            <div><small>Best session volume</small><strong>{fmt(records.session_volume)} lb</strong><small /></div>
+          </div>
+        ) : <p class="muted">No working sets logged yet.</p>}
+        {stall && <p class="warn tiny mt">No new best in {Math.round(stall.days / 7)} weeks ({stall.sessions} sessions). Try a lighter week (Train → Stalled) or a variation.</p>}
         <small class="muted">Estimated 1RM = weight × (1 + reps ÷ 30) (Epley formula).</small>
       </div>
       <div class="card">
@@ -495,7 +507,7 @@ function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Ex
         {[...sessions].reverse().slice(0, 30).map((w) => (
           <p key={w.id}>
             <span class="muted">{w.date}</span>{' '}
-            {w.exercises.filter((e) => e.exercise_id === exercise.id).flatMap((e) => e.sets.filter(isWorkingSet)).map((s) => `${fmt(s.weight_lb ?? 0, 1)}×${s.reps}`).join(', ')}
+            {w.exercises.filter((e) => e.exercise_id === exercise.id).flatMap((e) => e.sets.filter(isWorkingSet)).map((s) => `${s.weight_lb != null ? fmt(s.weight_lb, 1) : 'BW'}×${s.reps}`).join(', ')}
           </p>
         ))}
       </div>
@@ -548,6 +560,43 @@ function Last30({ history, exMap }: { history: Workout[]; exMap: Map<string, Exe
         <div><small>Volume</small><strong>{kfmt(a.volume)} lb</strong><small>{delta(a.volume, b.volume, (n) => `${kfmt(n)} lb`)}</small></div>
         <div><small>Working sets</small><strong>{a.sets}</strong><small>{delta(a.sets, b.sets, String)}</small></div>
       </div>
+    </div>
+  );
+}
+
+/** Shown only when a routine exercise hasn't improved for 4+ weeks. Deload = ~10% lighter planned weights. */
+function Stalled({ routines, history, exMap, onChanged }: { routines: Routine[]; history: Workout[]; exMap: Map<string, Exercise>; onChanged: () => void }) {
+  const [busy, setBusy] = useState('');
+  const ids = [...new Set(routines.flatMap((r) => r.items.map((i) => i.exercise_id)))];
+  const stalls = ids.map((id) => findStall(id, history, today())).filter((s): s is NonNullable<typeof s> => !!s);
+  if (!stalls.length) return null;
+
+  async function deload(exerciseId: string) {
+    const name = exMap.get(exerciseId)?.name ?? 'this exercise';
+    if (!confirm(`Lighter week for ${name}? Planned weights drop about 10% in your routines. Your next PRs will bring them back up.`)) return;
+    setBusy(exerciseId);
+    try {
+      for (const r of routines.filter((x) => x.items.some((i) => i.exercise_id === exerciseId))) {
+        const next = { ...r, items: r.items.map((i) => (i.exercise_id !== exerciseId ? i : { ...i, sets: i.sets.map((s) => ({ ...s, weight_lb: s.weight_lb != null && s.type !== 'W' ? deloadWeight(s.weight_lb) : s.weight_lb })) })) };
+        await saveRoutine(next, r);
+      }
+      showToast(`${name}: lighter weights set`, 'ok');
+      onChanged();
+    } catch (err) { showToast(errorMessage(err), 'error'); } finally { setBusy(''); }
+  }
+
+  return (
+    <div class="card">
+      <h2>Stalled</h2>
+      {stalls.map((s) => (
+        <div class="stall-row" key={s.exercise_id}>
+          <span class="row-text">
+            <span>{exMap.get(s.exercise_id)?.name ?? 'Exercise'}</span>
+            <small class="muted">No new best in {Math.round(s.days / 7)} weeks · {s.sessions} sessions</small>
+          </span>
+          <button class="btn small-btn" disabled={!!busy} onClick={() => deload(s.exercise_id)}>{busy === s.exercise_id ? '…' : 'Deload'}</button>
+        </div>
+      ))}
     </div>
   );
 }

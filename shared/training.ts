@@ -50,6 +50,8 @@ export interface Routine {
 
 export interface LoggedSet {
   id: string;
+  /** UI only: weight pre-filled as a suggested increase (double progression). Not saved. */
+  suggested?: boolean;
   type: SetType;
   weight_lb: number | null;
   reps: number | null;
@@ -502,3 +504,66 @@ export function updatedRoutine(routine: Routine, done: WorkoutExercise[], keepCh
   }
   return { routine: { ...routine, items }, structureChanged, weightChanges };
 }
+
+// ---------- Progression (double progression) ----------
+
+/** Weight step for a suggested increase: smaller jumps for light weights (dumbbells, isolation). */
+export const weightStep = (lb: number) => (lb < 50 ? 2.5 : 5);
+
+/**
+ * Double progression: if last time every working set reached the top of its rep range, suggest the next weight up.
+ * Returns the weight to pre-fill per planned set, and whether it's an increase.
+ */
+export function progressionFor(planned: PlannedSet[], prev: LoggedSet[]): { weights: (number | null)[]; increased: boolean } {
+  const working = planned.map((p, i) => ({ p, s: prev[i], i })).filter((x) => x.p.type !== 'W');
+  const ready = working.length > 0 && working.every(({ p, s }) =>
+    s && s.completed && s.weight_lb != null && s.reps != null && p.rep_max != null && s.reps >= p.rep_max && s.weight_lb >= (p.weight_lb ?? 0));
+  const weights = planned.map((p, i) => {
+    const s = prev[i];
+    const base = s?.weight_lb ?? p.weight_lb;
+    if (!ready || p.type === 'W' || base == null) return base ?? null;
+    return base + weightStep(base);
+  });
+  return { weights, increased: ready };
+}
+
+// ---------- Stalls, deloads, plates, weekly muscle targets ----------
+
+export interface Stall { exercise_id: string; since: string; days: number; sessions: number; best: number }
+
+/** No new best est. 1RM for ≥ `minDays` days across ≥ `minSessions` sessions since the last best. */
+export function findStall(exerciseId: string, history: Workout[], today: string, minDays = 28, minSessions = 3): Stall | null {
+  const sessions = history
+    .filter((w) => w.end_time && w.exercises.some((e) => e.exercise_id === exerciseId))
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  let best = 0;
+  let since = '';
+  let after = 0;
+  for (const w of sessions) {
+    const b = bestsFor(exerciseId, [w]).e1rm;
+    if (b > best + 1e-9) { best = b; since = w.date; after = 0; } else after++;
+  }
+  if (!best || !since) return null;
+  const days = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${since}T12:00:00Z`)) / 86400000);
+  return days >= minDays && after >= minSessions ? { exercise_id: exerciseId, since, days, sessions: after, best } : null;
+}
+
+/** Deload: about 10 % lighter, rounded to the usual plate step. */
+export function deloadWeight(lb: number): number {
+  const step = weightStep(lb);
+  return Math.max(step, Math.round((lb * 0.9) / step) * step);
+}
+
+export const PLATES = [45, 35, 25, 10, 5, 2.5] as const;
+
+/** Plates for one side of the bar (greedy, standard lb plates). `left` > 0 means it can't be made exactly. */
+export function platesPerSide(total: number, bar: number): { plates: number[]; left: number } {
+  let per = (total - bar) / 2;
+  const plates: number[] = [];
+  if (!(per > 0)) return { plates, left: Math.max(0, per) };
+  for (const p of PLATES) while (per >= p - 1e-9) { plates.push(p); per -= p; }
+  return { plates, left: Math.round(per * 100) / 100 };
+}
+
+/** [Assumption] Common evidence-based range for hypertrophy: ~10–20 hard sets per muscle per week. */
+export const WEEKLY_SET_TARGET = { min: 10, max: 20 };

@@ -8,6 +8,7 @@ import { errorMessage } from '../api';
 import { MuscleBars } from '../components/Charts';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { IconClose } from '../components/Icons';
+import { PlateCalc } from '../components/PlateCalc';
 import { RestTimer } from '../components/RestTimer';
 import { fmt } from '../format';
 import { cancelRestPush, scheduleRestPush } from '../push';
@@ -31,6 +32,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const [now, setNow] = useState(Date.now());
   const [picking, setPicking] = useState(false);
   const [replacing, setReplacing] = useState<number | null>(null);
+  const [plates, setPlates] = useState<number | null | undefined>(undefined); // undefined = closed
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [saving, setSaving] = useState(false);
   const exMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
@@ -121,6 +123,9 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       update((x) => { const [e] = x.exercises.splice(ei, 1); x.exercises.splice(ei + 1, 0, e!); return x; });
     } else if (action === 'note') {
       update((x) => { x.exercises[ei]!.note ||= ' '; return x; });
+    } else if (action === 'plates') {
+      const ex = w.exercises[ei]!;
+      setPlates((ex.sets.find((s) => !s.completed) ?? ex.sets.at(-1))?.weight_lb ?? null);
     } else if (action === 'replace') {
       setReplacing(ei);
     } else if (action === 'remove') {
@@ -235,6 +240,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                 <select class="ex-menu" aria-label="Exercise options" value="" onChange={(e) => { exerciseAction(ei, e.currentTarget.value); e.currentTarget.value = ''; }}>
                   <option value="" disabled>⋯</option>
                   <option value="replace">Replace exercise</option>
+                  <option value="plates">Plate calculator</option>
                   {ei > 0 && <option value="up">Move up</option>}
                   {ei < w.exercises.length - 1 && <option value="down">Move down</option>}
                   <option value="remove">Remove exercise</option>
@@ -254,6 +260,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                 <textarea class="ex-note" rows={1} placeholder="Note" value={ex.note.trim() ? ex.note : ''}
                   onInput={(e) => { const v = e.currentTarget.value; update((x) => { x.exercises[ei]!.note = v; return x; }); }} />
               )}
+              {ex.sets.some((s) => s.suggested) && <p class="suggest-note">↑ Weight up: you hit the top of your rep range last time.</p>}
               <div class="set-grid set-head">
                 <span>Set</span><span>Previous</span><span>lb</span><span>Reps</span><span aria-label="Done">✓</span>
               </div>
@@ -280,7 +287,8 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                       {p ? `${p.weight_lb != null ? fmt(p.weight_lb, 1) : 'BW'} × ${p.reps ?? 0}` : '–'}
                     </button>
                     <input type="number" inputMode="decimal" step="any" aria-label="Weight lb" placeholder={p?.weight_lb != null ? String(p.weight_lb) : p ? 'BW' : ''}
-                      value={s.weight_lb ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { weight_lb: v === '' ? null : Number(v) }); }} />
+                      class={s.suggested ? 'suggested' : ''} title={s.suggested ? 'Suggested increase: you hit the top of the rep range last time' : undefined}
+                      value={s.weight_lb ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { weight_lb: v === '' ? null : Number(v), suggested: false }); }} />
                     <input type="number" inputMode="numeric" aria-label="Reps" placeholder={range || (p?.reps != null ? String(p.reps) : '')}
                       value={s.reps ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { reps: v === '' ? null : Math.round(Number(v)) }); }} />
                     <button class={`check ${s.completed ? 'on' : ''}`} aria-pressed={s.completed} aria-label="Set done" onClick={() => toggleDone(ei, si)}>✓</button>
@@ -299,6 +307,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
 
       {state.rest && <RestTimer rest={state.rest} onChange={setRest} />}
       {picking && <ExercisePicker exercises={exercises} onPick={addExercise} onClose={() => setPicking(false)} />}
+      {plates !== undefined && <PlateCalc initial={plates} onClose={() => setPlates(undefined)} />}
       {replacing != null && <ExercisePicker exercises={exercises} onPick={(e) => replaceExercise(replacing, e)} onClose={() => setReplacing(null)} />}
     </div>
   );

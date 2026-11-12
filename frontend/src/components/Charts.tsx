@@ -31,16 +31,21 @@ export function BarChart({ points, unit = '', height = 140 }: { points: Point[];
   );
 }
 
-export function MuscleBars({ counts }: { counts: Record<string, number> }) {
+/** Sets per muscle. With `target`, bars are colored: under = amber, in range = green, over = blue, with range marks. */
+export function MuscleBars({ counts, target }: { counts: Record<string, number>; target?: { min: number; max: number } }) {
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   if (!entries.length) return <p class="muted">No completed sets yet.</p>;
-  const max = Math.max(...entries.map(([, n]) => n));
+  const max = Math.max(...entries.map(([, n]) => n), target ? target.max * 1.1 : 0);
+  const zone = (n: number) => (!target ? '' : n < target.min ? 'under' : n > target.max ? 'over' : 'ok');
   return (
     <div class="muscle-bars">
       {entries.map(([m, n]) => (
         <div class="mb-row" key={m}>
           <span class="mb-name">{m}</span>
-          <span class="mb-track"><span class="mb-fill" style={{ width: `${(n / max) * 100}%` }} /></span>
+          <span class="mb-track">
+            <span class={`mb-fill ${zone(n)}`} style={{ width: `${(n / max) * 100}%` }} />
+            {target && <><i class="mb-mark" style={{ left: `${(target.min / max) * 100}%` }} /><i class="mb-mark" style={{ left: `${(target.max / max) * 100}%` }} /></>}
+          </span>
           <span class="mb-n">{n}</span>
         </div>
       ))}

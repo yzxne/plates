@@ -1,7 +1,7 @@
 // The workout in progress lives on the phone (saved on every change) until you tap Finish.
 // Closing Safari or the app mid-workout loses nothing.
 import { chicagoDate } from '../../shared/schema';
-import type { LoggedSet, Routine, Workout } from '../../shared/training';
+import { progressionFor, type LoggedSet, type Routine, type Workout } from '../../shared/training';
 import { safeStore } from './storage';
 import { uuid } from './foodData';
 
@@ -59,10 +59,17 @@ export function startWorkout(
       exercise_id: it.exercise_id,
       rest_sec: it.rest_sec || restFor(it.exercise_id),
       note: it.notes,
-      sets: (it.sets.length ? it.sets : [{ type: 'N' as const, weight_lb: null, rep_min: null, rep_max: null }]).map((p, i) => {
-        const prev = previousFor(it.exercise_id)[i];
-        return newSet({ type: p.type, weight_lb: prev?.weight_lb ?? p.weight_lb, reps: prev?.reps ?? null, rep_min: p.rep_min, rep_max: p.rep_max });
-      }),
+      sets: (() => {
+        const planned = it.sets.length ? it.sets : [{ type: 'N' as const, weight_lb: null, rep_min: null, rep_max: null }];
+        const prev = previousFor(it.exercise_id);
+        // Hit the top of the rep range on every working set last time → suggest the next weight up, reps start fresh.
+        const prog = progressionFor(planned, prev);
+        return planned.map((p, i) => newSet({
+          type: p.type, weight_lb: prog.weights[i] ?? null, rep_min: p.rep_min, rep_max: p.rep_max,
+          reps: prog.increased && p.type !== 'W' ? null : prev[i]?.reps ?? null,
+          suggested: prog.increased && p.type !== 'W',
+        }));
+      })(),
     })),
   };
   const s = { workout, rest: null };

@@ -680,3 +680,26 @@ table.plan tr.today td { color: var(--text); font-weight: 700; }
 .pr-ex:first-of-type { border-top: none; }
 .pr-line { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .pr-up { color: var(--ok); font-weight: 700; }
+
+/* Progression suggestion */
+.set-row input.suggested { border-color: var(--ok); color: var(--ok); font-weight: 700; }
+.suggest-note { font-size: 12px; color: var(--ok); margin: 8px 0 0; }
+
+/* Weekly muscle targets + stalls */
+.mb-track { position: relative; }
+.mb-fill.under { background: var(--warn); }
+.mb-fill.ok { background: var(--ok); }
+.mb-fill.over { background: var(--fat); }
+.mb-mark { position: absolute; top: -2px; bottom: -2px; width: 1.5px; background: #ffffff55; }
+.stall-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.stall-row:first-of-type { border-top: none; }
+
+/* Plate calculator */
+.plates { display: flex; align-items: center; gap: 4px; min-height: 72px; margin: 6px 0 8px; padding-left: 8px; border-left: 6px solid #6b7078; }
+.plate { display: flex; align-items: center; justify-content: center; width: 26px; border-radius: 5px; font-size: 10px; font-weight: 700; color: #111; writing-mode: vertical-rl; }
+.plate.p45 { height: 70px; background: var(--fat); }
+.plate.p35 { height: 62px; background: var(--carbs); }
+.plate.p25 { height: 54px; background: var(--ok); }
+.plate.p10 { height: 44px; background: #f0f2f5; }
+.plate.p5 { height: 36px; background: var(--protein); }
+.plate.p2_5 { height: 30px; background: #b49cff; }
