@@ -67,3 +67,19 @@ Runs automatically on your check-in weekday (or the first time you open Plates a
 Finishing a workout keeps only **checked** sets; exercises with no checked sets are left out (you're told how many before confirming).
 
 Rest timer: starts when a set is checked, using the exercise's rest time (routine value, else the exercise default). Based on an end timestamp, so it stays correct if the phone sleeps. Beeps via Web Audio when done (iPhone needs a tap first — checking a set counts).
+
+## Estimate accuracy (Phase 8 add-on, brief §6A)
+
+Code: `shared/accuracy.ts`, tests `backend/test/accuracy.test.ts`. Shown in Progress → Estimate accuracy. **Read-only:** it never changes your data or targets; a correction is used only when you tap "Use".
+
+1. Split history into back-to-back **28-day stretches** ending today. Keep a stretch if it has ≥ 14 complete days and ≥ 2 weigh-ins.
+2. For each stretch: `logged` = average kcal on complete days; `estimated` = average kcal from estimated entries (by source: restaurant, cafeteria, homemade, other AI, Cal AI import); `storage` = trend-weight slope × energy per lb (kcal/day going into or out of body stores).
+3. If the log were exact, burn = `logged − storage`. If estimated food is really `k ×` what was logged, then `logged − storage = burn − (k − 1) × estimated`.
+4. **Regression** (normal case): weighted least squares of `logged − storage` on `estimated` across stretches (weights = days). Intercept = your burn; `k = 1 − slope`. Needs ≥ 3 stretches, estimated food ≤ 70 % of intake, and ≥ 150 kcal/day difference in estimated food between stretches.
+5. **Formula fallback** (almost everything estimated, e.g. Cal AI history): burn = resting-rate formula × activity. `k = 1 + Σ(burn + storage − logged)·days / Σ estimated·days`. Labelled "rough".
+6. Per source: same regression using only that source's kcal. Factors are clamped to 0.5–2 and rounded to 0.05.
+7. Confidence: "fair" = regression with ≥ 6 stretches and ≥ 300 kcal/day spread; otherwise "rough".
+
+**Using a correction:** Settings → Advanced → *Restaurant / Cafeteria / Homemade estimate correction* (default 1 = off). It multiplies the grams the AI suggests for that source in new estimates (shown on the review screen; still editable). Usual portions you saved are never corrected.
+
+**Caveats:** water weight, sparse weigh-ins, unlogged snacks and days not marked complete all land in the same gap, so treat the factor as a nudge. [Assumption] 28-day stretches and the 150 kcal/day spread threshold are starting values.

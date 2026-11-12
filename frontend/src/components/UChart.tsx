@@ -104,7 +104,7 @@ export function UChart({ x, ys, series, height = 180 }: Props) {
 }
 
 /** Tiny inline sparkline (no library). */
-export function Sparkline({ values, color = 'var(--accent)', dots = false }: { values: (number | null)[]; color?: string; dots?: boolean }) {
+export function Sparkline({ values, color = 'var(--link)', dots = false }: { values: (number | null)[]; color?: string; dots?: boolean }) {
   const v = values.filter((n): n is number => n != null);
   if (v.length < 2) return <svg class="spark" viewBox="0 0 100 30" aria-hidden="true" />;
   const min = Math.min(...v);

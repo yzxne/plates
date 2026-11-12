@@ -1,6 +1,7 @@
 // AI meal scan / text estimate / paste-AI flow (brief §6 / §6A).
 // The AI only gives item names + grams. Calories always come from the matched saved or USDA food.
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { correctGrams, correctionFor } from '../../../shared/accuracy';
 import { pastePrompt, validateAiResult, type AiItem, type EstimateContext, type OilLevel, type Portion, type Source } from '../../../shared/ai';
 import { MEAL_LABELS, type Food, type LogEntry, type Meal } from '../../../shared/nutrition';
 import {
@@ -322,9 +323,11 @@ function AiReview({ items, cost, month, cap, source, place, portions, date, meal
   items: AiItem[]; cost?: number; month?: number; cap?: number; source: Source; place: string; portions: UsualPortion[];
   date: string; meal: Meal; method: string; onBack: () => void; onDone: () => void; onChanged: () => void;
 }) {
+  // Your chosen correction for this source (Settings / Progress → Estimate accuracy); usual portions are never corrected.
+  const factor = correctionFor(source, getSettings());
   const [lines, setLines] = useState<Line[]>(() => items.map((item) => {
     const usual = usualFor(portions, item.name);
-    return { item, grams: String(usual?.grams ?? item.grams), food: null, matching: true, include: true, usual, saveUsual: false, changing: false };
+    return { item, grams: String(usual?.grams ?? correctGrams(item.grams, factor)), food: null, matching: true, include: true, usual, saveUsual: false, changing: false };
   }));
   const [busy, setBusy] = useState(false);
 
@@ -381,6 +384,7 @@ function AiReview({ items, cost, month, cap, source, place, portions, date, meal
         </div>
         <p class="big-num">~{fmt(total)} kcal</p>
         <p class="muted tiny-pad">Likely {fmt(low)}–{fmt(high)} kcal · {place || source}</p>
+        {factor !== 1 && <p class="muted tiny-pad">Includes your ×{factor} {source} correction (Settings → Advanced).</p>}
         {cost != null && <p class="muted tiny-pad">Cost ${cost.toFixed(4)} · this month ${(month ?? 0).toFixed(2)} of ${(cap ?? 0).toFixed(2)}</p>}
       </div>
 

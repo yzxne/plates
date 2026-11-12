@@ -195,6 +195,12 @@ export const SETTINGS_FIELDS: SettingField[] = [
   { key: 'expenditure_window_days', label: 'Expenditure window', type: 'number', unit: 'days', min: 14, max: 42, step: 1, default: '21', group: 'advanced',
     help: 'Longer = steadier but slower to react.',
     presets: [{ value: '14', label: '2 weeks' }, { value: '21', label: '3 weeks' }, { value: '28', label: '4 weeks' }] },
+  // Estimate corrections (brief §6A): multiply AI-estimated grams for that source. 1 = off. Never set automatically;
+  // Progress → Estimate accuracy suggests values you can choose to use.
+  ...([['restaurant', 'Restaurant'], ['cafeteria', 'Cafeteria'], ['homemade', 'Homemade']] as const).map(([k, label]): SettingField => ({
+    key: `correction_${k}`, label: `${label} estimate correction`, type: 'number', min: 0.5, max: 2, step: 0.05, default: '1', group: 'advanced',
+    help: '× the AI\'s grams for this source. 1 = no correction. See Progress → Estimate accuracy.',
+  })),
   { key: 'setup_complete', label: 'Setup done', type: 'hidden', default: '' },
   // Last date that has entries in the FoodArchive tab (set by imports). Days on or before it also read FoodArchive.
   { key: 'archive_through', label: 'Food archive through', type: 'hidden', default: '' },

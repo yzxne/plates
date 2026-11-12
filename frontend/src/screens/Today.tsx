@@ -293,7 +293,7 @@ function MacroBars({ t, targets }: { t: Nutrients | null; targets: { kcal: numbe
               <span>{label}</span>
               <span class="muted">{fmt(v)}{unit}{target ? ` of ${fmt(target)}${unit}` : ''}</span>
             </div>
-            <div class="macro-track"><span class="macro-fill" style={{ width: `${pct}%` }} />{target ? <span class="macro-mark" /> : null}</div>
+            <div class="macro-track"><span class={`macro-fill k-${key}`} style={{ width: `${pct}%` }} />{target ? <span class="macro-mark" /> : null}</div>
           </div>
         );
       })}
@@ -306,7 +306,7 @@ function WeekGrid({ week, start, selected, mode, onMode, onPick }: {
   week: WeekData; start: string; selected: string; mode: 'consumed' | 'remaining'; onMode: (m: 'consumed' | 'remaining') => void; onPick: (d: string) => void;
 }) {
   const dates = DOW.map((_, i) => shiftDate(start, i));
-  const rows: [string, 'kcal' | 'protein_g' | 'fat_g' | 'carbs_g'][] = [['Cal', 'kcal'], ['P', 'protein_g'], ['F', 'fat_g'], ['C', 'carbs_g']];
+  const rows: [string, 'kcal' | 'protein_g' | 'fat_g' | 'carbs_g'][] = [['kcal', 'kcal'], ['P', 'protein_g'], ['F', 'fat_g'], ['C', 'carbs_g']];
   const hasTargets = dates.some((d) => !!targetFor(d, week.days.get(d)));
   const weekTotals = rows.map(([, k]) => {
     let sum = 0;
@@ -328,23 +328,49 @@ function WeekGrid({ week, start, selected, mode, onMode, onPick }: {
           <button class={mode === 'remaining' ? 'on' : ''} disabled={!hasTargets} onClick={() => onMode('remaining')}>Remaining</button>
         </div>
       </div>
-      <div class="week-grid">
-        <span />
-        {dates.map((d, i) => (
-          <button key={d} class={`wg-day ${d === selected ? 'on' : ''} ${d === today() ? 'today' : ''}`} onClick={() => onPick(d)}>{DOW[i]}</button>
-        ))}
-        {rows.map(([label, k]) => (
-          <>
-            <span class="wg-label" key={label}>{label}</span>
-            {dates.map((d) => {
-              const day = week.days.get(d);
-              const v = day ? (totals(day.entries)[k] as number) : 0;
-              const target = targetFor(d, day)?.[k] ?? 0;
-              const shown = mode === 'remaining' && target ? target - v : v;
-              return <span key={d + k} class={`wg-cell ${d === selected ? 'on' : ''}`}>{v || (mode === 'remaining' && target) ? fmt(shown) : '·'}</span>;
-            })}
-          </>
-        ))}
+      <div class="wk">
+        <div class="wk-cols">
+          {dates.map((d, i) => {
+            const day = week.days.get(d);
+            const t = day ? totals(day.entries) : null;
+            const tg = targetFor(d, day);
+            return (
+              <button key={d} class={`wk-col ${d === selected ? 'on' : ''} ${d === today() ? 'today' : ''}`} onClick={() => onPick(d)}
+                aria-label={`${DOW[i]} ${t ? fmt(t.kcal) : 0} kcal`}>
+                {rows.map(([, k]) => {
+                  const v = (t?.[k] as number) ?? 0;
+                  const target = tg?.[k] ?? 0;
+                  if (mode === 'remaining') {
+                    return <span key={k} class={`wk-num k-${k}`}>{target ? fmt(target - v) : '·'}</span>;
+                  }
+                  // Fill = share of the day's target (or of the week's highest day when there's no target yet).
+                  const scaleTo = target || Math.max(1, ...dates.map((x) => (week.days.get(x) ? (totals(week.days.get(x)!.entries)[k] as number) : 0)));
+                  const pct = Math.min(100, (v / scaleTo) * 100);
+                  return (
+                    <span key={k} class="wk-bar">
+                      {v > 0 ? <span class={`wk-fill k-${k}`} style={{ height: `${Math.max(8, pct)}%` }} /> : <span class="wk-dash" />}
+                      {target ? <span class="wk-tick" /> : null}
+                    </span>
+                  );
+                })}
+                <span class="wk-dow">{DOW[i]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div class="wk-sum">
+          {rows.map(([label, k], i) => {
+            const sel = week.days.get(selected);
+            const v = sel ? (totals(sel.entries)[k] as number) : 0;
+            const target = targetFor(selected, sel)?.[k] ?? 0;
+            return (
+              <div key={k} class="wk-sum-row">
+                <strong>{fmt(mode === 'remaining' && target ? target - v : v)}<span class={`wk-unit k-${k}`}>{i === 0 ? ' kcal' : ` ${label}`}</span></strong>
+                <small class="muted">{target ? `${mode === 'remaining' ? 'left of' : 'of'} ${fmt(target)}` : '—'}</small>
+              </div>
+            );
+          })}
+        </div>
       </div>
       <small class="muted">
         Week: {fmt(weekTotals[0]!.sum)} kcal{weekTotals[0]!.target ? ` of ${fmt(weekTotals[0]!.target)}` : ''} · P {fmt(weekTotals[1]!.sum)} g · F {fmt(weekTotals[2]!.sum)} g · C {fmt(weekTotals[3]!.sum)} g
@@ -436,13 +462,13 @@ function TrendCards({ onOpen }: { onOpen: (s: 'weight' | 'expenditure') => void 
         <small>Expenditure</small>
         <strong>{exp.length ? fmt(exp.at(-1)!.kcal) : '–'}</strong>
         <small>{exp.at(-1)?.confidence ?? 'needs profile'}</small>
-        <Sparkline values={exp.map((e) => e.kcal)} color="var(--warn)" />
+        <Sparkline values={exp.map((e) => e.kcal)} color="#ff8a65" />
       </button>
       <button class="trend-card" onClick={() => onOpen('weight')}>
         <small>Weight trend</small>
         <strong>{fmt(lastTrend.trend, 1)}</strong>
         <small>{delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta), 1)} lb / 7 d</small>
-        <Sparkline values={tr.map((p) => p.trend)} />
+        <Sparkline values={tr.map((p) => p.trend)} color="#b49cff" />
       </button>
       <button class="trend-card" onClick={() => onOpen('weight')}>
         <small>Scale weight</small>

@@ -121,6 +121,20 @@ export function setsPerMuscle(w: Workout | Workout[], exercises: Map<string, Exe
   return out;
 }
 
+/** Six broad groups for the balance radar. */
+export const MUSCLE_GROUPS: Record<string, string[]> = {
+  Back: ['Back', 'Lats', 'Traps'],
+  Chest: ['Chest'],
+  Core: ['Abs'],
+  Shoulders: ['Shoulders'],
+  Arms: ['Biceps', 'Triceps', 'Forearms'],
+  Legs: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
+};
+
+export function groupSets(perMuscle: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(MUSCLE_GROUPS).map(([g, ms]) => [g, ms.reduce((s, m) => s + (perMuscle[m] ?? 0), 0)]));
+}
+
 export interface BestSet { weight_lb: number; reps: number; e1rm: number; date: string }
 
 /** Heaviest estimated 1RM set for an exercise across workouts. */

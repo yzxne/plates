@@ -3,6 +3,7 @@ import { addDays, daysBetween, nextCheckInDay, weekdayOf } from '../../../shared
 import { WEEKDAYS } from '../../../shared/schema';
 import { errorMessage } from '../api';
 import { cachedCoach, ensureCheckIn, expenditureSeries, loadCoach, subscribeCoach, targetsForDate, type CoachData } from '../coachData';
+import { AccuracyCard } from '../components/AccuracyReport';
 import { UChart, type SeriesSpec } from '../components/UChart';
 import { today } from '../dates';
 import { fmt } from '../format';
@@ -16,13 +17,13 @@ const ts = (date: string) => Date.parse(`${date}T12:00:00Z`) / 1000;
 const GOAL_LABEL: Record<string, string> = { lose: 'Lose weight', maintain: 'Maintain', gain: 'Gain weight' };
 
 const WEIGHT_SERIES: SeriesSpec[] = [
-  { label: 'Scale', color: '#9aa3ae', kind: 'points', unit: 'lb', digits: 1 },
-  { label: 'Trend', color: '#4cc38a', kind: 'line', unit: 'lb', digits: 1 },
+  { label: 'Scale', color: '#9ea4ad', kind: 'points', unit: 'lb', digits: 1 },
+  { label: 'Trend', color: '#b49cff', kind: 'line', unit: 'lb', digits: 1 },
 ];
-const EXP_SERIES: SeriesSpec[] = [{ label: 'Expenditure', color: '#f0b45a', kind: 'line', unit: 'kcal' }];
+const EXP_SERIES: SeriesSpec[] = [{ label: 'Expenditure', color: '#ff8a65', kind: 'line', unit: 'kcal' }];
 const CAL_SERIES: SeriesSpec[] = [
-  { label: 'Eaten', color: '#4cc38a', kind: 'bars', unit: 'kcal' },
-  { label: 'Target', color: '#e9ecf1', kind: 'step', unit: 'kcal' },
+  { label: 'Eaten', color: '#5ab0ff', kind: 'bars', unit: 'kcal' },
+  { label: 'Target', color: '#f0f2f5', kind: 'step', unit: 'kcal' },
 ];
 
 export function Progress({ focus }: { focus?: ProgressSection }) {
@@ -103,6 +104,7 @@ export function Progress({ focus }: { focus?: ProgressSection }) {
       <MacroAverages data={data} from={from} />
       <Habits data={data} from={from} />
       <Strategy data={data} />
+      <AccuracyCard data={data} />
       <CheckInHistory data={data} />
     </section>
   );
@@ -133,7 +135,7 @@ function MacroAverages({ data, from }: { data: CoachData; from: string }) {
         return (
           <div class="macro-row" key={k}>
             <div class="macro-label"><span>{label}</span><span class="muted">{fmt(a)}{unit}{t ? ` of ${fmt(t)}${unit}` : ''}</span></div>
-            <div class="macro-track"><span class="macro-fill" style={{ width: `${t ? Math.min(100, (a / t) * 100) : 0}%` }} />{t ? <span class="macro-mark" /> : null}</div>
+            <div class="macro-track"><span class={`macro-fill k-${k}`} style={{ width: `${t ? Math.min(100, (a / t) * 100) : 0}%` }} />{t ? <span class="macro-mark" /> : null}</div>
           </div>
         );
       })}
@@ -196,24 +198,34 @@ function Strategy({ data }: { data: CoachData }) {
         {s.goal_type !== 'maintain' ? <span class="muted"> · {s.goal_rate_lb_per_week} lb/week</span> : null}
         <span class="muted"> · check-in {s.checkin_weekday} (in {inDays} day{inDays === 1 ? '' : 's'})</span>
       </p>
-      {latest ? (
-        <table class="plan">
-          <thead><tr><th /><th>kcal</th><th>P</th><th>F</th><th>C</th></tr></thead>
-          <tbody>
-            {WEEKDAYS.map((d) => {
-              const p = latest.plan[d];
-              if (!p) return null;
-              return (
-                <tr key={d} class={weekdayOf(today()) === d ? 'today' : ''}>
-                  <td>{d}{p.training ? ' ●' : ''}</td><td>{fmt(p.kcal)}</td><td>{p.protein_g}</td><td>{p.fat_g}</td><td>{p.carbs_g}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      ) : <p class="muted">Your first plan appears after a weigh-in and your profile (sex, birth date, height) in Settings.</p>}
+      {latest ? <PlanStack plan={latest.plan} /> : <p class="muted">Your first plan appears after a weigh-in and your profile (sex, birth date, height) in Settings.</p>}
       {latest && <small class="muted">● training day · weekly budget {fmt(Object.values(latest.plan).reduce((a, d) => a + d.kcal, 0))} kcal</small>}
       <button class="btn link" disabled={busy} onClick={checkInNow}>Recalculate now</button>
+    </div>
+  );
+}
+
+/** Each day's target as a column: protein / fat / carbs blocks sized by their calories, total on top. */
+function PlanStack({ plan }: { plan: CoachData['checkins'][number]['plan'] }) {
+  const days = WEEKDAYS.filter((d) => plan[d]);
+  const max = Math.max(1, ...days.map((d) => plan[d]!.kcal));
+  const H = 150; // px for the biggest day
+  const h = (kcal: number) => `${Math.max(18, (kcal / max) * H)}px`;
+  return (
+    <div class="stack" role="table" aria-label="Daily targets">
+      {days.map((d) => {
+        const p = plan[d]!;
+        return (
+          <div key={d} role="row" class={`stack-day ${weekdayOf(today()) === d ? 'today' : ''}`}
+            aria-label={`${d}: ${fmt(p.kcal)} kcal, ${p.protein_g} g protein, ${p.fat_g} g fat, ${p.carbs_g} g carbs`}>
+            <span class="stack-kcal">{fmt(p.kcal)}</span>
+            <span class="stack-seg p" style={{ height: h(p.protein_g * 4) }}>{p.protein_g}P</span>
+            <span class="stack-seg f" style={{ height: h(p.fat_g * 9) }}>{p.fat_g}F</span>
+            <span class="stack-seg c" style={{ height: h(p.carbs_g * 4) }}>{p.carbs_g}C</span>
+            <span class="stack-dow">{d.slice(0, 1)}{p.training ? '●' : ''}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

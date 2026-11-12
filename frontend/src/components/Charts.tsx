@@ -47,3 +47,30 @@ export function MuscleBars({ counts }: { counts: Record<string, number> }) {
     </div>
   );
 }
+
+/** Hexagon radar of working sets per muscle group: this period (filled) vs the one before (dashed). Original SVG. */
+export function MuscleRadar({ now, prev }: { now: Record<string, number>; prev: Record<string, number> }) {
+  const groups = Object.keys(now);
+  const max = Math.max(1, ...groups.map((g) => Math.max(now[g] ?? 0, prev[g] ?? 0)));
+  const C = 130; const R = 92;
+  const pt = (i: number, r: number) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / groups.length;
+    return [C + r * Math.cos(a), C + r * Math.sin(a)] as const;
+  };
+  const poly = (vals: Record<string, number>) => groups.map((g, i) => pt(i, (R * (vals[g] ?? 0)) / max).join(',')).join(' ');
+  return (
+    <div>
+      <svg class="radar" viewBox="0 0 260 260" role="img" aria-label={`Sets per muscle group: ${groups.map((g) => `${g} ${now[g] ?? 0}`).join(', ')}`}>
+        {[0.25, 0.5, 0.75, 1].map((f) => <polygon key={f} class="grid" points={groups.map((_, i) => pt(i, R * f).join(',')).join(' ')} />)}
+        {groups.map((_, i) => { const [x, y] = pt(i, R); return <line key={i} class="grid" x1={C} y1={C} x2={x} y2={y} />; })}
+        <polygon class="prev" points={poly(prev)} />
+        <polygon class="now" points={poly(now)} />
+        {groups.map((g, i) => {
+          const [x, y] = pt(i, R + 18);
+          return <text key={g} class="axis-label" x={x} y={y + 4} text-anchor="middle">{g} {now[g] ?? 0}</text>;
+        })}
+      </svg>
+      <div class="legend"><span><i style={{ background: 'var(--fat)' }} />Last 30 days</span><span><i style={{ background: 'var(--muted)' }} />30 days before</span></div>
+    </div>
+  );
+}

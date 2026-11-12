@@ -25,7 +25,7 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <main class="login">
-      <div class="logo" aria-hidden="true"><span /></div>
+      <img class="logo" src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" width="96" height="96" />
       <h1>Plates</h1>
       <form onSubmit={submit} class="card">
         <label for="passcode">Passcode</label>

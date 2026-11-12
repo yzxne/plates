@@ -34,6 +34,7 @@ Key/value pairs. `id, key, value, created_at, updated_at`. All values are text.
 | breakfast_window / lunch_window / dinner_window | Meal time windows (HH:MM-HH:MM); anything else is Snack | 04:00-10:59 / 11:00-15:59 / 16:00-20:59 |
 | cafeteria_name | Default place for Cafeteria AI estimates | — |
 | setup_complete | First-run wizard done | — |
+| correction_restaurant / correction_cafeteria / correction_homemade | Optional multiplier for AI-estimated grams of that source (Progress → Estimate accuracy suggests values; never set automatically) | 1 |
 | archive_through | v4: last date with imported food in FoodArchive (set by imports). Days on or before it also read FoodArchive. | — |
 | ai_monthly_cap_usd | AI spend cap | 1 |
 | units | read-only | lb |

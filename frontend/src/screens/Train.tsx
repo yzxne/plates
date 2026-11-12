@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  bestSet, epley1RM, formatDuration, isWorkingSet, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
+  bestSet, epley1RM, formatDuration, groupSets, isWorkingSet, nextRoutine, setsPerMuscle, SET_TYPE_LABELS, STARTER_EXERCISES, weeklyTotals, workoutTotals,
   type Exercise, type PlannedSet, type Routine, type RoutineItem, type SetType, type Workout,
 } from '../../../shared/training';
 import { getActive } from '../activeWorkout';
 import { ApiError, errorMessage } from '../api';
-import { BarChart, MuscleBars, type Point } from '../components/Charts';
+import { BarChart, MuscleBars, MuscleRadar, type Point } from '../components/Charts';
 import { ExercisePicker, NewExercise } from '../components/ExercisePicker';
 import { IconBack, IconChevron } from '../components/Icons';
 import { shiftDate, today } from '../dates';
@@ -168,6 +168,8 @@ export function Train({ onStart, version }: Props) {
         <p class="muted">{thisWeek.length} workout{thisWeek.length === 1 ? '' : 's'} · sets per muscle</p>
         <MuscleBars counts={setsPerMuscle(thisWeek, exMap)} />
       </div>
+
+      <Last30 history={history} exMap={exMap} />
 
       <div class="card">
         <div class="seg mb">
@@ -518,5 +520,34 @@ export function NextWorkoutCard({ onStart, version }: { onStart: (r: Routine) =>
       <span class="row-text"><small class="muted">{active ? 'Workout in progress' : 'Start next workout'}</small><strong>{next.name}</strong></span>
       <span class="plus-chip" aria-hidden="true">▶</span>
     </button>
+  );
+}
+
+/** Last 30 days vs the 30 before: muscle balance radar + totals with change. */
+function Last30({ history, exMap }: { history: Workout[]; exMap: Map<string, Exercise> }) {
+  const t = today();
+  const in30 = (w: Workout, from: number, to: number) => w.date > shiftDate(t, -to) && w.date <= shiftDate(t, -from);
+  const now = history.filter((w) => in30(w, 0, 30));
+  const prev = history.filter((w) => in30(w, 30, 60));
+  if (!now.length && !prev.length) return null;
+  const sum = (ws: Workout[]) => ws.reduce((a, w) => {
+    const x = workoutTotals(w);
+    return { workouts: a.workouts + 1, sec: a.sec + x.durationSec, volume: a.volume + x.volume, sets: a.sets + x.sets };
+  }, { workouts: 0, sec: 0, volume: 0, sets: 0 });
+  const a = sum(now);
+  const b = sum(prev);
+  const delta = (x: number, y: number, f: (n: number) => string) => (!y ? '' : x === y ? 'same as before' : `${x > y ? '↑' : '↓'} ${f(Math.abs(x - y))}`);
+  const kfmt = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n.toLocaleString('en-US'));
+  return (
+    <div class="card">
+      <h2>Last 30 days</h2>
+      <MuscleRadar now={groupSets(setsPerMuscle(now, exMap))} prev={groupSets(setsPerMuscle(prev, exMap))} />
+      <div class="stat-grid">
+        <div><small>Workouts</small><strong>{a.workouts}</strong><small>{delta(a.workouts, b.workouts, String)}</small></div>
+        <div><small>Time</small><strong>{formatDuration(a.sec).replace(/ \d+s$/, '')}</strong><small>{delta(a.sec, b.sec, (n) => formatDuration(n).replace(/ \d+s$/, ''))}</small></div>
+        <div><small>Volume</small><strong>{kfmt(a.volume)} lb</strong><small>{delta(a.volume, b.volume, (n) => `${kfmt(n)} lb`)}</small></div>
+        <div><small>Working sets</small><strong>{a.sets}</strong><small>{delta(a.sets, b.sets, String)}</small></div>
+      </div>
+    </div>
   );
 }
