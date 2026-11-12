@@ -53,14 +53,25 @@ const live = (rows: Row[]) => applyFilters(rows, undefined, false);
 
 // ---------- Weight (Apple Health → Plates) ----------
 
-export async function shortcutWeight(sheets: Sheets, body: { weight?: unknown; unit?: unknown; date?: unknown }, now = new Date()) {
+export async function shortcutWeight(sheets: Sheets, body: { weight?: unknown; unit?: unknown; date?: unknown; force?: unknown }, now = new Date()) {
+  // No weigh-in found in Health today → the shortcut sends nothing. That's normal, not an error.
+  if (body.weight == null || (typeof body.weight === 'string' && body.weight.trim() === '')) {
+    return { ok: true, added: false, message: 'No weight from Health today — nothing logged.' };
+  }
   let w = typeof body.weight === 'string' ? parseFloat(body.weight) : Number(body.weight);
   const unit = String(body.unit ?? 'lb').toLowerCase();
   if (unit.startsWith('kg')) w *= 2.2046226218;
   if (!(w > 50 && w < 800)) throw new HttpError(400, 'bad_weight', 'Send a weight between 50 and 800 lb (or the same in kg with "unit": "kg").');
   const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : chicagoDate(now);
   const weight_lb = Math.round(w * 10) / 10;
-  const today = live((await sheets.readTabs(['Weights'])).Weights!.rows.map((r) => r.data)).filter((r) => String(r.date) === date);
+  const all = live((await sheets.readTabs(['Weights'])).Weights!.rows.map((r) => r.data));
+  const today = all.filter((r) => String(r.date) === date);
+  // Guard against wrong units / wrong Health field: refuse readings far from your recent weight (send "force": true to override).
+  const recent = all.filter((r) => String(r.date) <= date).sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))[0];
+  const last = recent ? Number(recent.weight_lb) : 0;
+  if (last > 0 && Math.abs(weight_lb - last) / last > 0.1 && body.force !== true) {
+    throw new HttpError(422, 'weight_unusual', `${weight_lb} lb is far from your last weigh-in (${last} lb). Check the shortcut sends Health's Weight value and the right unit ("lb" or "kg").`);
+  }
   // Health often re-sends the same reading; don't log it twice.
   if (today.some((r) => Math.abs(Number(r.weight_lb) - weight_lb) < 0.05)) {
     return { ok: true, added: false, message: `Already logged ${weight_lb} lb for ${date}.` };

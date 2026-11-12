@@ -79,6 +79,12 @@ describe('Shortcut endpoints', () => {
     const b = await as(key, 'POST', '/shortcut/weight', { weight: 78, unit: 'kg', date: '2026-11-12' });
     expect(b.body.added).toBe(false);
     expect((await as(key, 'POST', '/shortcut/weight', { weight: 20 })).status).toBe(400);
+    // No Health weigh-in today → empty value → quietly nothing.
+    expect((await as(key, 'POST', '/shortcut/weight', { weight: '', unit: 'lb' })).body).toMatchObject({ ok: true, added: false });
+    // Real case: a wrong unit sent 434 lb when the last weigh-in was ~172 → refused with a hint.
+    const odd = await as(key, 'POST', '/shortcut/weight', { weight: 434, date: '2026-11-13' });
+    expect(odd.status).toBe(422);
+    expect(odd.body.message).toMatch(/far from your last weigh-in \(172 lb\)/);
     const rows = google.tabValues(sheetId, 'Weights');
     expect(rows).toHaveLength(2);
     expect(rows[1]![col('Weights', 'weight_lb')]).toBe(172);
