@@ -373,9 +373,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     const q = (url.searchParams.get('q') ?? '').trim();
     const source = url.searchParams.get('source') ?? 'usda';
     if (q.length < 2 || q.length > 100) throw new HttpError(400, 'bad_query', 'Search for 2–100 characters');
-    if (source === 'usda') return json({ source, foods: await searchUsda(q, env.USDA_API_KEY) });
+    if (source === 'usda') return json({ source, foods: await searchUsda(q, env.USDA_API_KEY, 'everyday') });
+    if (source === 'usda_brands') return json({ source, foods: await searchUsda(q, env.USDA_API_KEY, 'brands') });
     if (source === 'off') return json({ source, foods: await searchOff(q) });
-    throw new HttpError(400, 'bad_source', 'source must be usda or off');
+    throw new HttpError(400, 'bad_source', 'source must be usda, usda_brands or off');
   }
 
   if (method === 'POST' && (path === '/sheet/append' || path === '/sheet/update')) {

@@ -21,6 +21,17 @@ const usdaFoundation = {
   foodNutrients: [{ nutrientId: 2047, value: 85 }, { nutrientId: 1003, value: 0.73 }, { nutrientId: 1004, value: 0.22 }, { nutrientId: 1005, value: 20.1 }],
 };
 
+// Everyday foods (FNDDS), in USDA's own (unhelpful) order.
+const fndds = (fdcId: number, description: string, measures: { disseminationText: string; gramWeight: number }[]) => ({
+  fdcId, description, dataType: 'Survey (FNDDS)', foodMeasures: measures,
+  foodNutrients: [{ nutrientId: 1008, value: 130 }, { nutrientId: 1003, value: 2.7 }, { nutrientId: 1004, value: 0.3 }, { nutrientId: 1005, value: 28 }],
+});
+const usdaEveryday = [
+  fndds(1, 'Baby food, rice cereal', [{ disseminationText: '1 tablespoon', gramWeight: 15 }]),
+  fndds(2, 'Beans and white rice', [{ disseminationText: 'Quantity not specified', gramWeight: 170 }, { disseminationText: '1 cup', gramWeight: 170 }]),
+  fndds(3, 'Rice, white, cooked, NS as to fat', [{ disseminationText: 'Quantity not specified', gramWeight: 130 }, { disseminationText: '1 cup, cooked', gramWeight: 174 }]),
+];
+
 describe('USDA mapping', () => {
   it('maps a branded food with serving size and tidies ALL CAPS names', () => {
     const f = mapUsda(usdaBranded)!;
@@ -87,6 +98,15 @@ describe('food endpoints (fake services)', () => {
     google = new FakeGoogle();
     google.otherHosts = (r) => {
       const u = new URL(r.url);
+      if (u.hostname === 'api.nal.usda.gov' && r.method === 'POST') {
+        // Text search (JSON form): everyday foods (FNDDS) or brands.
+        seen.push(r);
+        return (async () => {
+          const b = (await r.clone().json()) as { query: string; dataType: string[] };
+          if (b.query === 'busy') return new Response('{}', { status: 429 });
+          return new Response(JSON.stringify({ foods: b.dataType.includes('Branded') ? [usdaBranded] : usdaEveryday }), { status: 200 });
+        })() as unknown as Response;
+      }
       if (u.hostname === 'api.nal.usda.gov') {
         seen.push(r);
         if (u.searchParams.get('query') === 'busy') return new Response('{}', { status: 429 });
@@ -120,11 +140,19 @@ describe('food endpoints (fake services)', () => {
     return { status: res.status, body: (await res.json()) as any };
   };
 
-  it('searches USDA with the secret key and lists generic foods first', async () => {
-    const r = await get('/food/search?q=cheerios&source=usda');
+  it('searches USDA everyday foods: plain match first, real portion as the serving, tidy names', async () => {
+    const r = await get('/food/search?q=white%20rice&source=usda');
     expect(r.status).toBe(200);
-    expect(r.body.foods.map((f: any) => f.name)).toEqual(['Bananas, overripe, raw', 'Cheerios Cereal']);
+    expect(r.body.foods.map((f: any) => f.name)).toEqual(['Rice, white, cooked', 'Beans and white rice', 'Baby food, rice cereal']);
+    expect(r.body.foods[0]).toMatchObject({ serving_size: '1 cup, cooked (174 g)', grams_per_serving: 174 });
     expect(new URL(seen[0]!.url).searchParams.get('api_key')).toBe('usda-test-key');
+    expect(((await seen[0]!.clone().json()) as any).dataType).toEqual(['Survey (FNDDS)']);
+  });
+
+  it('searches USDA brands separately', async () => {
+    const r = await get('/food/search?q=cheerios&source=usda_brands');
+    expect(r.body.foods.map((f: any) => f.name)).toEqual(['Cheerios Cereal']);
+    expect(((await seen[0]!.clone().json()) as any).dataType).toEqual(['Branded']);
   });
 
   it('searches Open Food Facts with an identifying User-Agent', async () => {

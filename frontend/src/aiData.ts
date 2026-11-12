@@ -103,8 +103,8 @@ export function matchSaved(name: string, foods: Food[], place = ''): Food | unde
   return best;
 }
 
-export async function searchUsda(q: string): Promise<Food[]> {
-  return (await api<{ foods: Food[] }>('GET', `/food/search?source=usda&q=${encodeURIComponent(q)}`)).foods;
+export async function searchUsda(q: string, brands = false): Promise<Food[]> {
+  return (await api<{ foods: Food[] }>('GET', `/food/search?source=${brands ? 'usda_brands' : 'usda'}&q=${encodeURIComponent(q)}`)).foods;
 }
 
 /** Saved food first, else the first generic (unbranded) USDA result. */
@@ -120,7 +120,7 @@ export async function chainLookup(place: string, description: string): Promise<F
   const placeWords = place.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
   const mentionsPlace = (f: Food) => placeWords.some((w) => `${f.brand} ${f.name}`.toLowerCase().includes(w.replace(/'s$/, '')));
   const saved = (await loadFoods().catch(() => cachedFoods())).filter((f) => mentionsPlace(f) && nameScore(f.name, description) >= 0.5);
-  const usda = await searchUsda(`${place} ${description}`).catch(() => [] as Food[]);
+  const usda = await searchUsda(`${place} ${description}`, true).catch(() => [] as Food[]);
   return [...saved, ...usda.filter((f) => f.brand && mentionsPlace(f))].slice(0, 12);
 }
 

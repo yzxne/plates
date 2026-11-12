@@ -184,14 +184,15 @@ function NotFound({ code, errors, go }: { code: string; errors: string[]; go: (v
 
 // ---------- Home: search + Recent / Favorites / Saved meals ----------
 
-interface SearchState { q: string; usda: Food[] | null; off: Food[] | null }
+interface SearchState { q: string; usda: Food[] | null; brands?: Food[] | null; off: Food[] | null; tab?: 'common' | 'brands' }
 
 function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }: {
   state: SearchState; setState: (fn: (s: SearchState) => SearchState) => void; date: string; meal: Meal;
   go: (v: View) => void; onQuickLog: (f: Food, grams: number) => void; onOpen: (f: Food) => void; onLogged: () => void;
 }) {
-  const { q, usda, off } = state;
-  const setQ = (v: string) => setState(() => ({ q: v, usda: null, off: null }));
+  const { q, usda, off, brands = null, tab = 'common' } = state;
+  const setQ = (v: string) => setState(() => ({ q: v, usda: null, brands: null, off: null, tab: 'common' }));
+  const [showAll, setShowAll] = useState(false);
   const [saved, setSaved] = useState<Food[]>(cachedFoods());
   const [recents, setRecents] = useState<RecentFood[] | null>(null);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
@@ -212,14 +213,16 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
   );
   const favorites = saved.filter((f) => f.favorite);
 
-  async function run(source: 'usda' | 'off') {
+  async function run(source: 'usda' | 'usda_brands' | 'off') {
     const query = q.trim();
     if (query.length < 2) return;
-    setBusy(source);
+    setBusy(source === 'off' ? 'off' : 'usda');
     setError('');
+    if (source === 'usda') setShowAll(false);
     try {
       const r = await api<{ foods: Food[] }>('GET', `/food/search?source=${source}&q=${encodeURIComponent(query)}`);
-      setState((s) => (source === 'usda' ? { ...s, usda: r.foods, off: null } : { ...s, off: r.foods }));
+      setState((s) => (source === 'usda' ? { ...s, usda: r.foods, brands: null, off: null, tab: 'common' }
+        : source === 'usda_brands' ? { ...s, brands: r.foods } : { ...s, off: r.foods }));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -299,16 +302,31 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
         <>
           <section class="results">
             <h3>Your foods</h3>
-            {savedMatches.length === 0 ? <p class="muted tiny-pad">No saved food matches. Press Search for USDA.</p>
+            {savedMatches.length === 0 ? <p class="muted tiny-pad">No saved food matches. Press Search foods.</p>
               : <FoodRows foods={savedMatches} gramsFor={(f) => defaultGrams(f)} onTap={(f) => onQuickLog(f, defaultGrams(f))} onHold={onOpen} />}
           </section>
-          {!usda && busy !== 'usda' && <button class="btn center-block" onClick={() => run('usda')} disabled={q.trim().length < 2}>Search USDA</button>}
-          {busy === 'usda' && <p class="muted center">Searching USDA…</p>}
-          {usda && <ResultList title="USDA FoodData Central" foods={usda} onPick={onOpen} empty="No USDA results." />}
-          {usda && !off && (
-            <button class="btn center-block" disabled={!!busy} onClick={() => run('off')}>{busy === 'off' ? 'Searching…' : 'Search Open Food Facts too'}</button>
+          {!usda && busy !== 'usda' && <button class="btn center-block" onClick={() => run('usda')} disabled={q.trim().length < 2}>Search foods</button>}
+          {usda && (
+            <div class="seg full mt">
+              <button class={tab === 'common' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'common' }))}>Common foods</button>
+              <button class={tab === 'brands' ? 'on' : ''} onClick={() => { setState((s) => ({ ...s, tab: 'brands' })); if (!brands) void run('usda_brands'); }}>Brands</button>
+            </div>
           )}
-          {off && <ResultList title="Open Food Facts" foods={off} onPick={onOpen} empty="No Open Food Facts results." note="Data © Open Food Facts contributors, ODbL" />}
+          {busy === 'usda' && <SkeletonRows rows={5} />}
+          {usda && tab === 'common' && busy !== 'usda' && (
+            <>
+              <ResultList title={showAll ? 'All matches' : 'Best matches'} foods={showAll ? usda : usda.slice(0, 5)} onPick={onOpen}
+                empty="No common foods match. Try Brands, or fewer words." note="USDA FoodData Central (survey foods)" />
+              {!showAll && usda.length > 5 && <button class="btn link center" onClick={() => setShowAll(true)}>Show {usda.length - 5} more</button>}
+            </>
+          )}
+          {tab === 'brands' && brands && busy !== 'usda' && (
+            <>
+              <ResultList title="Brands (USDA)" foods={brands} onPick={onOpen} empty="No branded products. Scanning the barcode usually works better." />
+              {!off && <button class="btn center-block" disabled={!!busy} onClick={() => run('off')}>{busy === 'off' ? 'Searching…' : 'Search Open Food Facts too'}</button>}
+              {off && <ResultList title="Open Food Facts" foods={off} onPick={onOpen} empty="No Open Food Facts results." note="Data © Open Food Facts contributors, ODbL" />}
+            </>
+          )}
           <button class="btn center-block" onClick={() => go({ kind: 'ai', mode: 'text', text: q.trim() })}>Estimate "{q.trim()}" with AI</button>
         </>
       )}

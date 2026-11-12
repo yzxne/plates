@@ -3,6 +3,7 @@ import { sameProduct, upcEToUpcA } from '../../shared/barcode';
 import type { Food, Nutrients } from '../../shared/nutrition';
 import { mapOff, type OffProduct } from '../../shared/off';
 export { mapOff };
+import { pickPortion, rankUsda, tidyUsdaName, type UsdaMeasure } from '../../shared/usdaRank';
 import { HttpError } from './http';
 
 export const OFF_USER_AGENT = 'Plates/0.2 (personal tracker; https://github.com/yzxne/plates)';
@@ -24,6 +25,7 @@ interface UsdaFood {
   servingSizeUnit?: string;
   householdServingFullText?: string;
   foodNutrients?: UsdaNutrient[];
+  foodMeasures?: UsdaMeasure[]; // FNDDS household portions
 }
 
 function pick(list: UsdaNutrient[], ids: number[]): number | null {
@@ -53,9 +55,11 @@ export function mapUsda(f: UsdaFood): Food | null {
 
   const unit = (f.servingSizeUnit ?? '').toLowerCase();
   const gramsUnit = ['g', 'grm', 'ml', 'mlt'].includes(unit);
-  const grams = f.dataType === 'Branded' && gramsUnit && f.servingSize && f.servingSize > 0 ? Math.round(f.servingSize * 10) / 10 : null;
-  const household = f.householdServingFullText?.trim();
-  const unitLabel = unit.startsWith('m') ? 'mL' : 'g';
+  const portion = f.dataType?.startsWith('Survey') ? pickPortion(f.foodMeasures) : null;
+  const grams = portion ? portion.grams
+    : f.dataType === 'Branded' && gramsUnit && f.servingSize && f.servingSize > 0 ? Math.round(f.servingSize * 10) / 10 : null;
+  const household = portion ? portion.label : f.householdServingFullText?.trim();
+  const unitLabel = !portion && unit.startsWith('m') ? 'mL' : 'g';
 
   const per100: Nutrients = {
     kcal,
@@ -67,7 +71,7 @@ export function mapUsda(f: UsdaFood): Food | null {
     sodium_mg: pick(list, N.sodium),
   };
   return {
-    name: tidyName(f.description),
+    name: tidyUsdaName(tidyName(f.description)),
     brand: tidyName(f.brandName || f.brandOwner || ''),
     source: 'usda',
     source_id: String(f.fdcId),
@@ -78,13 +82,19 @@ export function mapUsda(f: UsdaFood): Food | null {
   };
 }
 
-export async function searchUsda(query: string, apiKey: string | undefined): Promise<Food[]> {
+/**
+ * USDA search. "everyday" = the survey list of foods as people eat them (FNDDS: plain names, real portions),
+ * ranked so plain matches come first; "brands" = branded products. Uses the JSON (POST) form of the search:
+ * the URL form returns 400 for some FNDDS queries (verified 2026-11-12).
+ */
+export async function searchUsda(query: string, apiKey: string | undefined, kind: 'everyday' | 'brands' = 'everyday'): Promise<Food[]> {
   const u = new URL(USDA_SEARCH);
   u.searchParams.set('api_key', apiKey || 'DEMO_KEY');
-  u.searchParams.set('query', query);
-  u.searchParams.set('pageSize', '25');
-  u.searchParams.set('dataType', 'Foundation,SR Legacy,Branded');
-  const res = await fetch(u.toString());
+  const res = await fetch(u.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, dataType: kind === 'brands' ? ['Branded'] : ['Survey (FNDDS)'], pageSize: kind === 'brands' ? 25 : 50 }),
+  });
   if (res.status === 429) throw new HttpError(429, 'usda_rate_limited', 'USDA search limit reached. Try again later.');
   if (res.status === 403) throw new HttpError(502, 'usda_key', 'USDA rejected the API key. Check USDA_API_KEY.');
   if (!res.ok) throw new HttpError(502, 'usda_error', `USDA search failed (${res.status})`);
@@ -94,8 +104,7 @@ export async function searchUsda(query: string, apiKey: string | undefined): Pro
     const m = mapUsda(f);
     if (m) out.push(m);
   }
-  // Generic foods first (Foundation, SR Legacy), then branded — USDA's own relevance order within each.
-  return out.sort((a, b) => (a.brand ? 1 : 0) - (b.brand ? 1 : 0));
+  return kind === 'brands' ? out : rankUsda(out, query).slice(0, 25);
 }
 
 /** Forms USDA might store a barcode in (it only matches the exact digits). */
