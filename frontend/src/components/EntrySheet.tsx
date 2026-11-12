@@ -32,7 +32,13 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
 
   const grams = food ? (unit === 'serving' && food.grams_per_serving ? Number(amount) * food.grams_per_serving : Number(amount)) : null;
   const preview: LogEntry | null = food && grams && grams > 0
-    ? { ...makeEntry({ id: entry.id, date: entry.date, meal, food, grams, method: entry.entry_method, notes: entry.notes }), food_name: entry.food_name }
+    ? {
+      ...makeEntry({
+        id: entry.id, date: entry.date, meal, food, grams, method: entry.entry_method, notes: entry.notes,
+        food_source: entry.food_source, place: entry.place, is_estimate: entry.is_estimate,
+      }),
+      food_name: entry.food_name, logged_at: entry.logged_at,
+    }
     : null;
 
   async function save() {

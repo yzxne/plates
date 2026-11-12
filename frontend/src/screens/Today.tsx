@@ -11,6 +11,7 @@ import {
 } from '../foodData';
 import { amountLine, fmt } from '../format';
 import { queue } from '../queue';
+import { safeStore } from '../storage';
 import { showToast } from '../toast';
 import { showUndo } from '../undo';
 import { addWeight, deleteWeight, lastWeight, loadWeights, type WeighIn } from '../weightData';
@@ -48,6 +49,8 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
   const [editing, setEditing] = useState<LogEntry | null>(null);
   const [picker, setPicker] = useState<Meal | null>(null);
   const [mode, setMode] = useState<'consumed' | 'remaining'>('consumed');
+  const [view, setViewState] = useState<'meals' | 'timeline'>(() => (safeStore.getItem(VIEW_KEY) === 'timeline' ? 'timeline' : 'meals'));
+  const setView = (v: 'meals' | 'timeline') => { setViewState(v); safeStore.setItem(VIEW_KEY, v); };
   const [, setCoachTick] = useState(0);
   useEffect(() => {
     void loadCoach().catch(() => {});
@@ -218,7 +221,18 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
 
       {nextWorkout}
 
-      {day && MEALS.map((meal) => {
+      {day && day.entries.length > 0 && (
+        <div class="seg full view-toggle">
+          <button class={view === 'meals' ? 'on' : ''} onClick={() => setView('meals')}>Meals</button>
+          <button class={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
+        </div>
+      )}
+
+      {day && view === 'timeline' && day.entries.length > 0 && (
+        <Timeline entries={day.entries} pendingIds={day.pendingIds} onEdit={setEditing} onRemove={(e) => void remove(e)} />
+      )}
+
+      {day && (view === 'meals' || day.entries.length === 0) && MEALS.map((meal) => {
         const items = day.entries.filter((e) => e.meal === meal);
         const mt = totals(items);
         return (
@@ -266,6 +280,62 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
       )}
       {picker && <SavedMealPicker onPick={(m) => logSaved(picker, m)} onClose={() => setPicker(null)} />}
     </section>
+  );
+}
+
+const VIEW_KEY = 'plates.today.view';
+const MEAL_DEFAULT_MIN: Record<Meal, number> = { breakfast: 8 * 60, lunch: 12 * 60, dinner: 18 * 60, snack: 15 * 60 };
+
+/** Minutes after midnight (Chicago) when an entry was eaten, as best we know. */
+function entryMinutes(e: LogEntry): number {
+  const cal = /(\d{1,2}):(\d{2})\s*([ap])m/i.exec(e.entry_method.startsWith('import') ? e.notes : '');
+  if (cal) return (Number(cal[1]) % 12 + (cal[3]!.toLowerCase() === 'p' ? 12 : 0)) * 60 + Number(cal[2]);
+  if (e.logged_at) {
+    const at = new Date(e.logged_at);
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(at).map((p) => [p.type, p.value]));
+    // Logged on the same day → use that time; logged later (catch-up) → the meal's usual time.
+    if (`${parts.year}-${parts.month}-${parts.day}` === e.date) return Number(parts.hour) * 60 + Number(parts.minute);
+  }
+  return MEAL_DEFAULT_MIN[e.meal];
+}
+const hourLabel = (h: number) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+
+/** Entries grouped by the hour they were eaten (inspired by timeline-style logs). */
+function Timeline({ entries, pendingIds, onEdit, onRemove }: {
+  entries: LogEntry[]; pendingIds: Set<string>; onEdit: (e: LogEntry) => void; onRemove: (e: LogEntry) => void;
+}) {
+  const sorted = entries.map((e) => ({ e, m: entryMinutes(e) })).sort((a, b) => a.m - b.m);
+  const hours = [...new Set(sorted.map((x) => Math.floor(x.m / 60)))];
+  return (
+    <div class="timeline">
+      {hours.map((h) => {
+        const items = sorted.filter((x) => Math.floor(x.m / 60) === h);
+        const t = totals(items.map((x) => x.e));
+        return (
+          <div class="tl-hour" key={h}>
+            <div class="tl-head">
+              <span class="tl-pill">{hourLabel(h)}</span>
+              <span class="tl-tot">{fmt(t.kcal)} kcal · <b class="p">{fmt(t.protein_g)}P</b> <b class="f">{fmt(t.fat_g)}F</b> <b class="c">{fmt(t.carbs_g)}C</b></span>
+            </div>
+            <div class="card tl-card">
+              {items.map(({ e, m }) => (
+                <SwipeRow key={e.id} label={`${e.food_name}, ${fmt(e.n.kcal)} kcal`} onTap={() => onEdit(e)} onSwipeRight={() => onEdit(e)} onSwipeLeft={() => onRemove(e)}>
+                  <span class="entry-main">
+                    <span class="entry-name">{e.food_name}{e.is_estimate ? <span class="tag">estimate</span> : null}</span>
+                    <small class="muted">
+                      {`${Math.floor(m / 60) % 12 || 12}:${String(m % 60).padStart(2, '0')}`} · {MEAL_LABELS[e.meal]} · {amountLine(e)}
+                      {pendingIds.has(e.id) ? ' · not saved yet' : ''}
+                    </small>
+                  </span>
+                  <span class="entry-kcal">{fmt(e.n.kcal)}</span>
+                </SwipeRow>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

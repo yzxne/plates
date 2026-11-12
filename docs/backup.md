@@ -1,6 +1,6 @@
 # Backing up your Plates data
 
-All your data lives in **one Google Sheet** called "Plates" in your Google Drive. Plates itself stores nothing else (the backend only keeps your Google connection and settings for push notifications).
+All your data lives in **one Google Sheet** called "Plates" in your Google Drive. The Plates backend also keeps your Google connection, push-notification settings and the weekly backup copies below.
 
 ## What already protects you
 

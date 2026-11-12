@@ -176,6 +176,10 @@ export class FakeGoogle {
           const pr = rq.addSheet.properties;
           if (ss.tabs.has(pr.title)) return err(400, `Invalid requests[0].addSheet: A sheet with the name "${pr.title}" already exists. Please enter another name.`);
           ss.tabs.set(pr.title, { sheetId: this.nextSheetId++, columnCount: pr.gridProperties?.columnCount ?? 26, grid: [] });
+        } else if (rq.deleteDimension) {
+          const g = rq.deleteDimension.range;
+          const t = [...ss.tabs.values()].find((x) => x.sheetId === g.sheetId)!;
+          t.grid.splice(g.startIndex, g.endIndex - g.startIndex);
         } else if (rq.updateSheetProperties) {
           const pr = rq.updateSheetProperties.properties;
           const t = [...ss.tabs.values()].find((x) => x.sheetId === pr.sheetId)!;

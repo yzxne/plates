@@ -314,6 +314,33 @@ export class Sheets {
     return saved;
   }
 
+  /**
+   * Physically removes rows (by 1-based row number) from a tab. Used only to move old food rows to FoodArchive
+   * after they've been copied there. Deletes bottom-up in contiguous ranges, in one batch request.
+   */
+  async deleteRows(tab: TabName, rowNumbers: number[]): Promise<void> {
+    if (!rowNumbers.length) return;
+    const { sheets } = (await googleFetch(this.token, this.url('', { fields: 'sheets.properties(sheetId,title)' }))) as {
+      sheets: { properties: { sheetId: number; title: string } }[];
+    };
+    const sheetId = sheets.find((s) => s.properties.title === tab)?.properties.sheetId;
+    if (sheetId == null) throw new HttpError(404, 'sheet_not_found', `${tab} tab not found`);
+    const sorted = [...new Set(rowNumbers)].filter((n) => n > 1).sort((a, b) => b - a); // never the header row
+    const ranges: [number, number][] = []; // [start, end] row numbers, inclusive, descending
+    for (const n of sorted) {
+      const last = ranges[ranges.length - 1];
+      if (last && last[0] === n + 1) last[0] = n; else ranges.push([n, n]);
+    }
+    await googleFetch(this.token, this.url(':batchUpdate'), {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: ranges.map(([start, end]) => ({
+          deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: start - 1, endIndex: end } },
+        })),
+      }),
+    });
+  }
+
   async readSettings(): Promise<Record<string, string>> {
     const parsed = (await this.readTabs(['Settings'])).Settings!;
     const out: Record<string, string> = {};

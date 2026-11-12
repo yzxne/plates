@@ -147,10 +147,10 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
         <button class="btn primary small-btn" disabled={saving} onClick={finish}>{saving ? 'Saving…' : 'Finish'}</button>
       </header>
       <div class="overlay-body">
-        <div class="stat-row">
-          <div><strong>{formatDuration(totals.durationSec)}</strong><span>Duration</span></div>
-          <div><strong>{fmt(totals.volume)}</strong><span>Volume lb</span></div>
-          <div><strong>{totals.sets}</strong><span>Sets</span></div>
+        <div class="stat-row live">
+          <div><span>Duration</span><strong class="dur">{formatDuration(totals.durationSec)}</strong></div>
+          <div><span>Volume</span><strong>{fmt(totals.volume)} lb</strong></div>
+          <div><span>Sets</span><strong>{totals.sets}</strong></div>
         </div>
 
         {w.exercises.length === 0 && <p class="muted center">Add your first exercise.</p>}
@@ -162,19 +162,24 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
           return (
             <div class="card ex-card" key={`${ex.exercise_id}-${ei}`}>
               <div class="ex-head">
-                <h2 class="clip">{info?.name ?? 'Unknown exercise'}</h2>
+                <h2 class="clip ex-name">{info?.name ?? 'Unknown exercise'}</h2>
                 <select class="ex-menu" aria-label="Exercise options" value="" onChange={(e) => { exerciseAction(ei, e.currentTarget.value); e.currentTarget.value = ''; }}>
                   <option value="" disabled>⋯</option>
-                  <option value="note">Add note</option>
-                  <optgroup label="Rest timer">
-                    {REST_OPTIONS.map((s) => <option key={s} value={`rest:${s}`}>{restLabel(s)}{s === ex.rest_sec ? ' ✓' : ''}</option>)}
-                  </optgroup>
                   {ei > 0 && <option value="up">Move up</option>}
                   {ei < w.exercises.length - 1 && <option value="down">Move down</option>}
                   <option value="remove">Remove exercise</option>
                 </select>
               </div>
-              <small class="muted">Rest {restLabel(ex.rest_sec)}{info?.primary.length ? ` · ${info.primary.join(', ')}` : ''}</small>
+              <div class="ex-chips">
+                <label class="chip ex-chip">
+                  <span aria-hidden="true">⏱</span> Rest {restLabel(ex.rest_sec)}
+                  <select aria-label="Rest timer" value={String(ex.rest_sec)} onChange={(e) => exerciseAction(ei, `rest:${e.currentTarget.value}`)}>
+                    {REST_OPTIONS.map((s) => <option key={s} value={String(s)}>{restLabel(s)}</option>)}
+                  </select>
+                </label>
+                {ex.note === '' && <button class="chip ex-chip" onClick={() => exerciseAction(ei, 'note')}>✎ Note</button>}
+                {info?.primary.length ? <small class="muted">{info.primary.join(', ')}</small> : null}
+              </div>
               {ex.note !== '' && (
                 <textarea class="ex-note" rows={1} placeholder="Note" value={ex.note.trim() ? ex.note : ''}
                   onInput={(e) => { const v = e.currentTarget.value; update((x) => { x.exercises[ei]!.note = v; return x; }); }} />
@@ -202,9 +207,9 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                       <option value="del">Delete set</option>
                     </select>
                     <button class="prev" disabled={!p} onClick={() => p && patchSet(ei, si, { weight_lb: p.weight_lb, reps: p.reps })}>
-                      {p ? `${fmt(p.weight_lb ?? 0, 1)}×${p.reps ?? 0}` : '–'}
+                      {p ? `${p.weight_lb != null ? fmt(p.weight_lb, 1) : 'BW'} × ${p.reps ?? 0}` : '–'}
                     </button>
-                    <input type="number" inputMode="decimal" step="any" aria-label="Weight lb" placeholder={p?.weight_lb != null ? String(p.weight_lb) : ''}
+                    <input type="number" inputMode="decimal" step="any" aria-label="Weight lb" placeholder={p?.weight_lb != null ? String(p.weight_lb) : p ? 'BW' : ''}
                       value={s.weight_lb ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { weight_lb: v === '' ? null : Number(v) }); }} />
                     <input type="number" inputMode="numeric" aria-label="Reps" placeholder={range || (p?.reps != null ? String(p.reps) : '')}
                       value={s.reps ?? ''} onInput={(e) => { const v = e.currentTarget.value; patchSet(ei, si, { reps: v === '' ? null : Math.round(Number(v)) }); }} />

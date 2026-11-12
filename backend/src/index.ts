@@ -16,6 +16,7 @@ export { RestTimer } from './push';
 import { checkTypedCode } from '../../shared/barcode';
 import { applyFilters, Sheets, type Filters } from './sheets';
 import { getBackup, KEEP, listBackups, runBackup, XLSX_TYPE } from './backups';
+import { archiveOldFood, archivePreview } from './archive';
 import {
   createShortcutKey, requireShortcutKey, revokeShortcutKey, shortcutKeyStatus, shortcutLog, shortcutSummary, shortcutWeight,
 } from './shortcuts';
@@ -181,6 +182,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   await requireSession(request, env);
+
+  // ---------- Move old food rows to FoodArchive ----------
+  if (method === 'GET' && path === '/food/archive') return json(await archivePreview(await sheetFor(env)));
+  if (method === 'POST' && path === '/food/archive') return json(await archiveOldFood(await sheetFor(env)));
 
   // ---------- Automatic backups ----------
   if (method === 'GET' && path === '/backups') return json({ backups: await listBackups(env.PLATES_KV), keep: KEEP });

@@ -101,8 +101,11 @@ function pendingEntries(date: string): LogEntry[] {
 // ---------- Imported history (FoodArchive tab) ----------
 
 /** Imported entries live in FoodArchive; everything logged in Plates lives in FoodLog. */
-export const logTab = (e: Pick<LogEntry, 'entry_method'>): 'FoodLog' | 'FoodArchive' =>
-  e.entry_method.startsWith('import') ? 'FoodArchive' : 'FoodLog';
+export const logTab = (e: Pick<LogEntry, 'entry_method' | 'source_tab'>): 'FoodLog' | 'FoodArchive' =>
+  e.source_tab ?? (e.entry_method.startsWith('import') ? 'FoodArchive' : 'FoodLog');
+
+const tagged = (rows: Row[] | undefined, tab: 'FoodLog' | 'FoodArchive'): LogEntry[] =>
+  (rows ?? []).map((r) => ({ ...rowToEntry(r), source_tab: tab }));
 
 /** True when dates on or before `from` may have imported entries. */
 const needsArchive = (from: string) => {
@@ -114,7 +117,7 @@ export async function loadDay(date: string): Promise<DayData> {
   const archive = needsArchive(date);
   const d = await readTabs(archive ? ['FoodLog', 'FoodArchive', 'Days'] : ['FoodLog', 'Days'],
     { FoodLog: { date }, FoodArchive: { date }, Days: { date } });
-  const entries = [...(d.FoodArchive ?? []), ...(d.FoodLog ?? [])].map(rowToEntry);
+  const entries = [...tagged(d.FoodArchive, 'FoodArchive'), ...tagged(d.FoodLog, 'FoodLog')];
   const seen = new Set(entries.map((e) => e.id));
   const pending = pendingEntries(date).filter((e) => !seen.has(e.id));
   const dayRow = d.Days?.[0] ?? null;
@@ -183,7 +186,7 @@ export async function loadRange(from: string, to: string): Promise<WeekData> {
   for (let cur = from; cur <= to; cur = nextDate(cur)) {
     days.set(cur, { entries: [], pendingIds: new Set(), dayComplete: false, dayRow: null });
   }
-  for (const r of [...(d.FoodArchive ?? []), ...(d.FoodLog ?? [])]) days.get(String(r.date))?.entries.push(rowToEntry(r));
+  for (const e of [...tagged(d.FoodArchive, 'FoodArchive'), ...tagged(d.FoodLog, 'FoodLog')]) days.get(e.date)?.entries.push(e);
   for (const r of d.Days ?? []) {
     const day = days.get(String(r.date));
     if (day && !day.dayRow) {

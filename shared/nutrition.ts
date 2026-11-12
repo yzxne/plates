@@ -174,6 +174,10 @@ export interface LogEntry {
   food_source: FoodOrigin;
   place: string;
   is_estimate: boolean;
+  /** When it was logged (ISO, from the row's created_at). Not written back; used for the timeline view. */
+  logged_at?: string;
+  /** Which tab the row was read from (frontend only), so edits go back to the same place. */
+  source_tab?: 'FoodLog' | 'FoodArchive';
 }
 
 /** Builds a FoodLog entry for `grams` of `food`. */
@@ -247,6 +251,7 @@ export function rowToEntry(r: Row): LogEntry {
     food_source: (['restaurant', 'cafeteria', 'homemade', 'packaged'].includes(String(r.food_source)) ? String(r.food_source) : '') as FoodOrigin,
     place: String(r.place ?? ''),
     is_estimate: r.is_estimate === true || r.is_estimate === 'TRUE',
+    ...(r.created_at ? { logged_at: String(r.created_at) } : {}),
   };
 }
 

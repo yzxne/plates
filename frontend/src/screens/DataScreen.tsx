@@ -2,6 +2,7 @@
 import { useState } from 'preact/hooks';
 import { addDays } from '../../../shared/coaching';
 import { errorMessage } from '../api';
+import { ArchiveCard } from '../components/ArchiveCard';
 import { BackupsCard } from '../components/BackupsCard';
 import { IconBack } from '../components/Icons';
 import { today } from '../dates';
@@ -85,6 +86,7 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
       </div>
 
       <BackupsCard />
+      <ArchiveCard />
 
       <div class="card">
         <h2>Import</h2>
