@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { MEAL_LABELS, MEALS, makeEntry, totals, type LogEntry, type Meal, type Nutrients } from '../../../shared/nutrition';
 import { ApiError, errorMessage } from '../api';
@@ -132,6 +133,30 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
     }
   }
 
+  // Next-morning nudge: yesterday had food but wasn't marked complete.
+  const [yday, setYday] = useState<DayData | null>(null);
+  const yDate = shiftDate(today(), -1);
+  useEffect(() => {
+    if (date !== today()) return;
+    const inWeek = weekOf === start ? week?.days.get(yDate) : undefined;
+    if (inWeek) { setYday(inWeek); return; }
+    loadRange(yDate, yDate).then((r) => setYday(r.days.get(yDate) ?? null)).catch(() => setYday(null));
+  }, [date, week, weekOf]);
+
+  async function markYesterday() {
+    if (!yday) return;
+    const done = { ...yday, dayComplete: true };
+    setYday(done);
+    setWeek((w) => { if (!w?.days.has(yDate)) return w; const days = new Map(w.days); days.set(yDate, done); return { days }; });
+    try {
+      await saveDay(yDate, yday.entries, true, targetsForDate(yDate));
+      showToast('Yesterday marked complete', 'ok');
+    } catch (err) {
+      setYday(yday);
+      showToast(errorMessage(err), 'error');
+    }
+  }
+
   async function copyYesterday(meal: Meal) {
     try {
       const y = shiftDate(date, -1);
@@ -210,7 +235,25 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
         </div>
       )}
 
-      {!error && <MacroBars t={t} targets={targets} />}
+      {date === today() && yday && yday.entries.length > 0 && !yday.dayComplete && (
+        <div class="card nudge" role="status">
+          <span><strong>Yesterday isn't marked complete.</strong><small class="muted">Only complete days count toward your expenditure.</small></span>
+          <button class="btn small-btn" onClick={markYesterday}>Mark it</button>
+        </div>
+      )}
+
+      {!error && (
+        <MacroBars t={t} targets={targets}>
+          {day && (
+            <div class="complete-bar">
+              <button class={`complete-btn ${day.dayComplete ? 'on' : ''}`} aria-pressed={day.dayComplete} onClick={toggleComplete}>
+                {day.dayComplete ? '✓ Day complete' : 'Mark day complete'}
+              </button>
+              {!day.dayComplete && <small class="muted">When everything you ate is logged</small>}
+            </div>
+          )}
+        </MacroBars>
+      )}
 
       {week && weekOf === start && (
         <WeekGrid week={week} start={start} selected={date} mode={mode} onMode={setMode} onPick={onDate} />
@@ -263,15 +306,6 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
         );
       })}
 
-      {day && (
-        <label class="card complete-row">
-          <input type="checkbox" checked={day.dayComplete} onChange={toggleComplete} />
-          <span>
-            <strong>Day complete</strong>
-            <small class="muted">Tick when everything you ate is logged. Only complete days are used to estimate expenditure.</small>
-          </span>
-        </label>
-      )}
       {!week && !error && <><SkeletonCard tall lines={1} /><SkeletonCard lines={3} /><SkeletonCard lines={2} /></>}
 
       {editing && day && (
@@ -350,7 +384,7 @@ function GearIcon() {
   );
 }
 
-function MacroBars({ t, targets }: { t: Nutrients | null; targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null }) {
+function MacroBars({ t, targets, children }: { t: Nutrients | null; targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null; children?: ComponentChildren }) {
   const rows: [string, keyof Nutrients, string][] = [['Calories', 'kcal', ''], ['Protein', 'protein_g', 'g'], ['Fat', 'fat_g', 'g'], ['Carbs', 'carbs_g', 'g']];
   return (
     <div class="card macros">
@@ -369,6 +403,7 @@ function MacroBars({ t, targets }: { t: Nutrients | null; targets: { kcal: numbe
         );
       })}
       {!targets && <small class="muted">Targets appear after your first weigh-in and profile (sex, birth date, height in Settings).</small>}
+      {children}
     </div>
   );
 }

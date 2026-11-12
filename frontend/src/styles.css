@@ -757,3 +757,16 @@ h2.inline { display: inline; margin: 0; }
 @keyframes overlay-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes tick-pulse { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 @keyframes pr-pop { 0% { opacity: 0; transform: translateY(10px) scale(0.92); } 100% { opacity: 1; transform: none; } }
+
+/* Day complete: button on the macro card + next-morning nudge */
+.complete-bar { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.complete-btn { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ok); background: transparent; color: var(--ok); font: inherit; font-weight: 700; cursor: pointer; }
+.complete-btn.on { background: var(--ok); color: #06130c; }
+.complete-bar small { font-size: 12px; }
+.nudge { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-color: #5a4523; background: #221c12; }
+.nudge span { display: flex; flex-direction: column; }
+.nudge small { font-size: 12px; }
+
+@media (prefers-reduced-motion: no-preference) { .complete-btn.on { animation: tick-pulse 0.28s ease-out; } .complete-btn { transition: background-color 0.2s, color 0.2s; } }
+
+.nudge .btn { white-space: nowrap; flex: none; }
