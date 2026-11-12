@@ -248,7 +248,7 @@ function RoutineDetail({ routine, exMap, history, onBack, onStart, onEdit }: {
           <small class="muted">Rest {Math.floor(it.rest_sec / 60)}:{String(it.rest_sec % 60).padStart(2, '0')}{it.notes ? ` · ${it.notes}` : ''}</small>
           <ul class="plain">
             {it.sets.map((s, i) => (
-              <li key={i}>{SET_TYPE_LABELS[s.type]} · {s.weight_lb != null ? `${fmt(s.weight_lb, 1)} lb` : '– lb'} · {repText(s)}</li>
+              <li key={i}>{SET_TYPE_LABELS[s.type]} · {s.weight_lb != null ? `${fmt(s.weight_lb, 1)} lb` : 'bodyweight'} · {repText(s)}</li>
             ))}
           </ul>
         </div>

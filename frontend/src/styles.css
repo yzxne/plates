@@ -503,7 +503,7 @@ input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus 
 .next-btn { display: flex; flex-direction: column; gap: 0; min-height: 60px; margin-bottom: 6px; }
 .next-btn span { font-size: 13px; font-weight: 600; opacity: 0.8; }
 .next-btn strong { font-size: 18px; }
-.routine-card.is-next { border-color: #2c6b4c; }
+.routine-card.is-next { border-color: #2b4a66; }
 .tag.next { background: #1c2f44; color: var(--link); }
 .reorder { display: flex; flex-direction: column; }
 .reorder .icon-btn.small { width: 40px; height: 32px; margin: 0; color: var(--muted); }
