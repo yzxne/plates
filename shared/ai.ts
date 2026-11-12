@@ -44,7 +44,8 @@ export const AI_RESULT_SCHEMA = {
   },
 } as const;
 
-export interface AiValidation { ok: boolean; items: AiItem[]; error: string }
+/** `skipped` = items left out because they had no usable amount (the rest are still usable). */
+export interface AiValidation { ok: boolean; items: AiItem[]; error: string; skipped: string[] }
 
 /** Validates AI output — from the API or pasted from the Claude/Gemini app (code fences and missing ranges tolerated). */
 export function validateAiResult(raw: unknown): AiValidation {
@@ -53,23 +54,26 @@ export function validateAiResult(raw: unknown): AiValidation {
     const text = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
-    if (start < 0 || end <= start) return { ok: false, items: [], error: 'No JSON object found. It should start with { and end with }.' };
+    if (start < 0 || end <= start) return { ok: false, items: [], skipped: [], error: 'No JSON object found. It should start with { and end with }.' };
     try {
       data = JSON.parse(text.slice(start, end + 1));
     } catch {
-      return { ok: false, items: [], error: 'That isn’t valid JSON. Copy the whole answer, including { and }.' };
+      return { ok: false, items: [], skipped: [], error: 'That isn’t valid JSON. Copy the whole answer, including { and }.' };
     }
   }
   const items = (data as { items?: unknown })?.items;
-  if (!Array.isArray(items) || items.length === 0) return { ok: false, items: [], error: 'Expected {"items": [...]} with at least one food.' };
-  if (items.length > 20) return { ok: false, items: [], error: 'Too many items (max 20).' };
+  if (!Array.isArray(items) || items.length === 0) return { ok: false, items: [], skipped: [], error: 'Expected {"items": [...]} with at least one food.' };
+  if (items.length > 20) return { ok: false, items: [], skipped: [], error: 'Too many items (max 20).' };
   const out: AiItem[] = [];
+  const skipped: string[] = [];
   for (const [i, it] of items.entries()) {
     const o = it as Record<string, unknown>;
     const name = typeof o?.name === 'string' ? o.name.trim().slice(0, 120) : '';
-    const grams = Number(o?.grams);
-    if (!name) return { ok: false, items: [], error: `Item ${i + 1} has no name.` };
-    if (!(grams > 0 && grams <= 3000)) return { ok: false, items: [], error: `Item ${i + 1} ("${name}") needs grams between 1 and 3000.` };
+    // Tolerate "85 g" written as text (pasted answers).
+    const grams = typeof o?.grams === 'string' ? parseFloat(o.grams) : Number(o?.grams);
+    if (!name) return { ok: false, items: [], skipped: [], error: `Item ${i + 1} has no name.` };
+    // One bad item shouldn't throw away the rest: leave it out and say so.
+    if (!(grams >= 1 && grams <= 3000)) { skipped.push(name); continue; }
     let low = Number(o.grams_low);
     let high = Number(o.grams_high);
     if (!(low > 0) || low > grams) low = Math.round(grams * 0.75);
@@ -77,7 +81,8 @@ export function validateAiResult(raw: unknown): AiValidation {
     const conf = o.confidence === 'low' || o.confidence === 'high' ? o.confidence : 'medium';
     out.push({ name, grams: Math.round(grams), grams_low: Math.round(low), grams_high: Math.round(high), confidence: conf, notes: typeof o.notes === 'string' ? o.notes.slice(0, 200) : '' });
   }
-  return { ok: true, items: out, error: '' };
+  if (!out.length) return { ok: false, items: [], skipped, error: 'None of the foods had a usable amount in grams.' };
+  return { ok: true, items: out, error: '', skipped };
 }
 
 export interface Usage { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null }
@@ -109,6 +114,7 @@ export const SYSTEM_PROMPT = [
   'Name foods the way a nutrition database would (e.g. "chicken breast, grilled", "white rice, cooked", "brown gravy").',
   'Split mixed plates into components; count added fats (oil, butter, dressing, sauce) as their own items when they are significant.',
   'For each item give a best estimate, a realistic low–high range, and your confidence. Keep notes short.',
+  'Every item must have grams above 0. Leave out foods that are not in the meal instead of giving them 0 grams.',
 ].join(' ');
 
 const SOURCE_TEXT: Record<Source, string> = {

@@ -6,7 +6,7 @@ const ctx: EstimateContext = { source: '', place: '', portion: '', portionGrams:
 describe('AI result validation', () => {
   it('accepts the documented shape', () => {
     const v = validateAiResult({ items: [{ name: 'white rice, cooked', grams: 180, grams_low: 140, grams_high: 220, confidence: 'medium', notes: 'mounded' }] });
-    expect(v).toEqual({ ok: true, error: '', items: [{ name: 'white rice, cooked', grams: 180, grams_low: 140, grams_high: 220, confidence: 'medium', notes: 'mounded' }] });
+    expect(v).toEqual({ ok: true, error: '', skipped: [], items: [{ name: 'white rice, cooked', grams: 180, grams_low: 140, grams_high: 220, confidence: 'medium', notes: 'mounded' }] });
   });
 
   it('accepts pasted text with code fences and fills a missing range', () => {
@@ -19,7 +19,12 @@ describe('AI result validation', () => {
     expect(validateAiResult('no json here').error).toMatch(/No JSON/);
     expect(validateAiResult('{"items": [}').error).toMatch(/valid JSON/);
     expect(validateAiResult({ items: [] }).error).toMatch(/at least one/);
-    expect(validateAiResult({ items: [{ name: 'x', grams: 0 }] }).error).toMatch(/between 1 and 3000/);
+    expect(validateAiResult({ items: [{ name: 'x', grams: 0 }] }).error).toMatch(/usable amount/);
+    // One bad item is left out; the rest still work (real case: "pinto beans, cooked" came back with 0 g).
+    const mixed = validateAiResult({ items: [{ name: 'rice', grams: 180 }, { name: 'pinto beans, cooked', grams: 0 }, { name: 'salsa', grams: '40 g' }] });
+    expect(mixed.ok).toBe(true);
+    expect(mixed.items.map((i) => [i.name, i.grams])).toEqual([['rice', 180], ['salsa', 40]]);
+    expect(mixed.skipped).toEqual(['pinto beans, cooked']);
     expect(validateAiResult({ items: [{ grams: 10 }] }).error).toMatch(/no name/);
     expect(validateAiResult({ items: Array.from({ length: 21 }, () => ({ name: 'a', grams: 1 })) }).error).toMatch(/max 20/);
   });

@@ -61,7 +61,7 @@ export function cleanImages(raw: unknown): ImageIn[] {
   });
 }
 
-export interface EstimateResult { items: AiItem[]; cost_usd: number; month_total: number; cap: number }
+export interface EstimateResult { items: AiItem[]; skipped: string[]; cost_usd: number; month_total: number; cap: number }
 
 /** Calls Claude Haiku 5.5 with structured JSON output, logs usage, returns validated items. */
 export async function estimate(env: Env, sheets: Sheets, args: { description: string; images: ImageIn[]; context: EstimateContext }, nowMs = Date.now()): Promise<EstimateResult> {
@@ -113,5 +113,5 @@ export async function estimate(env: Env, sheets: Sheets, args: { description: st
   const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
   const v = validateAiResult(text);
   if (!v.ok) throw new HttpError(502, 'ai_bad_output', `The AI answer couldn't be read (${v.error}). Try again or enter it manually.`);
-  return { items: v.items, cost_usd: cost, month_total: before.total + cost, cap: before.cap };
+  return { items: v.items, skipped: v.skipped, cost_usd: cost, month_total: before.total + cost, cap: before.cap };
 }

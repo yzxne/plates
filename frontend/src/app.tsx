@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { Meal } from '../../shared/nutrition';
-import { formatDuration, previousSets, type Exercise, type Routine, type Workout } from '../../shared/training';
+import { formatDuration, nextRoutine, previousSets, type Exercise, type Routine, type Workout } from '../../shared/training';
 import { getActive, startWorkout, subscribeActive } from './activeWorkout';
-import { ApiError, getToken, onUnauthorized } from './api';
+import { ApiError, errorMessage, getToken, onUnauthorized } from './api';
 import { TabBar, type TabId } from './components/TabBar';
 import { ToastHost } from './components/ToastHost';
 import { UndoHost } from './components/UndoHost';
@@ -19,7 +19,7 @@ import { NextWorkoutCard, Train } from './screens/Train';
 import { loadSettings, mealNow } from './settingsStore';
 import { ensureCheckIn } from './coachData';
 import { showToast } from './toast';
-import { cachedHistory, exerciseMap, loadExercises, loadHistory } from './trainData';
+import { cachedHistory, exerciseMap, loadExercises, loadHistory, loadRoutines } from './trainData';
 
 const GOOGLE_ERRORS: Record<string, string> = {
   denied: 'Google sign-in was cancelled.',
@@ -91,6 +91,25 @@ export function App() {
     const onVisible = () => { if (document.visibilityState === 'visible') run(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [authed, setup]);
+
+  // Deep link for iPhone Shortcuts: ...?start=next opens straight into the next routine in the rotation.
+  useEffect(() => {
+    if (!authed || setup !== 'done') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('start') !== 'next') return;
+    history.replaceState(null, '', window.location.pathname);
+    setTab('train');
+    void (async () => {
+      try {
+        const [routines, past] = await Promise.all([loadRoutines(), loadHistory()]);
+        const r = nextRoutine(routines, past);
+        if (getActive()) showToast('A workout is already in progress', 'info');
+        await start(r ?? undefined);
+      } catch (err) {
+        showToast(errorMessage(err), 'error');
+      }
+    })();
   }, [authed, setup]);
 
   // Retry unsaved writes when the app opens, comes back to the foreground, or the network returns.

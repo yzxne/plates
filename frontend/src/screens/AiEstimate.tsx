@@ -55,7 +55,7 @@ export function AiEstimate({ mode: initialMode, initialText = '', date, meal, on
   const [error, setError] = useState<{ text: string; capReached?: boolean } | null>(null);
   const [chain, setChain] = useState<Food[] | null>(null);
   const [pasted, setPasted] = useState('');
-  const [review, setReview] = useState<{ items: AiItem[]; cost?: number; month?: number; cap?: number } | null>(null);
+  const [review, setReview] = useState<{ items: AiItem[]; skipped?: string[]; cost?: number; month?: number; cap?: number } | null>(null);
 
   useEffect(() => { loadPortions().then(setPortions).catch(() => {}); }, []);
 
@@ -115,7 +115,7 @@ export function AiEstimate({ mode: initialMode, initialText = '', date, meal, on
       const r = mode === 'photo'
         ? await scanMeal([photos.top!, ...(photos.side ? [photos.side] : [])], desc, context())
         : await estimateText(desc, context());
-      setReview({ items: r.items, cost: r.cost_usd, month: r.month_total, cap: r.cap });
+      setReview({ items: r.items, skipped: r.skipped, cost: r.cost_usd, month: r.month_total, cap: r.cap });
     } catch (err) {
       const cap = err instanceof ApiError && (err.code === 'ai_cap_reached' || err.code === 'ai_not_configured' || err.code === 'ai_no_credit');
       setError({ text: errorMessage(err), capReached: cap });
@@ -140,12 +140,12 @@ export function AiEstimate({ mode: initialMode, initialText = '', date, meal, on
     if (!v.ok) { setError({ text: v.error }); return; }
     setError(null);
     rememberChoice(source, place.trim());
-    setReview({ items: v.items });
+    setReview({ items: v.items, skipped: v.skipped });
   }
 
   if (review) {
     return (
-      <AiReview items={review.items} cost={review.cost} month={review.month} cap={review.cap} source={source} place={place.trim()}
+      <AiReview items={review.items} skipped={review.skipped ?? []} cost={review.cost} month={review.month} cap={review.cap} source={source} place={place.trim()}
         portions={knownHere} date={date} meal={meal} method={METHOD[mode]} onBack={() => setReview(null)} onDone={onDone} onChanged={onChanged} />
     );
   }
@@ -319,8 +319,8 @@ interface Line {
   changing: boolean;
 }
 
-function AiReview({ items, cost, month, cap, source, place, portions, date, meal, method, onBack, onDone, onChanged }: {
-  items: AiItem[]; cost?: number; month?: number; cap?: number; source: Source; place: string; portions: UsualPortion[];
+function AiReview({ items, skipped, cost, month, cap, source, place, portions, date, meal, method, onBack, onDone, onChanged }: {
+  items: AiItem[]; skipped: string[]; cost?: number; month?: number; cap?: number; source: Source; place: string; portions: UsualPortion[];
   date: string; meal: Meal; method: string; onBack: () => void; onDone: () => void; onChanged: () => void;
 }) {
   // Your chosen correction for this source (Settings / Progress → Estimate accuracy); usual portions are never corrected.
@@ -384,6 +384,7 @@ function AiReview({ items, cost, month, cap, source, place, portions, date, meal
         </div>
         <p class="big-num">~{fmt(total)} kcal</p>
         <p class="muted tiny-pad">Likely {fmt(low)}–{fmt(high)} kcal · {place || source}</p>
+        {skipped.length > 0 && <p class="warn tiny-pad">Left out (no amount given): {skipped.join(', ')}. Add them with search if you had them.</p>}
         {factor !== 1 && <p class="muted tiny-pad">Includes your ×{factor} {source} correction (Settings → Advanced).</p>}
         {cost != null && <p class="muted tiny-pad">Cost ${cost.toFixed(4)} · this month ${(month ?? 0).toFixed(2)} of ${(cap ?? 0).toFixed(2)}</p>}
       </div>

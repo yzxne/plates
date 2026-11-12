@@ -15,6 +15,9 @@ import { addSub, cancelRest, removeSub, scheduleRest, sendToAll, validEndpoint }
 export { RestTimer } from './push';
 import { checkTypedCode } from '../../shared/barcode';
 import { applyFilters, Sheets, type Filters } from './sheets';
+import {
+  createShortcutKey, requireShortcutKey, revokeShortcutKey, shortcutKeyStatus, shortcutLog, shortcutSummary, shortcutWeight,
+} from './shortcuts';
 
 export default {
   fetch: (request: Request, env: Env) => handle(request, env),
@@ -162,7 +165,21 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   // ---------- Authenticated ----------
   if (!allowRequest(ip)) throw new HttpError(429, 'rate_limited', 'Too many requests. Slow down for a minute.');
+
+  // ---------- iPhone Shortcuts (own key, not the session) ----------
+  if (path.startsWith('/shortcut/')) {
+    await requireShortcutKey(request, env.PLATES_KV);
+    if (method === 'POST' && path === '/shortcut/weight') return json(await shortcutWeight(await sheetFor(env), await readJson(request)));
+    if (method === 'GET' && path === '/shortcut/summary') return json(await shortcutSummary(await sheetFor(env)));
+    if (method === 'POST' && path === '/shortcut/log') return json(await shortcutLog(env, await sheetFor(env), await readJson(request)));
+    throw new HttpError(404, 'not_found', 'Not found');
+  }
+
   await requireSession(request, env);
+
+  if (method === 'GET' && path === '/shortcut-key') return json(await shortcutKeyStatus(env.PLATES_KV));
+  if (method === 'POST' && path === '/shortcut-key') return json(await createShortcutKey(env.PLATES_KV));
+  if (method === 'POST' && path === '/shortcut-key/revoke') { await revokeShortcutKey(env.PLATES_KV); return json({ ok: true }); }
 
   if (method === 'GET' && path === '/auth/check') return json({ ok: true });
 

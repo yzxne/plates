@@ -6,7 +6,7 @@ import { addEntry, cachedFoods, loadFoods, readTabs, saveFood, uuid, write } fro
 import type { ResizedImage } from './imageResize';
 import { safeStore } from './storage';
 
-export interface AiResponse { items: AiItem[]; cost_usd: number; month_total: number; cap: number }
+export interface AiResponse { items: AiItem[]; skipped?: string[]; cost_usd: number; month_total: number; cap: number }
 export interface AiUsage { month_total: number; count: number; cap: number; configured: boolean }
 
 export const getUsage = () => api<AiUsage>('GET', '/ai/usage');

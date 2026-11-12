@@ -169,3 +169,13 @@ Do these on your **computer** first (bigger screen for the preview), then try on
 - [ ] Buttons feel easy to hit on iPhone: meal "⋯" menus, the week grid days, Consumed/Remaining, routine ↑ ↓.
 - [ ] Turn on Airplane mode → open Today → you see an error with **Try again** (not a blank screen). Turn it off → Try again works.
 - [ ] Read `docs/backup.md` once and do your first monthly Excel export.
+
+## Shortcuts (Phase 8 add-on)
+
+Guide: `docs/shortcuts.md`. Settings → iPhone Shortcuts → Make a key → Copy.
+
+- [ ] **Weight automation**: run it once by hand (tap the automation → Run). A weigh-in from Health appears in Plates; running again says "Already logged".
+- [ ] **Log food**: "Hey Siri, log food" → "two eggs and toast" → Siri reads back what was logged; it shows on Today marked *estimate*.
+- [ ] **Evening reminder**: run it by hand with today not marked complete → notification with today's calories.
+- [ ] **Next workout**: opens Safari on Plates (log in once there) and starts the next routine.
+- [ ] Settings → Shortcuts → **Turn off** → the weight shortcut now fails with "key missing or revoked". Make a new key and paste it back.

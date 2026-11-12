@@ -6,6 +6,7 @@ import { ConnectionCard } from '../components/ConnectionCard';
 import { IconBack, IconChevron } from '../components/Icons';
 import { NotificationsCard } from '../components/NotificationsCard';
 import { PendingCard } from '../components/PendingCard';
+import { ShortcutsCard } from '../components/ShortcutsCard';
 import { DataScreen } from './DataScreen';
 import { SavedFoods } from './SavedFoods';
 import { Settings } from './Settings';
@@ -57,6 +58,7 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
             </div>
             <AiUsageCard />
             <NotificationsCard />
+            <ShortcutsCard />
             <ConnectionCard />
             <div class="link-row">
               <button class="btn link" onClick={logoutOthers}>Sign out other devices</button>

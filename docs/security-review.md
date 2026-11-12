@@ -10,6 +10,7 @@ Scope: the Worker (`backend/src`), the web app (`frontend/src`), secrets handlin
 | Brute force | 5 wrong passcodes per IP → 15 min lock; 20 wrong anywhere in an hour → all logins locked 1 h (KV). | OK |
 | Sessions | HMAC-signed tokens, 30-day expiry, typed (`session` vs `oauth_state`). **New:** "Sign out other devices" rejects every session issued before that moment. | Fixed |
 | CORS | Only `https://yzxne.github.io` gets CORS headers; other browser origins get 403. Requests without an Origin still need a valid session. | OK |
+| Shortcuts key | Separate random key (`plk_…`, 256-bit) for iPhone Shortcuts; only its SHA-256 hash is stored (KV). Works only on `/shortcut/*` (log weight, quick-log food, read today's totals); can't read or change anything else. Replace or turn off in Settings. | Added |
 | Rate limit | 120 requests/min per IP per server instance on authenticated routes. AI calls also capped by the monthly $ cap and the Anthropic workspace limit. | OK (approximate by design) |
 | Input validation | Tab names and columns checked against the schema; 500 rows / 1 MB per request (7 MB for photos); settings validated; AI images type/size checked. | OK |
 | Spreadsheet injection | Writes use `RAW` input, so text like `=IMPORTDATA(…)` is stored as text, never run as a formula. Excel export writes strings as strings. | OK |
