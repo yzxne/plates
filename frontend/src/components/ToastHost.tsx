@@ -6,7 +6,7 @@ export function ToastHost() {
   useEffect(() => subscribeToast(setMsg), []);
   if (!msg) return null;
   return (
-    <div class={`toast ${msg.kind}`} role={msg.kind === 'error' ? 'alert' : 'status'} key={msg.id}>
+    <div class={`toast ${msg.kind} ${msg.text.startsWith('🏆') ? 'pr' : ''}`} role={msg.kind === 'error' ? 'alert' : 'status'} key={msg.id}>
       {msg.text}
     </div>
   );

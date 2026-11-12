@@ -736,3 +736,24 @@ h2.inline { display: inline; margin: 0; }
 .skel-row { gap: 16px; }
 @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+
+/* ---------- Motion (small and quick; none with Reduce Motion) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* 1. Sheets slide up, full-screen layers rise in, backdrop fades */
+  .sheet-backdrop { animation: fade-in 0.18s ease-out; }
+  .sheet { animation: sheet-up 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .overlay { animation: overlay-in 0.2s ease-out; }
+  /* 2. Bars fill smoothly when numbers change */
+  .macro-fill, .mb-fill, .usage-bar span { transition: width 0.35s ease-out; }
+  .wk-fill { transition: height 0.35s ease-out; }
+  /* 3. Ticking a set: the ✓ pulses and the row eases to green */
+  .set-row { transition: background-color 0.25s ease-out; }
+  .check.on { animation: tick-pulse 0.28s ease-out; }
+  /* 4. PR toast pops */
+  .toast.pr { animation: pr-pop 0.42s cubic-bezier(0.2, 1.4, 0.4, 1); border-color: var(--warn); }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes overlay-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes tick-pulse { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes pr-pop { 0% { opacity: 0; transform: translateY(10px) scale(0.92); } 100% { opacity: 1; transform: none; } }
