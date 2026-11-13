@@ -20,7 +20,7 @@ import { showUndo } from '../undo';
 import { SkeletonRows } from '../components/Skeleton';
 import { AmountPicker } from '../components/AmountPicker';
 import { NutrientTable } from '../components/NutrientTable';
-import { DrinkList } from '../components/Drinks';
+import { DrinkList, isDrinkNight } from '../components/Drinks';
 
 type View =
   | { kind: 'home' }
@@ -198,7 +198,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
   const [saved, setSaved] = useState<Food[]>(cachedFoods());
   const [recents, setRecents] = useState<RecentFood[] | null>(null);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
-  const [list, setList] = useState<'recent' | 'favorites' | 'drinks'>('recent');
+  const [list, setList] = useState<'recent' | 'favorites' | 'drinks'>(() => (isDrinkNight() ? 'drinks' : 'recent'));
   const [busy, setBusy] = useState<'' | 'usda' | 'off'>('');
   const [error, setError] = useState('');
 

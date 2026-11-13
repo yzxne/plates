@@ -84,3 +84,11 @@ export function DrinkList({ date, meal, onLogged }: { date: string; meal: Meal; 
     </>
   );
 }
+
+/** Friday–Sunday nights from 9 PM (until 4 AM the next morning), Chicago time: open Add on the Drinks tab. */
+export function isDrinkNight(now = new Date()): boolean {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', hourCycle: 'h23' })
+    .formatToParts(now).map((x) => [x.type, x.value]));
+  const h = Number(p.hour);
+  return (h >= 21 && ['Fri', 'Sat', 'Sun'].includes(p.weekday!)) || (h < 4 && ['Sat', 'Sun', 'Mon'].includes(p.weekday!));
+}
