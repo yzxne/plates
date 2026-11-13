@@ -492,7 +492,7 @@ function ExerciseDetail({ exercise, history, onBack, onChanged }: { exercise: Ex
     <section>
       <Back title={exercise.name} onBack={onBack} right={<button class="btn link" onClick={() => setEditing(true)}>Edit</button>} />
       <p class="muted">{[exercise.primary.join(', '), exercise.secondary.length ? `also ${exercise.secondary.join(', ')}` : '', exercise.equipment].filter(Boolean).join(' · ')}</p>
-      <ExerciseHistory exerciseId={exercise.id} history={history} />
+      <ExerciseHistory exerciseId={exercise.id} name={exercise.name} history={history} />
     </section>
   );
 }

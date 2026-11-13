@@ -860,3 +860,12 @@ h2.inline { display: inline; margin: 0; }
 .drink-count button { width: 40px; height: 40px; border-radius: 999px; border: none; background: var(--surface-2); color: var(--text); font-size: 20px; cursor: pointer; }
 .drink-count button:disabled { opacity: 0.35; cursor: default; }
 .drink-count span { min-width: 22px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Form tips on the exercise page */
+.form-tips summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.form-tips summary::-webkit-details-marker { display: none; }
+.form-tips summary::after { content: '›'; color: var(--muted); font-size: 20px; transform: rotate(90deg); transition: transform 0.15s; }
+.form-tips:not([open]) summary::after { transform: none; }
+.form-tips summary h2 { margin: 0; }
+.form-tips ul { margin: 10px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.form-tips li { line-height: 1.4; }

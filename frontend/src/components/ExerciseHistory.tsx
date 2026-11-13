@@ -2,6 +2,7 @@
 // Used on Train → Exercises and from the workout screen (tap an exercise name).
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { bestSet, bestsFor, epley1RM, findStall, isWorkingSet, type LoggedSet, type Workout } from '../../../shared/training';
+import { formTips } from '../../../shared/formTips';
 import { shiftDate, today } from '../dates';
 import { fmt } from '../format';
 import { loadWeights, type WeighIn } from '../weightData';
@@ -26,7 +27,7 @@ function weightNear(weights: WeighIn[], date: string): { lb: number; exact: bool
   return best && gap <= 3 ? { lb: best.weight_lb, exact: gap === 0 } : null;
 }
 
-export function ExerciseHistory({ exerciseId, history }: { exerciseId: string; history: Workout[] }) {
+export function ExerciseHistory({ exerciseId, name, history }: { exerciseId: string; name: string; history: Workout[] }) {
   const [range, setRange] = useState<number>(182);
   const [shown, setShown] = useState(10);
   const [weights, setWeights] = useState<WeighIn[]>([]);
@@ -67,8 +68,15 @@ export function ExerciseHistory({ exerciseId, history }: { exerciseId: string; h
   }, [sessions, range]);
 
   const list = [...sessions].reverse();
+  const tips = formTips(name);
   return (
     <>
+      <details class="card form-tips" open>
+        <summary><h2>Form tips</h2></summary>
+        <ul>{tips.tips.map((t) => <li key={t}>{t}</li>)}</ul>
+        {tips.general && <small class="muted">General tips; no specific ones for this exercise yet.</small>}
+      </details>
+
       <div class="card">
         <h2>Records</h2>
         {best ? (

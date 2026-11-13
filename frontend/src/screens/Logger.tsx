@@ -339,7 +339,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
             <button class="icon-btn" aria-label="Back to workout" onClick={() => setHistoryFor(null)}><IconBack /></button>
             <h1 class="clip grow overlay-h1">{exMap.get(historyFor)?.name ?? 'Exercise'}</h1>
           </header>
-          <div class="overlay-body"><ExerciseHistory exerciseId={historyFor} history={history} /></div>
+          <div class="overlay-body"><ExerciseHistory exerciseId={historyFor} name={exMap.get(historyFor)?.name ?? ""} history={history} /></div>
         </div>
       )}
       {menu != null && w.exercises[menu] && (
