@@ -853,3 +853,10 @@ h2.inline { display: inline; margin: 0; }
 .combo-part .row-text.plain { background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 8px 0; }
 .combo-part .small-link { min-height: 36px; font-size: 14px; flex: none; }
 .add-plus { color: var(--accent); font-size: 22px; font-weight: 600; flex: none; }
+
+/* Drinks tab */
+.drink-row { gap: 10px; }
+.drink-count { display: flex; align-items: center; gap: 4px; flex: none; }
+.drink-count button { width: 40px; height: 40px; border-radius: 999px; border: none; background: var(--surface-2); color: var(--text); font-size: 20px; cursor: pointer; }
+.drink-count button:disabled { opacity: 0.35; cursor: default; }
+.drink-count span { min-width: 22px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -20,6 +20,7 @@ import { showUndo } from '../undo';
 import { SkeletonRows } from '../components/Skeleton';
 import { AmountPicker } from '../components/AmountPicker';
 import { NutrientTable } from '../components/NutrientTable';
+import { DrinkList } from '../components/Drinks';
 
 type View =
   | { kind: 'home' }
@@ -197,7 +198,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
   const [saved, setSaved] = useState<Food[]>(cachedFoods());
   const [recents, setRecents] = useState<RecentFood[] | null>(null);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
-  const [list, setList] = useState<'recent' | 'favorites'>('recent');
+  const [list, setList] = useState<'recent' | 'favorites' | 'drinks'>('recent');
   const [busy, setBusy] = useState<'' | 'usda' | 'off'>('');
   const [error, setError] = useState('');
 
@@ -263,8 +264,10 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
           <div class="seg mb">
             <button class={list === 'recent' ? 'on' : ''} onClick={() => setList('recent')}>Recent</button>
             <button class={list === 'favorites' ? 'on' : ''} onClick={() => setList('favorites')}>Favorites</button>
+            <button class={list === 'drinks' ? 'on' : ''} onClick={() => setList('drinks')}>Drinks</button>
           </div>
-          <p class="muted tiny-pad">Tap to log your usual amount · press and hold to change it first.</p>
+          {list === 'drinks' && <DrinkList date={date} meal={meal} onLogged={onLogged} />}
+          {list !== 'drinks' && <p class="muted tiny-pad">Tap to log your usual amount · press and hold to change it first.</p>}
           {list === 'recent' && (
             recents === null ? <SkeletonRows rows={4} />
               : recents.length === 0 ? <p class="muted">Foods you log show up here.</p>
@@ -275,7 +278,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
               : <FoodRows foods={favorites} gramsFor={(f) => defaultGrams(f)} onTap={(f) => onQuickLog(f, defaultGrams(f))} onHold={onOpen} />
           )}
 
-          {savedMeals.length > 0 && (
+          {list !== 'drinks' && savedMeals.length > 0 && (
             <section class="results">
               <h3>Saved meals</h3>
               <div class="list card">
@@ -288,14 +291,14 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
             </section>
           )}
 
-          <section class="results">
+          {list !== 'drinks' && <section class="results">
             <h3>Other ways</h3>
             <div class="list card">
               <button class="row" onClick={() => go({ kind: 'label' })}><span class="row-text"><span>Paste or scan label text</span><small class="muted">Live Text / Scan Text</small></span><IconChevron size={18} /></button>
               <button class="row" onClick={() => go({ kind: 'quick' })}><span class="row-text"><span>Quick add</span><small class="muted">Just calories (and macros)</small></span><IconChevron size={18} /></button>
               <button class="row" onClick={() => go({ kind: 'ai', mode: 'paste' })}><span class="row-text"><span>Paste AI result</span><small class="muted">From the Claude or Gemini app (no API cost)</small></span><IconChevron size={18} /></button>
             </div>
-          </section>
+          </section>}
         </>
       )}
 

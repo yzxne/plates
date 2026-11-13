@@ -10,7 +10,7 @@ import {
 } from '../aiData';
 import { ApiError, errorMessage } from '../api';
 import { IconChevron } from '../components/Icons';
-import { cachedFoods, deleteEntry } from '../foodData';
+import { cachedFoods, deleteEntry, uuid } from '../foodData';
 import { fmt, foodSummary, sourceLabel } from '../format';
 import { resizePhoto, type ResizedImage } from '../imageResize';
 import { getSettings } from '../settingsStore';
@@ -330,6 +330,9 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
     return { item, grams: String(usual?.grams ?? correctGrams(item.grams, factor)), food: null, matching: true, include: true, usual, saveUsual: false, changing: false };
   }));
   const [busy, setBusy] = useState(false);
+  // 2+ foods log as one combo (open it later to change a part). Name defaults to the place, else the meal.
+  const [together, setTogether] = useState(true);
+  const [comboName, setComboName] = useState(() => place || `${MEAL_LABELS[meal]} plate`);
 
   const update = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
 
@@ -355,10 +358,11 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
     setBusy(true);
     const done: LogEntry[] = [];
     let allOk = true;
+    const group = together && included.length >= 2 ? { id: uuid(), name: comboName.trim() || `${MEAL_LABELS[meal]} plate` } : undefined;
     try {
       for (const l of included) {
         const g = Number(l.grams);
-        const r = await logAiItem({ date, meal, name: l.item.name, grams: g, matched: l.food!, source, place, method });
+        const r = await logAiItem({ date, meal, name: l.item.name, grams: g, matched: l.food!, source, place, method, group });
         done.push(r.entry);
         allOk &&= r.ok;
         if (l.saveUsual && place) await saveUsualPortion(source, place, l.item.name, g);
@@ -429,6 +433,22 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
           </div>
         );
       })}
+
+      {included.length >= 2 && (
+        <div class="card">
+          <label class="tick">
+            <input type="checkbox" checked={together} onChange={(e) => setTogether(e.currentTarget.checked)} />
+            <span>Log as one item</span>
+          </label>
+          {together && (
+            <div class="field no-mb mt">
+              <label for="ai-combo-name">Name</label>
+              <input id="ai-combo-name" type="text" value={comboName} onInput={(e) => setComboName(e.currentTarget.value)} />
+              <small class="muted">Shows as one row. Tap it later to change any food inside.</small>
+            </div>
+          )}
+        </div>
+      )}
 
       <button class="btn primary" disabled={!ready || busy} onClick={logAll}>{busy ? 'Logging…' : `Log ${included.length} item${included.length === 1 ? '' : 's'} to ${MEAL_LABELS[meal]}`}</button>
       <button class="btn center-block" disabled={busy} onClick={onBack}>Back</button>

@@ -143,11 +143,14 @@ export async function cacheAiFood(name: string, place: string, matched: Food): P
 
 export async function logAiItem(args: {
   date: string; meal: Meal; name: string; grams: number; matched: Food; source: Source; place: string; method: string;
+  /** Log as part of a combo (several foods shown as one item). */
+  group?: { id: string; name: string };
 }): Promise<{ entry: LogEntry; ok: boolean }> {
   const food = await cacheAiFood(args.name, args.place, args.matched);
   const entry = makeEntry({
     id: uuid(), date: args.date, meal: args.meal, food, grams: args.grams, method: args.method,
     food_source: args.source, place: args.place.trim(), is_estimate: true,
   });
+  if (args.group) Object.assign(entry, { group_id: args.group.id, group_name: args.group.name });
   return { entry, ok: await addEntry(entry) };
 }

@@ -18,6 +18,11 @@ interface Props {
 }
 
 const QUICK = [[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2']] as const;
+const DRINK_QUICK = [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5']] as const;
+const perUnit = (n: Nutrients, k: number): Nutrients => ({
+  kcal: n.kcal / k, protein_g: n.protein_g / k, carbs_g: n.carbs_g / k, fat_g: n.fat_g / k,
+  fiber_g: n.fiber_g == null ? null : n.fiber_g / k, sugar_g: n.sugar_g == null ? null : n.sugar_g / k, sodium_mg: n.sodium_mg == null ? null : n.sodium_mg / k,
+});
 
 function timeLabel(e: LogEntry): string {
   const m = /(\d{1,2}:\d{2}\s*[ap]m)/i.exec(e.entry_method.startsWith('import') ? e.notes : '');
@@ -34,8 +39,10 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
 
   // With a food: grams. Without: a servings multiplier on the logged numbers (editable as "base").
   const [grams, setGrams] = useState(entry.grams ?? 0);
-  const [times, setTimes] = useState('1');
-  const [base, setBase] = useState<Nutrients>(entry.n);
+  // Drinks are counted: the amount is the number of drinks and the base is one drink.
+  const isDrink = entry.entry_method === 'drink' && (entry.servings ?? 0) > 0;
+  const [times, setTimes] = useState(isDrink ? String(entry.servings) : '1');
+  const [base, setBase] = useState<Nutrients>(() => (isDrink ? perUnit(entry.n, entry.servings!) : entry.n));
   const [editNumbers, setEditNumbers] = useState(false);
 
   useEffect(() => {
@@ -61,7 +68,7 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
         food_name: entry.food_name, logged_at: entry.logged_at, source_tab: entry.source_tab,
         group_id: entry.group_id, group_name: entry.group_name,
       }
-      : { ...entry, meal, n };
+      : { ...entry, meal, n, ...(isDrink ? { servings: mult } : {}) };
     setBusy(true);
     try {
       const ok = await updateEntry(updated);
@@ -127,10 +134,10 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
               <label for="edit-times">Amount</label>
               <div class="with-unit">
                 <input id="edit-times" type="text" inputMode="decimal" value={times} onInput={(e) => setTimes(e.currentTarget.value)} />
-                <span class="unit">× as logged</span>
+                <span class="unit">{isDrink ? (mult === 1 ? 'drink' : 'drinks') : '× as logged'}</span>
               </div>
               <div class="chips amount-chips" role="group" aria-label="Quick amounts">
-                {QUICK.map(([v, label]) => <button type="button" key={label} class={`chip ${mult === v ? 'on' : ''}`} onClick={() => setTimes(String(v))}>{label}</button>)}
+                {(isDrink ? DRINK_QUICK : QUICK).map(([v, label]) => <button type="button" key={label} class={`chip ${mult === v ? 'on' : ''}`} onClick={() => setTimes(String(v))}>{label}</button>)}
               </div>
             </div>
           )}
@@ -140,7 +147,7 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
           {!food && !loading && (
             editNumbers ? (
               <div class="form mt">
-                <p class="muted tiny">Numbers for 1 × as logged.</p>
+                <p class="muted tiny">{isDrink ? 'Numbers for 1 drink.' : 'Numbers for 1 × as logged.'}</p>
                 {numberField('kcal', 'Calories', 'kcal')}
                 {numberField('protein_g', 'Protein', 'g')}
                 {numberField('carbs_g', 'Carbs', 'g')}
@@ -150,7 +157,7 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
                 {numberField('sodium_mg', 'Sodium', 'mg')}
               </div>
             ) : (
-              <button class="btn link" onClick={() => { setBase(n); setTimes('1'); setEditNumbers(true); }}>Edit numbers</button>
+              <button class="btn link" onClick={() => { if (!isDrink) { setBase(n); setTimes('1'); } setEditNumbers(true); }}>Edit numbers</button>
             )
           )}
         </div>

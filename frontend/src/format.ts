@@ -7,6 +7,7 @@ export const macroLine = (n: Nutrients) => `P ${fmt(n.protein_g)} · C ${fmt(n.c
 
 export function amountLine(e: LogEntry): string {
   const parts: string[] = [];
+  if (e.entry_method === 'drink') return `${fmt(e.servings ?? 1, 2)} drink${e.servings === 1 ? '' : 's'}${e.notes ? ` · ${e.notes}` : ''}`;
   if (e.servings != null && e.grams != null) parts.push(`${fmt(e.servings, 2)} serving${e.servings === 1 ? '' : 's'}`);
   else if (e.servings != null && e.grams == null) parts.push(`${fmt(e.servings, 2)} × quick add`);
   if (e.grams != null) parts.push(`${fmt(e.grams, 1)} g`);
