@@ -19,6 +19,7 @@ import { showToast } from '../toast';
 import { showUndo } from '../undo';
 import { SkeletonRows } from '../components/Skeleton';
 import { AmountPicker } from '../components/AmountPicker';
+import { NutrientTable } from '../components/NutrientTable';
 
 type View =
   | { kind: 'home' }
@@ -453,20 +454,6 @@ function Detail({ food: initial, method, date, meal, onLogged }: { food: Food; m
         {food.source === 'usda' && <p class="muted tiny">Source: USDA FoodData Central</p>}
       </div>
       <button class="btn primary" disabled={!preview || busy} onClick={log}>{busy ? 'Logging…' : `Log to ${MEAL_LABELS[meal]}`}</button>
-    </div>
-  );
-}
-
-function NutrientTable({ n }: { n: Nutrients }) {
-  return (
-    <div class="nutrients">
-      <div class="kcal"><strong>{fmt(n.kcal)}</strong> kcal</div>
-      <div class="macro-grid">
-        <div><strong>{fmt(n.protein_g, 1)}</strong><span>Protein g</span></div>
-        <div><strong>{fmt(n.carbs_g, 1)}</strong><span>Carbs g</span></div>
-        <div><strong>{fmt(n.fat_g, 1)}</strong><span>Fat g</span></div>
-      </div>
-      <small class="muted">Fiber {fmt(n.fiber_g, 1)} g · Sugar {fmt(n.sugar_g, 1)} g · Sodium {fmt(n.sodium_mg)} mg</small>
     </div>
   );
 }

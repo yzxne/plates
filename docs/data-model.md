@@ -1,6 +1,6 @@
 # Data Model (Google Sheet)
 
-Source of truth: `shared/schema.ts`. Schema version **5**. v5 added `Routines.folder` (optional; rotation stays inside a folder). v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
+Source of truth: `shared/schema.ts`. Schema version **6**. v6 added `FoodLog.group_id`, `group_name` (foods combined into one named item; parts share `group_id`). v5 added `Routines.folder` (optional; rotation stays inside a folder). v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
 
 ## Conventions
 
@@ -46,7 +46,7 @@ Saved/cached foods. Nutrients both per 100 g and per serving.
 `id, name, brand, source (usda|off|label|ai|manual|quick), source_id, barcode, serving_size, serving_unit, grams_per_serving, kcal_100g, protein_g_100g, carbs_g_100g, fat_g_100g, fiber_g_100g, sugar_g_100g, sodium_mg_100g, kcal_serving, protein_g_serving, carbs_g_serving, fat_g_serving, fiber_g_serving, sugar_g_serving, sodium_mg_serving, created_at, updated_at, deleted_at`
 
 ### FoodLog
-`id, date, meal (breakfast|lunch|dinner|snack), food_id → Foods.id, food_name (copy for readability), grams, servings, kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, entry_method (search|barcode|label|ai|paste_ai|quick|manual), notes, created_at, updated_at, deleted_at`
+`id, date, meal (breakfast|lunch|dinner|snack), food_id → Foods.id, food_name (copy for readability), grams, servings, kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, entry_method (search|barcode|label|ai|paste_ai|quick|manual), notes, created_at, updated_at, deleted_at, food_source, place, is_estimate, group_id, group_name`. Rows with the same `group_id` show in the app as one combined item named `group_name`; each part keeps its own numbers.
 
 ### FoodArchive (v4)
 Imported food history (Cal AI). **Same columns as FoodLog.** `entry_method` starts with `import_` (e.g. `import_calai`), `food_id` and `grams` are blank (the report has totals only), ids are `calai-<hash>` so re-importing skips them. Kept out of FoodLog so everyday reads of FoodLog stay small (the Worker's free plan allows ~10 ms CPU per request; parsing ~3,500 extra rows took 7–10 ms). The app reads it only for dates ≤ `archive_through`; edits/deletes of imported entries go to this tab.

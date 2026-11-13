@@ -1,7 +1,7 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 const FOOD_LOG_COLUMNS = [
   'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
@@ -9,6 +9,8 @@ const FOOD_LOG_COLUMNS = [
   'entry_method', 'notes', 'created_at', 'updated_at', 'deleted_at',
   // v3
   'food_source', 'place', 'is_estimate',
+  // v6: foods combined into one named item (e.g. "Chipotle bowl"); parts share group_id
+  'group_id', 'group_name',
 ] as const;
 
 export const TABS = {

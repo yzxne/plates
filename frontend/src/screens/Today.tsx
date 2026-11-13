@@ -2,13 +2,14 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { MEAL_LABELS, MEALS, makeEntry, totals, type LogEntry, type Meal, type Nutrients } from '../../../shared/nutrition';
 import { ApiError, errorMessage } from '../api';
+import { CombineSheet, ComboPage, mealItems } from '../components/Combo';
 import { EntrySheet } from '../components/EntrySheet';
 import { IconBack, IconChevron, IconPlus } from '../components/Icons';
 import { SwipeRow } from '../components/SwipeRow';
 import { dateLabel, shiftDate, today } from '../dates';
 import {
   addEntry, copyEntries, createSavedMeal, dayOutOfDate, deleteEntry, loadFoods, loadRange, loadSavedMeals, saveDay,
-  restoreEntry, uuid, weekStart, type DayData, type SavedMeal, type WeekData,
+  restoreEntry, setEntriesDeleted, updateEntries, uuid, weekStart, type DayData, type SavedMeal, type WeekData,
 } from '../foodData';
 import { amountLine, fmt } from '../format';
 import { queue } from '../queue';
@@ -50,6 +51,8 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
   const [error, setError] = useState<Error | null>(null);
   const [editing, setEditing] = useState<LogEntry | null>(null);
   const [picker, setPicker] = useState<Meal | null>(null);
+  const [combining, setCombining] = useState<Meal | null>(null);
+  const [comboId, setComboId] = useState<string | null>(null);
   const [mode, setMode] = useState<'consumed' | 'remaining'>('consumed');
   const [view, setViewState] = useState<'meals' | 'timeline'>(() => (safeStore.getItem(VIEW_KEY) === 'timeline' ? 'timeline' : 'meals'));
   const setView = (v: 'meals' | 'timeline') => { setViewState(v); safeStore.setItem(VIEW_KEY, v); };
@@ -205,10 +208,75 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
     }
   }
 
+  /** Optimistically swaps changed entries in, then writes them together. */
+  async function writeMany(changed: LogEntry[], label: string, undoText?: string) {
+    if (!day || !changed.length) return;
+    const before = day.entries;
+    const byId = new Map(changed.map((e) => [e.id, e]));
+    replaceEntries(before.map((e) => byId.get(e.id) ?? e));
+    try {
+      const ok = await updateEntries(changed, label);
+      if (!ok) showToast('Not saved yet — will retry', 'error');
+      else if (undoText) {
+        const old = before.filter((e) => byId.has(e.id));
+        showUndo(undoText, { undo: async () => { await updateEntries(old, `Undo: ${label}`); replaceEntries(before); } });
+      }
+    } catch (err) {
+      replaceEntries(before);
+      showToast(errorMessage(err), 'error');
+    }
+  }
+
+  const ungroup = (e: LogEntry): LogEntry => ({ ...e, group_id: '', group_name: '' });
+
+  function combine(picked: LogEntry[], name: string) {
+    setCombining(null);
+    const id = uuid();
+    void writeMany(picked.map((e) => ({ ...e, group_id: id, group_name: name })), `Combine: ${name}`, `Combined into ${name}`);
+  }
+
+  function changeCombo(parts: LogEntry[], next: { name: string; meal: Meal; add: LogEntry[]; out: LogEntry[] }) {
+    const id = parts[0]!.group_id!;
+    const outIds = new Set(next.out.map((e) => e.id));
+    const keep = [...parts.filter((e) => !outIds.has(e.id)), ...next.add];
+    if (keep.length < 2) {
+      // One food left isn't a combo anymore.
+      setComboId(null);
+      void writeMany([...parts, ...next.add].map(ungroup), `Split: ${next.name}`, `Split ${next.name}`);
+      return;
+    }
+    void writeMany([
+      ...keep.map((e) => ({ ...e, meal: next.meal, group_id: id, group_name: next.name })),
+      ...next.out.map(ungroup),
+    ], `Edit combo: ${next.name}`);
+  }
+
+  function splitCombo(parts: LogEntry[]) {
+    setComboId(null);
+    void writeMany(parts.map(ungroup), `Split: ${parts[0]?.group_name}`, `Split ${parts[0]?.group_name || 'combo'}`);
+  }
+
+  async function deleteCombo(parts: LogEntry[]) {
+    if (!day) return;
+    setComboId(null);
+    const name = parts[0]?.group_name || 'combo';
+    const before = day.entries;
+    const ids = new Set(parts.map((e) => e.id));
+    replaceEntries(before.filter((e) => !ids.has(e.id)));
+    try {
+      await setEntriesDeleted(parts, true, `Delete: ${name}`);
+      showUndo(`Deleted ${name}`, { undo: async () => { await setEntriesDeleted(parts, false, `Restore: ${name}`); replaceEntries(before); } });
+    } catch (err) {
+      replaceEntries(before);
+      showToast(errorMessage(err), 'error');
+    }
+  }
+
   function mealAction(meal: Meal, action: string) {
     if (action === 'copy') void copyYesterday(meal);
     else if (action === 'saved') setPicker(meal);
     else if (action === 'save') void saveAsMeal(meal);
+    else if (action === 'combine') setCombining(meal);
   }
 
   const notReady = error instanceof ApiError && ['sheet_not_set_up', 'google_not_connected', 'google_reconnect'].includes(error.code);
@@ -289,11 +357,21 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
                 <option value="copy">Copy from yesterday</option>
                 <option value="saved">Log saved meal</option>
                 {items.length > 0 && <option value="save">Save as a meal</option>}
+                {items.filter((e) => !e.group_id).length >= 2 && <option value="combine">Combine foods…</option>}
               </select>
               <button class="icon-btn small" aria-label={`Add to ${MEAL_LABELS[meal]}`} onClick={() => onAdd(meal)}><IconPlus size={20} /></button>
             </div>
             {items.length === 0 && <p class="muted tiny-pad">Nothing logged.</p>}
-            {items.map((e) => (
+            {mealItems(items).map((it) => it.kind === 'combo' ? (
+              <SwipeRow key={it.id} label={`${it.name}, ${it.parts.length} items, ${fmt(totals(it.parts).kcal)} kcal`}
+                onTap={() => setComboId(it.id)} onSwipeRight={() => setComboId(it.id)} onSwipeLeft={() => void deleteCombo(it.parts)}>
+                <span class="entry-main">
+                  <span class="entry-name">{it.name}<span class="tag combo">{it.parts.length} items</span></span>
+                  <small class="muted">{it.parts.map((p) => p.food_name).join(', ')}</small>
+                </span>
+                <span class="entry-kcal">{fmt(totals(it.parts).kcal)}</span>
+              </SwipeRow>
+            ) : ((e) => (
               <SwipeRow key={e.id} label={`${e.food_name}, ${fmt(e.n.kcal)} kcal`} onTap={() => setEditing(e)} onSwipeRight={() => setEditing(e)} onSwipeLeft={() => void remove(e)}>
                 <span class="entry-main">
                   <span class="entry-name">{e.food_name}{e.is_estimate ? <span class="tag">estimate</span> : null}</span>
@@ -301,13 +379,27 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
                 </span>
                 <span class="entry-kcal">{fmt(e.n.kcal)}</span>
               </SwipeRow>
-            ))}
+            ))(it.e))}
           </div>
         );
       })}
 
       {!week && !error && <><SkeletonCard tall lines={1} /><SkeletonCard lines={3} /><SkeletonCard lines={2} /></>}
 
+      {combining && day && (
+        <CombineSheet meal={combining} entries={day.entries.filter((e) => e.meal === combining && !e.group_id)}
+          onCombine={combine} onClose={() => setCombining(null)} />
+      )}
+      {comboId && day && (() => {
+        const parts = day.entries.filter((e) => e.group_id === comboId);
+        if (parts.length < 2) return null;
+        return (
+          <ComboPage name={parts[0]!.group_name || 'Combo'} parts={parts}
+            others={day.entries.filter((e) => e.meal === parts[0]!.meal && !e.group_id)}
+            onEditPart={setEditing} onChange={(next) => changeCombo(parts, next)}
+            onSplit={() => splitCombo(parts)} onDelete={() => void deleteCombo(parts)} onClose={() => setComboId(null)} />
+        );
+      })()}
       {editing && day && (
         <EntrySheet entry={editing} onClose={() => setEditing(null)}
           onSaved={(e) => { setEditing(null); replaceEntries(day.entries.map((x) => (x.id === e.id ? e : x))); }}
@@ -359,7 +451,7 @@ function Timeline({ entries, pendingIds, onEdit, onRemove }: {
                   <span class="entry-main">
                     <span class="entry-name">{e.food_name}{e.is_estimate ? <span class="tag">estimate</span> : null}</span>
                     <small class="muted">
-                      {`${Math.floor(m / 60) % 12 || 12}:${String(m % 60).padStart(2, '0')}`} · {MEAL_LABELS[e.meal]} · {amountLine(e)}
+                      {`${Math.floor(m / 60) % 12 || 12}:${String(m % 60).padStart(2, '0')}`} · {e.group_id ? e.group_name : MEAL_LABELS[e.meal]} · {amountLine(e)}
                       {pendingIds.has(e.id) ? ' · not saved yet' : ''}
                     </small>
                   </span>

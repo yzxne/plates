@@ -141,6 +141,27 @@ export async function deleteEntry(e: LogEntry): Promise<boolean> {
   return write('/sheet/update', { tab: logTab(e), rows: [{ id: e.id, deleted_at: new Date().toISOString() }] }, `Delete: ${e.food_name}`);
 }
 
+/** Writes several entries in one request per tab (combining, splitting, moving a combo). */
+export async function updateEntries(es: LogEntry[], label: string): Promise<boolean> {
+  let ok = true;
+  for (const tab of ['FoodLog', 'FoodArchive'] as const) {
+    const rows = es.filter((e) => logTab(e) === tab).map(entryToRow);
+    if (rows.length) ok = (await write('/sheet/update', { tab, rows }, label)) && ok;
+  }
+  return ok;
+}
+
+/** Soft-deletes (or restores) several entries at once. */
+export async function setEntriesDeleted(es: LogEntry[], deleted: boolean, label: string): Promise<boolean> {
+  let ok = true;
+  const at = deleted ? new Date().toISOString() : '';
+  for (const tab of ['FoodLog', 'FoodArchive'] as const) {
+    const rows = es.filter((e) => logTab(e) === tab).map((e) => ({ id: e.id, deleted_at: at }));
+    if (rows.length) ok = (await write('/sheet/update', { tab, rows }, label)) && ok;
+  }
+  return ok;
+}
+
 export async function restoreEntry(e: LogEntry): Promise<boolean> {
   return write('/sheet/update', { tab: logTab(e), rows: [{ id: e.id, deleted_at: '' }] }, `Restore: ${e.food_name}`);
 }

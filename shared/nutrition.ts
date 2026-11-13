@@ -178,6 +178,9 @@ export interface LogEntry {
   logged_at?: string;
   /** Which tab the row was read from (frontend only), so edits go back to the same place. */
   source_tab?: 'FoodLog' | 'FoodArchive';
+  /** v6: parts of a combined item share group_id and show as one row named group_name. */
+  group_id?: string;
+  group_name?: string;
 }
 
 /** Builds a FoodLog entry for `grams` of `food`. */
@@ -224,6 +227,8 @@ export function entryToRow(e: LogEntry): Row {
     food_source: e.food_source,
     place: e.place,
     is_estimate: e.is_estimate,
+    group_id: e.group_id ?? '',
+    group_name: e.group_id ? (e.group_name ?? '') : '',
   };
 }
 
@@ -252,6 +257,7 @@ export function rowToEntry(r: Row): LogEntry {
     place: String(r.place ?? ''),
     is_estimate: r.is_estimate === true || r.is_estimate === 'TRUE',
     ...(r.created_at ? { logged_at: String(r.created_at) } : {}),
+    ...(r.group_id ? { group_id: String(r.group_id), group_name: String(r.group_name ?? '') } : {}),
   };
 }
 

@@ -40,6 +40,16 @@ describe('nutrient math', () => {
     expect(rowToEntry(entryToRow(e))).toEqual(e);
   });
 
+  it('keeps combo grouping through a sheet row, and clears it when split', () => {
+    const e = { ...makeEntry({ id: 'c1', date: 'd', meal: 'lunch', food: oats, grams: 40, method: 'x' }), group_id: 'g1', group_name: 'Bowl' };
+    const row = entryToRow(e);
+    expect(row).toMatchObject({ group_id: 'g1', group_name: 'Bowl' });
+    expect(rowToEntry(row)).toMatchObject({ group_id: 'g1', group_name: 'Bowl' });
+    const split = entryToRow({ ...e, group_id: '', group_name: 'Bowl' });
+    expect(split).toMatchObject({ group_id: '', group_name: '' });
+    expect(rowToEntry(split).group_id).toBeUndefined();
+  });
+
   it('sums a day', () => {
     const a = makeEntry({ id: 'a', date: 'd', meal: 'lunch', food: oats, grams: 100, method: 'x' });
     const b = makeEntry({ id: 'b', date: 'd', meal: 'lunch', food: oats, grams: 50, method: 'x' });
