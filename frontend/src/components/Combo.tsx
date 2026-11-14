@@ -1,10 +1,23 @@
 // Combos: several logged foods shown as one named item ("Chipotle bowl"). Each part keeps its own numbers,
 // so you can open the combo and change just the rice. Parts share group_id on their FoodLog rows.
 import { useState } from 'preact/hooks';
-import { MEAL_LABELS, MEALS, totals, type LogEntry, type Meal } from '../../../shared/nutrition';
+import { MEAL_LABELS, MEALS, roundNutrients, totals, type LogEntry, type Meal } from '../../../shared/nutrition';
 import { amountLine, fmt } from '../format';
 import { IconBack } from './Icons';
 import { NutrientTable } from './NutrientTable';
+
+const PORTIONS = [[0.5, '½'], [0.75, '¾'], [1, '1'], [1.25, '1¼'], [1.5, '1½'], [2, '2']] as const;
+
+/** The same entry, scaled (nutrients, grams and servings are all linear in the amount). */
+export function scaleEntry(e: LogEntry, f: number): LogEntry {
+  const k = (v: number | null) => (v == null ? null : v * f);
+  return {
+    ...e,
+    grams: e.grams == null ? null : Math.round(e.grams * f * 10) / 10,
+    servings: e.servings == null ? null : Math.round(e.servings * f * 100) / 100,
+    n: roundNutrients({ kcal: e.n.kcal * f, protein_g: e.n.protein_g * f, carbs_g: e.n.carbs_g * f, fat_g: e.n.fat_g * f, fiber_g: k(e.n.fiber_g), sugar_g: k(e.n.sugar_g), sodium_mg: k(e.n.sodium_mg) }),
+  };
+}
 
 export type MealItem = { kind: 'entry'; e: LogEntry } | { kind: 'combo'; id: string; name: string; parts: LogEntry[] };
 
@@ -62,14 +75,19 @@ export function CombineSheet({ meal, entries, onCombine, onClose }: {
 }
 
 /** One combo: totals, its parts (tap one to edit it), add/remove parts, rename, move, split, delete. */
-export function ComboPage({ name, parts, others, onEditPart, onChange, onSplit, onDelete, onClose }: {
+export function ComboPage({ name, parts, others, onEditPart, onChange, onScale, onSplit, onDelete, onClose }: {
   name: string; parts: LogEntry[]; others: LogEntry[];
   onEditPart: (e: LogEntry) => void;
   /** Rewrite parts: rename, move meal, add or take out foods. `out` loses its group. */
   onChange: (next: { name: string; meal: Meal; add: LogEntry[]; out: LogEntry[] }) => void;
+  /** Scale every part by this factor (1.5 = one and a half of what is logged). */
+  onScale: (factor: number) => void;
   onSplit: () => void; onDelete: () => void; onClose: () => void;
 }) {
   const [draft, setDraft] = useState(name);
+  const [portion, setPortion] = useState('1');
+  const factor = Math.max(0, Number(portion) || 0);
+  const preview = factor > 0 && factor !== 1 ? totals(parts.map((e) => scaleEntry(e, factor))) : null;
   const meal = parts[0]?.meal ?? 'snack';
   const rename = () => { const n = draft.trim(); if (n && n !== name) onChange({ name: n, meal, add: [], out: [] }); else setDraft(name); };
   return (
@@ -85,7 +103,19 @@ export function ComboPage({ name, parts, others, onEditPart, onChange, onSplit, 
             <input id="combo-rename" type="text" value={draft} onInput={(e) => setDraft(e.currentTarget.value)} onBlur={rename}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }} />
           </div>
-          <NutrientTable n={totals(parts)} />
+          <NutrientTable n={preview ?? totals(parts)} />
+          <div class="field amount mt no-mb">
+            <label for="combo-portion">How much you had</label>
+            <div class="with-unit">
+              <input id="combo-portion" type="text" inputMode="decimal" value={portion} onInput={(e) => setPortion(e.currentTarget.value)} />
+              <span class="unit">× {name}</span>
+            </div>
+            <div class="chips amount-chips" role="group" aria-label="Quick portions">
+              {PORTIONS.map(([v, label]) => <button type="button" key={label} class={`chip ${factor === v ? 'on' : ''}`} onClick={() => setPortion(String(v))}>{label}</button>)}
+            </div>
+            <small class="muted">1 = what is logged now. Every food inside scales together.</small>
+          </div>
+          {preview && <button class="btn primary mt" onClick={() => { onScale(factor); setPortion('1'); }}>Update to {fmt(preview.kcal)} kcal</button>}
         </div>
 
         <h3 class="group-label">In this combo</h3>

@@ -2,7 +2,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { MEAL_LABELS, MEALS, makeEntry, totals, type LogEntry, type Meal, type Nutrients } from '../../../shared/nutrition';
 import { ApiError, errorMessage } from '../api';
-import { CombineSheet, ComboPage, mealItems } from '../components/Combo';
+import { CombineSheet, ComboPage, mealItems, scaleEntry } from '../components/Combo';
 import { EntrySheet } from '../components/EntrySheet';
 import { IconBack, IconChevron, IconPlus } from '../components/Icons';
 import { SwipeRow } from '../components/SwipeRow';
@@ -397,6 +397,7 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
           <ComboPage name={parts[0]!.group_name || 'Combo'} parts={parts}
             others={day.entries.filter((e) => e.meal === parts[0]!.meal && !e.group_id)}
             onEditPart={setEditing} onChange={(next) => changeCombo(parts, next)}
+            onScale={(f) => void writeMany(parts.map((e) => scaleEntry(e, f)), `Portion: ${parts[0]!.group_name}`, `${parts[0]!.group_name} × ${f}`)}
             onSplit={() => splitCombo(parts)} onDelete={() => void deleteCombo(parts)} onClose={() => setComboId(null)} />
         );
       })()}

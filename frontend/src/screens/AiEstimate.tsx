@@ -332,6 +332,8 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
   const [busy, setBusy] = useState(false);
   // 2+ foods log as one combo (open it later to change a part). Name defaults to the place, else the meal.
   const [together, setTogether] = useState(true);
+  // Whole-meal portion: 0.5 = you ate half of what the AI saw. Applied to every food.
+  const [portion, setPortion] = useState(1);
   const [comboName, setComboName] = useState(() => place || `${MEAL_LABELS[meal]} plate`);
 
   const update = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -349,9 +351,9 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
     return l.usual ? [g, g] : [l.item.grams_low * ratio, l.item.grams_high * ratio];
   };
   const included = lines.filter((l) => l.include);
-  const total = included.reduce((s, l) => s + kcal(l, Number(l.grams) || 0), 0);
-  const low = included.reduce((s, l) => s + kcal(l, scaleRange(l)[0]!), 0);
-  const high = included.reduce((s, l) => s + kcal(l, scaleRange(l)[1]!), 0);
+  const total = portion * included.reduce((s, l) => s + kcal(l, Number(l.grams) || 0), 0);
+  const low = portion * included.reduce((s, l) => s + kcal(l, scaleRange(l)[0]!), 0);
+  const high = portion * included.reduce((s, l) => s + kcal(l, scaleRange(l)[1]!), 0);
   const ready = included.length > 0 && included.every((l) => l.food && Number(l.grams) > 0);
 
   async function logAll() {
@@ -361,7 +363,7 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
     const group = together && included.length >= 2 ? { id: uuid(), name: comboName.trim() || `${MEAL_LABELS[meal]} plate` } : undefined;
     try {
       for (const l of included) {
-        const g = Number(l.grams);
+        const g = Math.round(Number(l.grams) * portion * 10) / 10;
         const r = await logAiItem({ date, meal, name: l.item.name, grams: g, matched: l.food!, source, place, method, group });
         done.push(r.entry);
         allOk &&= r.ok;
@@ -388,6 +390,15 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
         </div>
         <p class="big-num">~{fmt(total)} kcal</p>
         <p class="muted tiny-pad">Likely {fmt(low)}–{fmt(high)} kcal · {place || source}</p>
+        <div class="field amount mt no-mb">
+          <label>How much of it you had</label>
+          <div class="chips amount-chips" role="group" aria-label="Whole meal portion">
+            {([[0.5, '½'], [0.75, '¾'], [1, 'All'], [1.25, '1¼'], [1.5, '1½'], [2, '2×']] as const).map(([v, label]) => (
+              <button type="button" key={label} class={`chip ${portion === v ? 'on' : ''}`} onClick={() => setPortion(v)}>{label}</button>
+            ))}
+          </div>
+          {portion !== 1 && <small class="muted">Every food below is logged at {portion}× its grams.</small>}
+        </div>
         {skipped.length > 0 && <p class="warn tiny-pad">Left out (no amount given): {skipped.join(', ')}. Add them with search if you had them.</p>}
         {factor !== 1 && <p class="muted tiny-pad">Includes your ×{factor} {source} correction (Settings → Advanced).</p>}
         {cost != null && <p class="muted tiny-pad">Cost ${cost.toFixed(4)} · this month ${(month ?? 0).toFixed(2)} of ${(cap ?? 0).toFixed(2)}</p>}
