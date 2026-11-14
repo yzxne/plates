@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { b64urlEncode } from '../src/crypto';
 import { handle } from '../src/index';
 import { addSub, lastKind } from '../src/push';
-import { chicagoSlot, runWeighReminder, setWeighReminder } from '../src/reminders';
+import { chicagoSlot, dueIndex, runWeighReminder, setWeighReminder } from '../src/reminders';
 import { makeEnv, req } from './helpers';
 
 async function pushEnv() {
@@ -37,6 +37,23 @@ describe('weigh-in reminder', () => {
     expect(sent).toEqual(['https://web.push.apple.com/phone']);
     expect(await lastKind(env)).toBe('weigh');
     expect(await runWeighReminder(env, AT_730, notYet)).toBe('already_sent');
+  });
+
+  it('repeats every gap until you weigh in, up to the count', async () => {
+    const { env, sent } = await pushEnv();
+    await setWeighReminder(env, { on: true, time: '08:45', count: 3, gap: 45 });
+    let weighed = false;
+    const check = async () => weighed;
+    const at = (hhmm: string) => new Date(`2026-11-14T${hhmm}:00-06:00`);
+    expect(dueIndex({ on: true, time: '08:45', count: 3, gap: 45 }, 10 * 60 + 15)).toBe(2);
+    expect(await runWeighReminder(env, at('08:45'), check)).toBe('sent');
+    expect(await runWeighReminder(env, at('09:00'), check)).toBe('not_time');
+    expect(await runWeighReminder(env, at('09:30'), check)).toBe('sent');
+    expect(await runWeighReminder(env, at('09:30'), check)).toBe('already_sent');
+    weighed = true;
+    expect(await runWeighReminder(env, at('10:15'), check)).toBe('weighed');
+    expect(await runWeighReminder(env, at('11:00'), check)).toBe('not_time'); // past the 3rd
+    expect(sent).toHaveLength(2);
   });
 
   it('skips when you already weighed in, and when it is off', async () => {

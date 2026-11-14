@@ -70,6 +70,6 @@ export function refreshWorker(): void {
   if (pushOn()) void registration().catch(() => {});
 }
 
-export interface WeighReminder { on: boolean; time: string }
+export interface WeighReminder { on: boolean; time: string; count: number; gap: number }
 export const getWeighReminder = () => api<WeighReminder>('GET', '/push/weigh');
 export const setWeighReminder = (r: WeighReminder) => api<WeighReminder>('POST', '/push/weigh', r);

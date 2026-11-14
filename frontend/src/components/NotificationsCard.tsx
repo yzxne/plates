@@ -52,6 +52,12 @@ export function NotificationsCard() {
 const TIMES = Array.from({ length: 24 * 4 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
 const label = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h! % 12 || 12}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
 
+const schedule = (r: WeighReminder) => {
+  const [h, m] = r.time.split(':').map(Number);
+  const times = Array.from({ length: r.count }, (_, k) => { const t = (h! * 60 + m! + k * r.gap) % 1440; return label(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`); });
+  return `Reminds at ${times.join(', ')} until you weigh in.`;
+};
+
 /** Daily "Time to weigh in" push at a chosen time, skipped once you have weighed in that day. */
 function WeighReminderRow() {
   const [r, setR] = useState<WeighReminder | null>(null);
@@ -59,7 +65,7 @@ function WeighReminderRow() {
   async function save(next: WeighReminder) {
     const before = r;
     setR(next);
-    try { await setWeighReminder(next); showToast(next.on ? `Weigh-in reminder at ${label(next.time)}` : 'Weigh-in reminder off', 'ok'); }
+    try { await setWeighReminder(next); showToast(next.on ? 'Weigh-in reminder saved' : 'Weigh-in reminder off', 'ok'); }
     catch (err) { setR(before); showToast(errorMessage(err), 'error'); }
   }
   if (!r) return null;
@@ -67,12 +73,29 @@ function WeighReminderRow() {
     <div class="remind-row">
       <label class="tick">
         <input type="checkbox" checked={r.on} onChange={(e) => void save({ ...r, on: e.currentTarget.checked })} />
-        <span><strong>Weigh-in reminder</strong><small class="muted">Every day, Central time. Skipped if you already weighed in.</small></span>
+        <span><strong>Weigh-in reminder</strong><small class="muted">Central time. Stops as soon as today's weigh-in is logged.</small></span>
       </label>
       {r.on && (
-        <select aria-label="Reminder time" value={r.time} onChange={(e) => void save({ ...r, time: e.currentTarget.value })}>
-          {TIMES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
-        </select>
+        <div class="remind-opts">
+          <label>First at
+            <select value={r.time} onChange={(e) => void save({ ...r, time: e.currentTarget.value })}>
+              {TIMES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
+            </select>
+          </label>
+          <label>Up to
+            <select value={r.count} onChange={(e) => void save({ ...r, count: Number(e.currentTarget.value) })}>
+              {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 1 ? 'once' : `${n} times`}</option>)}
+            </select>
+          </label>
+          {r.count > 1 && (
+            <label>Every
+              <select value={r.gap} onChange={(e) => void save({ ...r, gap: Number(e.currentTarget.value) })}>
+                {[30, 45, 60, 90].map((g) => <option key={g} value={g}>{g < 60 ? `${g} min` : g === 60 ? '1 hour' : '1½ hours'}</option>)}
+              </select>
+            </label>
+          )}
+          <small class="muted">{schedule(r)}</small>
+        </div>
       )}
     </div>
   );
