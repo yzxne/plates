@@ -7,6 +7,12 @@ import { HttpError } from './http';
 
 export const PUSH_SUBJECT = 'https://github.com/yzxne/plates';
 const SUBS_KEY = 'push:subs';
+// Pushes carry no data, so the phone asks /push/last which notification to show.
+const LAST_KEY = 'push:last';
+export type PushKind = 'rest' | 'weigh';
+export async function lastKind(env: Env): Promise<PushKind> {
+  return (await env.PLATES_KV.get(LAST_KEY)) === 'weigh' ? 'weigh' : 'rest';
+}
 const MAX_SUBS = 5;
 
 // Push services Plates will send to (Apple, Google, Mozilla, Microsoft).
@@ -58,15 +64,16 @@ function requireVapid(env: Env): { pub: string; priv: string } {
 }
 
 /** Sends an empty push to every subscribed device. Drops subscriptions the push service says are gone. */
-export async function sendToAll(env: Env): Promise<{ sent: number; removed: number }> {
+export async function sendToAll(env: Env, kind: PushKind = 'rest'): Promise<{ sent: number; removed: number }> {
   const { pub, priv } = requireVapid(env);
+  await env.PLATES_KV.put(LAST_KEY, kind);
   let sent = 0;
   let removed = 0;
   for (const s of await listSubs(env)) {
     const jwt = await vapidJwt(priv, new URL(s.endpoint).origin);
     const res = await fetch(s.endpoint, {
       method: 'POST',
-      headers: { TTL: '120', Urgency: 'high', Authorization: `vapid t=${jwt}, k=${pub}`, 'Content-Length': '0' },
+      headers: { TTL: kind === 'weigh' ? '3600' : '120', Urgency: 'high', Authorization: `vapid t=${jwt}, k=${pub}`, 'Content-Length': '0' },
     });
     if (res.status === 404 || res.status === 410) {
       await removeSub(env, s.endpoint);

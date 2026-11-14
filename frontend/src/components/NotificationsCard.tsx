@@ -1,6 +1,6 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { errorMessage } from '../api';
-import { disablePush, enablePush, isStandalone, pushOn, pushSupported, testPush } from '../push';
+import { disablePush, enablePush, getWeighReminder, isStandalone, pushOn, pushSupported, setWeighReminder, testPush, type WeighReminder } from '../push';
 import { showToast } from '../toast';
 
 /** Settings card: rest-timer notifications (off by default). */
@@ -32,7 +32,7 @@ export function NotificationsCard() {
 
   return (
     <div class="card">
-      <h2>Rest-timer notifications</h2>
+      <h2>Notifications</h2>
       <p class="muted">
         A "Rest done" notification when your rest timer ends — uses your normal notification sound, works with the screen locked,
         shows on Apple Watch, and doesn't pause music. Off by default.
@@ -44,6 +44,36 @@ export function NotificationsCard() {
         <button class={`btn ${on ? '' : 'primary'}`} disabled={busy || !usable} onClick={toggle}>{on ? 'Turn off' : 'Turn on'}</button>
         {on && <button class="btn" onClick={test}>Send test</button>}
       </div>
+      {on && <WeighReminderRow />}
+    </div>
+  );
+}
+
+const TIMES = Array.from({ length: 24 * 4 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`);
+const label = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h! % 12 || 12}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
+
+/** Daily "Time to weigh in" push at a chosen time, skipped once you have weighed in that day. */
+function WeighReminderRow() {
+  const [r, setR] = useState<WeighReminder | null>(null);
+  useEffect(() => { getWeighReminder().then(setR).catch((err) => showToast(errorMessage(err), 'error')); }, []);
+  async function save(next: WeighReminder) {
+    const before = r;
+    setR(next);
+    try { await setWeighReminder(next); showToast(next.on ? `Weigh-in reminder at ${label(next.time)}` : 'Weigh-in reminder off', 'ok'); }
+    catch (err) { setR(before); showToast(errorMessage(err), 'error'); }
+  }
+  if (!r) return null;
+  return (
+    <div class="remind-row">
+      <label class="tick">
+        <input type="checkbox" checked={r.on} onChange={(e) => void save({ ...r, on: e.currentTarget.checked })} />
+        <span><strong>Weigh-in reminder</strong><small class="muted">Every day, Central time. Skipped if you already weighed in.</small></span>
+      </label>
+      {r.on && (
+        <select aria-label="Reminder time" value={r.time} onChange={(e) => void save({ ...r, time: e.currentTarget.value })}>
+          {TIMES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
+        </select>
+      )}
     </div>
   );
 }

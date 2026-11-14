@@ -78,7 +78,7 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
             <h3 class="group-label">Connections</h3>
             <div class="list card">
               <Row title="Google Sheet" sub="Where your data lives" onClick={() => setView('google')} />
-              <Row title="Notifications" sub="Rest timer alerts" onClick={() => setView('notify')} />
+              <Row title="Notifications" sub="Rest timer, weigh-in reminder" onClick={() => setView('notify')} />
               <Row title="iPhone Shortcuts" sub="Health, Siri, reminders" onClick={() => setView('shortcuts')} />
             </div>
 

@@ -1,5 +1,5 @@
 // Rest-timer notifications via Web Push. Works only in the Home Screen app on iPhone (iOS 16.4+).
-import { api } from './api';
+import { api, API_BASE } from './api';
 import { safeStore } from './storage';
 
 const FLAG = 'plates.push.on';
@@ -20,7 +20,8 @@ function keyBytes(b64url: string): Uint8Array<ArrayBuffer> {
 }
 
 async function registration(): Promise<ServiceWorkerRegistration> {
-  const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+  // The API address lets the worker ask which notification a (data-free) push is for.
+  const reg = await navigator.serviceWorker.register(`sw.js?api=${encodeURIComponent(API_BASE)}`, { scope: './' });
   await navigator.serviceWorker.ready;
   return reg;
 }
@@ -63,3 +64,12 @@ export function cancelRestPush(): void {
   if (!pushOn()) return;
   void api('POST', '/push/rest/cancel').catch(() => {});
 }
+
+/** Re-registers the worker on launch when notifications are on, so updates (like the weigh-in message) reach the phone. */
+export function refreshWorker(): void {
+  if (pushOn()) void registration().catch(() => {});
+}
+
+export interface WeighReminder { on: boolean; time: string }
+export const getWeighReminder = () => api<WeighReminder>('GET', '/push/weigh');
+export const setWeighReminder = (r: WeighReminder) => api<WeighReminder>('POST', '/push/weigh', r);

@@ -11,7 +11,8 @@ import {
 } from './session';
 import { lookupUsdaBarcode, searchOff, searchUsda } from './food';
 import { cleanContext, cleanImages, estimate, monthUsage } from './ai';
-import { addSub, cancelRest, removeSub, scheduleRest, sendToAll, validEndpoint } from './push';
+import { addSub, cancelRest, lastKind, removeSub, scheduleRest, sendToAll, validEndpoint } from './push';
+import { getWeighReminder, runWeighReminder, setWeighReminder } from './reminders';
 export { RestTimer } from './push';
 import { checkTypedCode } from '../../shared/barcode';
 import { applyFilters, Sheets, type Filters } from './sheets';
@@ -23,9 +24,14 @@ import {
 
 export default {
   fetch: (request: Request, env: Env) => handle(request, env),
-  // Weekly backup (cron in wrangler.jsonc). Failures are logged; the next run tries again.
-  scheduled: (_event: ScheduledController, env: Env, ctx: ExecutionContext) => {
-    ctx.waitUntil(runBackup(env).catch((err) => console.error('Scheduled backup failed', err)));
+  // Crons in wrangler.jsonc: weekly backup, and a 15-minute tick for the weigh-in reminder. Failures are logged.
+  scheduled: (event: ScheduledController, env: Env, ctx: ExecutionContext) => {
+    if (event.cron === WEEKLY_BACKUP_CRON) {
+      ctx.waitUntil(runBackup(env).catch((err) => console.error('Scheduled backup failed', err)));
+      return;
+    }
+    ctx.waitUntil(runWeighReminder(env, new Date(event.scheduledTime), (date) => weighedOn(env, date))
+      .catch((err) => console.error('Weigh-in reminder failed', err)));
   },
 } satisfies ExportedHandler<Env>;
 
@@ -66,6 +72,14 @@ async function requireSession(request: Request, env: Env): Promise<void> {
   if (!payload || payload.iat < (await sessionsValidAfter(env.PLATES_KV))) {
     throw new HttpError(401, 'unauthorized', 'Please log in again');
   }
+}
+
+export const WEEKLY_BACKUP_CRON = '0 10 * * 1';
+
+/** True when the Weights tab has a (not deleted) weigh-in on this date. */
+async function weighedOn(env: Env, date: string): Promise<boolean> {
+  const parsed = (await (await sheetFor(env)).readTabs(['Weights'])).Weights!;
+  return parsed.rows.some((r) => String(r.data.date) === date && !r.data.deleted_at);
 }
 
 // Spreadsheets already checked against the current schema in this Worker instance.
@@ -125,6 +139,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   // ---------- Public ----------
   if (method === 'GET' && (path === '/' || path === '/health')) {
     return json({ ok: true, service: 'plates-api' });
+  }
+  // Which notification the last (data-free) push was for. Public: the service worker has no login; reveals only "rest" or "weigh".
+  if (method === 'GET' && path === '/push/last') {
+    return json({ kind: await lastKind(env) });
   }
 
   if (method === 'POST' && path === '/auth/login') {
@@ -358,6 +376,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     await cancelRest(env);
     return json({ ok: true });
   }
+  if (method === 'GET' && path === '/push/weigh') return json(await getWeighReminder(env));
+  if (method === 'POST' && path === '/push/weigh') return json(await setWeighReminder(env, await readJson(request)));
   if (method === 'POST' && path === '/push/test') {
     return json(await sendToAll(env));
   }

@@ -60,7 +60,7 @@ describe('automatic backups', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     for (let i = 0; i < KEEP + 2; i++) {
       vi.setSystemTime(new Date(Date.UTC(2026, 10, 2 + i * 7, 16)));
-      await new Promise<void>((resolve) => worker.scheduled!({} as ScheduledController, env, { waitUntil: (p: Promise<unknown>) => void p.then(() => resolve()) } as unknown as ExecutionContext));
+      await new Promise<void>((resolve) => worker.scheduled!({ cron: '0 10 * * 1' } as ScheduledController, env, { waitUntil: (p: Promise<unknown>) => void p.then(() => resolve()) } as unknown as ExecutionContext));
     }
     vi.useRealTimers();
     const list = (await (await call('GET', '/backups')).json()) as { backups: { date: string }[] };

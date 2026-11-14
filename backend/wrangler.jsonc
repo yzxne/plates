@@ -13,7 +13,7 @@
   "durable_objects": { "bindings": [{ "name": "REST_TIMER", "class_name": "RestTimer" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RestTimer"] }],
   // Weekly .xlsx backup to KV (Mondays 10:00 UTC). Free plan allows 5 cron triggers.
-  "triggers": { "crons": ["0 10 * * 1"] },
+  "triggers": { "crons": ["0 10 * * 1", "*/15 * * * *"] },
   "vars": {
     "ALLOWED_ORIGINS": "https://yzxne.github.io",
     "APP_URL": "https://yzxne.github.io/plates/"
