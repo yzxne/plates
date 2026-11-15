@@ -6,6 +6,7 @@ import { errorMessage } from '../api';
 import { deleteEntry, findFood, loadFoods, setFavorite, updateEntry } from '../foodData';
 import { showToast } from '../toast';
 import { AmountPicker } from './AmountPicker';
+import { AmountSlider } from './AmountSlider';
 import { IconBack } from './Icons';
 import { NumInput } from './NumInput';
 import { NutrientTable } from './NutrientTable';
@@ -136,9 +137,8 @@ export function EntrySheet({ entry, onClose, onSaved, onDeleted }: Props) {
                 <input id="edit-times" type="text" inputMode="decimal" value={times} onInput={(e) => setTimes(e.currentTarget.value)} />
                 <span class="unit">{isDrink ? (mult === 1 ? 'drink' : 'drinks') : '× as logged'}</span>
               </div>
-              <div class="chips amount-chips" role="group" aria-label="Quick amounts">
-                {(isDrink ? DRINK_QUICK : QUICK).map(([v, label]) => <button type="button" key={label} class={`chip ${mult === v ? 'on' : ''}`} onClick={() => setTimes(String(v))}>{label}</button>)}
-              </div>
+              <AmountSlider label={isDrink ? 'Drinks' : 'Amount'} value={mult} max={isDrink ? 6 : 3} step={isDrink ? 1 : 0.05}
+                marks={isDrink ? DRINK_QUICK : QUICK} onChange={(v) => setTimes(String(v))} />
             </div>
           )}
 

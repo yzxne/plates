@@ -1,6 +1,7 @@
 // AI meal scan / text estimate / paste-AI flow (brief §6 / §6A).
 // The AI only gives item names + grams. Calories always come from the matched saved or USDA food.
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { AmountSlider } from '../components/AmountSlider';
 import { correctGrams, correctionFor } from '../../../shared/accuracy';
 import { pastePrompt, validateAiResult, type AiItem, type EstimateContext, type OilLevel, type Portion, type Source } from '../../../shared/ai';
 import { MEAL_LABELS, type Food, type LogEntry, type Meal } from '../../../shared/nutrition';
@@ -391,12 +392,9 @@ function AiReview({ items, skipped, cost, month, cap, source, place, portions, d
         <p class="big-num">~{fmt(total)} kcal</p>
         <p class="muted tiny-pad">Likely {fmt(low)}–{fmt(high)} kcal · {place || source}</p>
         <div class="field amount mt no-mb">
-          <label>How much of it you had</label>
-          <div class="chips amount-chips" role="group" aria-label="Whole meal portion">
-            {([[0.5, '½'], [0.75, '¾'], [1, 'All'], [1.25, '1¼'], [1.5, '1½'], [2, '2×']] as const).map(([v, label]) => (
-              <button type="button" key={label} class={`chip ${portion === v ? 'on' : ''}`} onClick={() => setPortion(v)}>{label}</button>
-            ))}
-          </div>
+          <label>How much of it you had <span class="muted">· {portion === 1 ? 'all of it' : `${portion}×`}</span></label>
+          <AmountSlider label="Whole meal portion" value={portion} max={2} step={0.05}
+            marks={[[0.5, '½'], [0.75, '¾'], [1, 'All'], [1.5, '1½'], [2, '2×']]} onChange={(v) => setPortion(v || 0.05)} />
           {portion !== 1 && <small class="muted">Every food below is logged at {portion}× its grams.</small>}
         </div>
         {skipped.length > 0 && <p class="warn tiny-pad">Left out (no amount given): {skipped.join(', ')}. Add them with search if you had them.</p>}

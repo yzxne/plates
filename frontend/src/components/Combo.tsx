@@ -4,6 +4,7 @@ import { useState } from 'preact/hooks';
 import { MEAL_LABELS, MEALS, roundNutrients, totals, type LogEntry, type Meal } from '../../../shared/nutrition';
 import { amountLine, fmt } from '../format';
 import { IconBack } from './Icons';
+import { AmountSlider } from './AmountSlider';
 import { NutrientTable } from './NutrientTable';
 
 const PORTIONS = [[0.5, '½'], [0.75, '¾'], [1, '1'], [1.25, '1¼'], [1.5, '1½'], [2, '2']] as const;
@@ -110,9 +111,7 @@ export function ComboPage({ name, parts, others, onEditPart, onChange, onScale, 
               <input id="combo-portion" type="text" inputMode="decimal" value={portion} onInput={(e) => setPortion(e.currentTarget.value)} />
               <span class="unit">× {name}</span>
             </div>
-            <div class="chips amount-chips" role="group" aria-label="Quick portions">
-              {PORTIONS.map(([v, label]) => <button type="button" key={label} class={`chip ${factor === v ? 'on' : ''}`} onClick={() => setPortion(String(v))}>{label}</button>)}
-            </div>
+            <AmountSlider label="Portion" value={factor} max={2} step={0.05} marks={PORTIONS} onChange={(v) => setPortion(String(v))} />
             <small class="muted">1 = what is logged now. Every food inside scales together.</small>
           </div>
           {preview && <button class="btn primary mt" onClick={() => { onScale(factor); setPortion('1'); }}>Update to {fmt(preview.kcal)} kcal</button>}

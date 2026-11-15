@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { Food } from '../../../shared/nutrition';
 import { fmt } from '../format';
+import { AmountSlider } from './AmountSlider';
 
 const QUICK = [[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2'], [3, '3']] as const;
 
@@ -38,13 +39,10 @@ export function AmountPicker({ food, usualGrams, initialGrams, onChange, id = 'a
           <button type="button" class={unit === 'g' ? 'on' : ''} onClick={() => switchUnit('g')}>g</button>
         </div>
       </div>
-      {unit === 'serving' && (
-        <div class="chips amount-chips" role="group" aria-label="Quick amounts">
-          {QUICK.map(([n, label]) => (
-            <button type="button" key={label} class={`chip ${value === n ? 'on' : ''}`} onClick={() => setText(String(n))}>{label}</button>
-          ))}
-        </div>
-      )}
+      {unit === 'serving'
+        ? <AmountSlider key="srv" label="Servings" value={value} max={3} step={0.05} marks={QUICK} onChange={(n) => setText(String(n))} />
+        : <AmountSlider key="g" label="Grams" value={value} max={Math.max(100, Math.round(serving.grams * 3))} step={1}
+            marks={[1, 2, 3].map((k) => [Math.round(serving.grams * k), `${fmt(serving.grams * k)} g`] as const)} onChange={(n) => setText(String(n))} />}
       <small class="muted">
         {unit === 'serving'
           ? <>{grams > 0 ? `${fmt(grams, 1)} g` : '—'} · 1 serving = {fmt(serving.grams, 1)} g ({serving.label})</>
