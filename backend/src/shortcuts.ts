@@ -80,6 +80,53 @@ export async function shortcutWeight(sheets: Sheets, body: { weight?: unknown; u
   return { ok: true, added: true, message: `Logged ${weight_lb} lb.` };
 }
 
+// ---------- Sleep (Apple Health → Plates) ----------
+
+/** "23:40", "11:40 PM", or an ISO date-time → "HH:MM" (Central for ISO). Anything else → "". */
+export function toClock(v: unknown): string {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/.exec(s);
+  if (m) {
+    let h = Number(m[1]);
+    const ap = m[3]?.toLowerCase();
+    if (ap === 'pm' && h < 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    return h < 24 && Number(m[2]) < 60 ? `${String(h).padStart(2, '0')}:${m[2]}` : '';
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) || !/\d{4}/.test(s) ? '' : chicagoTime(d);
+}
+
+/** Minutes asleep from what the Shortcut sends. Health durations come as seconds; people type hours. */
+export function sleepMinutes(body: { hours?: unknown; minutes?: unknown; seconds?: unknown; asleep?: unknown }): number | null {
+  const num = (v: unknown) => (v == null || v === '' ? NaN : typeof v === 'string' ? parseFloat(v.replace(',', '.')) : Number(v));
+  // Text like "7 hr 12 min" or "7h 12m" (how Shortcuts may print a duration).
+  const text = typeof body.asleep === 'string' ? /^\s*(?:(\d+(?:[.,]\d+)?)\s*h[a-z]*)?\s*(?:(\d+)\s*m[a-z]*)?\s*$/i.exec(body.asleep) : null;
+  if (text && (text[1] || text[2])) return (text[1] ? parseFloat(text[1].replace(',', '.')) * 60 : 0) + (text[2] ? Number(text[2]) : 0);
+  const sec = num(body.seconds), min = num(body.minutes), hr = num(body.hours), any = num(body.asleep);
+  if (sec > 0) return sec / 60;
+  if (min > 0) return min;
+  if (hr > 0) return hr * 60;
+  if (any > 0) return any > 1440 ? any / 60 : any > 24 ? any : any * 60; // seconds / minutes / hours
+  return null;
+}
+
+export async function shortcutSleep(sheets: Sheets, body: Record<string, unknown>, now = new Date()) {
+  const raw = sleepMinutes(body);
+  if (raw == null) return { ok: true, added: false, message: 'No sleep from Health last night — nothing logged.' };
+  const asleep_min = Math.round(raw);
+  if (asleep_min < 30 || asleep_min > 16 * 60) {
+    throw new HttpError(400, 'bad_sleep', `${asleep_min} minutes doesn't look like a night's sleep. Send "seconds", "minutes" or "hours" asleep.`);
+  }
+  const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : chicagoDate(now);
+  const bed_time = toClock(body.bed), wake_time = toClock(body.wake);
+  const row = { date, asleep_min, ...(bed_time && { bed_time }), ...(wake_time && { wake_time }), notes: 'Apple Health (Shortcut)' };
+  // One night per morning: running it again replaces that morning's numbers.
+  await sheets.upsertBy('Sleep', 'date', [row]);
+  return { ok: true, added: true, message: `Logged ${Math.floor(asleep_min / 60)} h ${asleep_min % 60} m of sleep.` };
+}
+
 // ---------- Today's totals (for the evening nudge) ----------
 
 function rowToCheckIn(r: Row): StoredCheckIn {

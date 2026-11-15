@@ -17,6 +17,7 @@ import { safeStore } from '../storage';
 import { showToast } from '../toast';
 import { showUndo } from '../undo';
 import { addWeight, deleteWeight, lastWeight, loadWeights, type WeighIn } from '../weightData';
+import { loadSleep, nightOf, sleepLabel, type Night } from '../sleepData';
 import { cachedCoach, ensureCheckIn, expenditureSeries, loadCoach, subscribeCoach, targetsForDate } from '../coachData';
 import { Sparkline } from '../components/UChart';
 import { SkeletonCard, SkeletonRows } from '../components/Skeleton';
@@ -583,7 +584,9 @@ function QuickWeigh({ date }: { date: string }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
+  const [night, setNight] = useState<Night | null>(null);
   useEffect(() => { loadWeights().then((w) => setLast(w[0] ?? null)).catch(() => {}); }, []);
+  useEffect(() => { void loadSleep().then((n) => setNight(nightOf(n, date))); }, [date]);
   useEffect(() => { if (open) setTimeout(() => input.current?.focus(), 50); }, [open]);
 
   async function save(e: Event) {
@@ -617,7 +620,7 @@ function QuickWeigh({ date }: { date: string }) {
   }
   return (
     <button class="card weigh-row" onClick={() => { setValue(last ? String(last.weight_lb) : ''); setOpen(true); }}>
-      <span><strong>Weigh in</strong><small class="muted">{last ? `Last: ${fmt(last.weight_lb, 1)} lb · ${last.date === today() ? 'today' : last.date}` : 'No weigh-ins yet'}</small></span>
+      <span><strong>Weigh in</strong><small class="muted">{last ? `Last: ${fmt(last.weight_lb, 1)} lb · ${last.date === today() ? 'today' : last.date}` : 'No weigh-ins yet'}{night ? ` · Slept ${sleepLabel(night.asleep_min)}` : ''}</small></span>
       <span class="weigh-plus" aria-hidden="true">+</span>
     </button>
   );

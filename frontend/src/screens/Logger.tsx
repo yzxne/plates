@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { today } from '../dates';
+import { loadSleep, nightOf, SHORT_SLEEP_MIN, sleepLabel, type Night } from '../sleepData';
 import {
   epley1RM, findPrs, formatDuration, isWorkingSet, muscleProgress, previousSets, PR_LABELS, setIsPr, setsPerMuscle, updatedRoutine, workoutTotals,
   type Exercise, type LoggedSet, type Pr, type Routine, type RoutineUpdate, type SetType, type Workout, type WorkoutExercise,
@@ -49,6 +51,8 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const known = (e: Exercise) => { if (!exMap.has(e.id)) setAdded((a) => [...a, e]); };
 
   useEffect(() => subscribeActive(() => setState(getActive())), []);
+  const [shortNight, setShortNight] = useState<Night | null>(null);
+  useEffect(() => { void loadSleep().then((n) => { const x = nightOf(n, today()); setShortNight(x && x.asleep_min < SHORT_SLEEP_MIN ? x : null); }); }, []);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   if (summary) return <Summary data={summary} exMap={exMap} onDone={onDone} />;
@@ -254,6 +258,8 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
           <div><span>Volume</span><strong>{fmt(totals.volume)} lb</strong></div>
           <div><span>Sets</span><strong>{totals.sets}</strong></div>
         </div>
+
+        {shortNight && <p class="card sleep-note">Short sleep last night ({sleepLabel(shortNight.asleep_min)}). Hold your weights today instead of pushing for more.</p>}
 
         <BodyMap progress={muscleProgress(w, exMap)} />
 

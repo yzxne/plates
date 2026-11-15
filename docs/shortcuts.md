@@ -104,3 +104,28 @@ Sends **yesterday's** totals from Plates into Apple Health (yesterday, so the da
 6. Optional: put the Log Health Sample steps inside **If** `kcal` **is greater than** `0`, so days with nothing logged don't add zeros.
 
 These are day totals (one entry per nutrient per day), not each food.
+
+## 6. Sleep from Apple Health (every morning, automatic)
+
+Sends last night's sleep to Plates. Shows on Today (next to your weigh-in), in Progress → Sleep, and as a note on the workout screen after a night under 6 hours.
+
+Needs sleep in Apple Health: Apple Watch with sleep tracking, or any sleep app that writes to Health.
+
+1. **Automation** → **+** → **Alarm** → **Is Stopped** (or **Time of Day** 8:45 AM) · **Run Immediately** → **New Blank Automation**.
+2. **Find Health Samples** where:
+   - **Type** is **Sleep**
+   - **Start Date** is in the last **14 hours**
+   - **Value** is not **Awake**, and **Value** is not **In Bed** (add both with "+ Add Filter", match **All**)
+   - Sort by **Start Date**, Oldest First.
+3. **Get Details of Health Samples** → **Duration**. Then **Calculate Statistics** → **Sum** of it.
+4. **Get Details of Health Samples** (tap the input, pick **Health Samples** from step 2) → **Start Date** → **Get Item from List** → First Item → **Format Date** → Custom `HH:mm`.
+5. Same again with **End Date** → **Last Item** → **Format Date** `HH:mm`.
+6. **Get Contents of URL**: `https://plates-api.zwag7913.workers.dev/shortcut/sleep` · Method **POST** · Header `Authorization` = `Bearer plk_…` · Request Body **JSON**:
+   - `asleep` (Text) = **Statistics** from step 3
+   - `bed` (Text) = **Formatted Date** from step 4
+   - `wake` (Text) = **Formatted Date** from step 5
+7. Optional: **Show Notification** with **Contents of URL** → you'll see "Logged 7 h 12 m of sleep."
+
+`asleep` can be seconds, minutes, hours or text like "7 hr 12 min"; Plates works out which. Running it twice on one morning replaces that morning's number. No sleep found → nothing is logged.
+
+**No watch?** Change the Value filters to **Value is In Bed** — that's the time between your Sleep Focus bedtime and wake-up, less accurate but still useful.

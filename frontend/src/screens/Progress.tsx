@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { loadSleep, sleepLabel, weekAverage, type Night } from '../sleepData';
 import { addDays, daysBetween, nextCheckInDay, weekdayOf } from '../../../shared/coaching';
 import { WEEKDAYS } from '../../../shared/schema';
 import { errorMessage } from '../api';
@@ -90,6 +91,8 @@ export function Progress({ focus }: { focus?: ProgressSection }) {
         {weight && weight.x.length > 1 ? <UChart x={weight.x} ys={weight.ys} series={WEIGHT_SERIES} /> : <p class="muted">Log weigh-ins on Today to see your trend.</p>}
         <small class="muted">Dots: scale weight. Line: trend weight (smoothed, see docs/algorithm.md).</small>
       </div>
+
+      <SleepCard />
 
       <div class="card" id="p-expenditure">
         <div class="card-head"><h2>Expenditure</h2><span class="muted">{exp?.last ? `${fmt(exp.last.kcal)} kcal · ${exp.last.confidence}` : ''}</span></div>
@@ -244,6 +247,25 @@ function CheckInHistory({ data }: { data: CoachData }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Last night and the 7-day average, from the morning Shortcut. Hidden until the first night arrives. */
+function SleepCard() {
+  const [nights, setNights] = useState<Night[]>([]);
+  useEffect(() => { void loadSleep(true).then(setNights); }, []);
+  if (!nights.length) return null;
+  const last = nights[0]!;
+  const week = weekAverage(nights, today());
+  return (
+    <div class="card" id="p-sleep">
+      <div class="card-head"><h2>Sleep</h2><span class="muted">{week ? `7-day avg ${sleepLabel(week.avg)}` : ''}</span></div>
+      <p class="no-mb">Last: <strong>{sleepLabel(last.asleep_min)}</strong>{last.bed_time && last.wake_time ? <span class="muted"> · {last.bed_time}–{last.wake_time}</span> : null}{last.date !== today() ? <span class="muted"> · {last.date}</span> : null}</p>
+      <div class="sleep-bars" aria-hidden="true">
+        {nights.slice(0, 14).reverse().map((n) => <span key={n.date} class={n.asleep_min < 360 ? 'short' : ''} style={{ height: `${Math.min(100, (n.asleep_min / 600) * 100)}%` }} title={`${n.date}: ${sleepLabel(n.asleep_min)}`} />)}
+      </div>
+      <small class="muted">From Apple Health each morning. Orange: under 6 hours.</small>
     </div>
   );
 }

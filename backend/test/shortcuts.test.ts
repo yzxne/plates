@@ -90,6 +90,22 @@ describe('Shortcut endpoints', () => {
     expect(rows[1]![col('Weights', 'weight_lb')]).toBe(172);
   });
 
+  it("logs last night's sleep from Health (seconds, hours, bed/wake), one row per morning", async () => {
+    const a = await as(key, 'POST', '/shortcut/sleep', { seconds: 25920, bed: '2026-11-13T23:40:00-06:00', wake: '7:02 AM', date: '2026-11-14' });
+    expect(a.body).toMatchObject({ added: true, message: 'Logged 7 h 12 m of sleep.' });
+    const b = await as(key, 'POST', '/shortcut/sleep', { asleep: '6.5', date: '2026-11-14' }); // re-run replaces
+    expect(b.body.message).toBe('Logged 6 h 30 m of sleep.');
+    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: '' })).body).toMatchObject({ ok: true, added: false });
+    expect((await as(key, 'POST', '/shortcut/sleep', { minutes: 5 })).status).toBe(400);
+    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: '7 hr 5 min', date: '2026-11-15' })).body.message).toBe('Logged 7 h 5 m of sleep.');
+    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: 26100, date: '2026-11-16' })).body.message).toBe('Logged 7 h 15 m of sleep.');
+    const rows = google.tabValues(sheetId, 'Sleep');
+    expect(rows).toHaveLength(4); // header + 3 mornings (the 14th was replaced, not added)
+    expect(rows[1]![col('Sleep', 'asleep_min')]).toBe(390);
+    expect(rows[1]![col('Sleep', 'bed_time')]).toBe('23:40');
+    expect(rows[1]![col('Sleep', 'wake_time')]).toBe('07:02');
+  });
+
   it('quick-logs food from text, saves the food, updates day totals and reports what it missed', async () => {
     const r = await as(key, 'POST', '/shortcut/log', { text: '2 eggs and mystery sauce', meal: 'breakfast' });
     expect(r.status).toBe(200);

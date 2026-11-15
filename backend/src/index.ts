@@ -19,7 +19,7 @@ import { applyFilters, Sheets, type Filters } from './sheets';
 import { getBackup, KEEP, listBackups, runBackup, XLSX_TYPE } from './backups';
 import { archiveOldFood, archivePreview } from './archive';
 import {
-  createShortcutKey, requireShortcutKey, revokeShortcutKey, shortcutKeyStatus, shortcutLog, shortcutSummary, shortcutWeight,
+  createShortcutKey, requireShortcutKey, revokeShortcutKey, shortcutKeyStatus, shortcutLog, shortcutSleep, shortcutSummary, shortcutWeight,
 } from './shortcuts';
 
 export default {
@@ -195,6 +195,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     await requireShortcutKey(request, env.PLATES_KV);
     if (method === 'POST' && path === '/shortcut/weight') return json(await shortcutWeight(await sheetFor(env), await readJson(request)));
     if (method === 'GET' && path === '/shortcut/summary') return json(await shortcutSummary(await sheetFor(env), new Date(), url.searchParams.get('day') ?? 'today'));
+    if (method === 'POST' && path === '/shortcut/sleep') return json(await shortcutSleep(await sheetFor(env), await readJson(request)));
     if (method === 'POST' && path === '/shortcut/log') return json(await shortcutLog(env, await sheetFor(env), await readJson(request)));
     throw new HttpError(404, 'not_found', 'Not found');
   }

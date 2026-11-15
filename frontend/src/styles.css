@@ -478,6 +478,9 @@ button, .tab, .chip, .row, .seg button, .tabbar, .entry, .btn, select, label.dat
 }
 input, select, textarea { font-size: 16px; } /* ≥16px stops iOS zoom on focus */
 .overlay-body, .sheet { overscroll-behavior: contain; }
+/* iOS: while a full-screen panel is open, freeze the page behind it so swipes scroll the panel, not the page. */
+html:has(.overlay), html:has(.overlay) body { overflow: hidden; }
+.overlay-body { min-height: 0; }
 
 /* ---------- 4-tab bar ---------- */
 
@@ -876,3 +879,9 @@ h2.inline { display: inline; margin: 0; }
 .remind-opts { display: flex; flex-direction: column; gap: 8px; }
 .remind-opts label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
 .remind-opts select { width: auto; min-width: 130px; }
+
+/* ---------- Sleep ---------- */
+.sleep-bars { display: flex; align-items: flex-end; gap: 4px; height: 44px; margin: 10px 0 6px; }
+.sleep-bars span { flex: 1; max-width: 18px; min-height: 3px; background: #7c8cff; border-radius: 3px; }
+.sleep-bars span.short { background: var(--warn); }
+.sleep-note { border-color: var(--warn); color: var(--text); font-size: 14px; }

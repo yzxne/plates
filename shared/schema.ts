@@ -1,7 +1,7 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const FOOD_LOG_COLUMNS = [
   'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
@@ -65,6 +65,8 @@ export const TABS = {
   AIUsage: ['id', 'date', 'request_id', 'model', 'input_tokens', 'output_tokens', 'cost_usd', 'created_at', 'updated_at'],
   // v4: imported food history (same columns as FoodLog). Kept separate so daily reads of FoodLog stay small and fast.
   FoodArchive: FOOD_LOG_COLUMNS,
+  // v7: last night's sleep, sent each morning by an iPhone Shortcut from Apple Health. date = the morning you woke up.
+  Sleep: ['id', 'date', 'asleep_min', 'bed_time', 'wake_time', 'notes', 'created_at', 'updated_at', 'deleted_at'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type TabName = keyof typeof TABS;
