@@ -40,3 +40,6 @@ design-refs/
 # Obsidian leftovers
 *.canvas
 .obsidian/
+
+# Personal coaching notes (real numbers): keep out of the public repo
+docs/ai-coach-outline.md
