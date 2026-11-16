@@ -59,7 +59,8 @@ Runs automatically on your check-in weekday (or the first time you open Plates a
 | Working set | A **completed** set whose type is Normal (N) or Failure (F) | Warm-ups (W) are excluded |
 | Volume | Σ weight (lb) × reps over working sets | Bodyweight exercises with weight blank count 0 |
 | Sets per muscle | Working sets counted once for **each primary muscle** of the exercise | Secondary muscles are not counted. [Assumption] Simple and transparent; can switch to fractional counting later |
-| Estimated 1RM | **Epley**: `weight × (1 + reps ÷ 30)`; 1 rep = the weight itself | Epley, B. (1985). *Poundage Chart*. Less accurate above ~10 reps |
+| Estimated 1RM | Average of **Epley** `weight × (1 + reps ÷ 30)` and **Brzycki** `weight × 36 ÷ (37 − reps)`; 1 rep = the weight itself; **sets over 10 reps give no estimate** | Epley (1985); Brzycki (1993). Both overshoot badly at high reps (a 20-rep set "predicts" 167 %), so those sets are left out |
+| Cardio calories | `MET × 3.5 × kg ÷ 200` per minute (ACSM); METs: incline walk 6, easy bike 5.5, rower 7, stairs 8.5, light bike 4.5, flat walk 3.5 | Rough guide only, shown as "~" |
 | Best set | Working set with the highest estimated 1RM | Shown per exercise and as "New best" after a workout |
 | Previous | Completed sets of the most recent finished workout containing that exercise, matched by set position | Tap to copy into the current set |
 | Duration | `end_time − start_time` | |
@@ -89,7 +90,7 @@ Code: `shared/accuracy.ts`, tests `backend/test/accuracy.test.ts`. Shown in Prog
 Code: `shared/training.ts`, tests `backend/test/prs.test.ts`.
 
 - **Double progression:** when a routine workout starts, if last time *every* working set of an exercise reached the top of its planned rep range (at or above the planned weight), the next weight up is pre-filled (+5 lb, or +2.5 lb under 50 lb) and shown in green with "↑ Weight up". Reps start empty. Edit it if it feels heavy.
-- **Records:** est. 1-rep max (Epley), heaviest weight, best single set (weight × reps), and best session volume per exercise. Warm-ups never count. A 🏆 pop-up appears when a ticked set beats your best est. 1RM or heaviest weight; the workout summary lists every record as old → new.
+- **Records:** est. 1-rep max (Epley/Brzycki average, sets of ≤ 10 reps), heaviest weight, best single set (weight × reps), and best session volume per exercise. Warm-ups never count. A 🏆 pop-up appears when a ticked set beats your best est. 1RM or heaviest weight; the workout summary lists every record as old → new.
 - **Routine after a workout:** exercises swapped/added/removed/reordered → you choose Keep or Discard. Either way each planned weight becomes the heavier of planned vs lifted (never lower).
 - **Stalls:** no new best est. 1RM for ≥ 4 weeks across ≥ 3 sessions → listed under Train → Stalled. **Deload** lowers that exercise's planned weights ~10 % (rounded to 5 / 2.5 lb).
 - **Weekly sets per muscle:** colored against [Assumption] 10–20 hard sets/week (amber under, green in range, blue over).
