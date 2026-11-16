@@ -48,7 +48,7 @@ export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exerci
       <header class="overlay-head">
         <button class="icon-btn" aria-label="Back" onClick={onClose}><IconBack /></button>
         <div class="overlay-title"><strong>{title}</strong></div>
-        <button class="btn link" onClick={() => setCreating(true)}>New</button>
+        <button class="btn link" onClick={() => setCreating(true)}>+ Custom</button>
       </header>
       <div class="overlay-body">
         {creating ? (
@@ -56,11 +56,12 @@ export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exerci
         ) : (
           <>
             <input type="search" placeholder="Search exercises" value={q} onInput={(e) => setQ(e.currentTarget.value)} class="mb" />
+            <button class="btn mb create-ex" onClick={() => setCreating(true)}>+ Create custom exercise{q ? ` "${q}"` : ''}</button>
             <div class="chips scroll-x mb">
               <button class={`chip ${muscle === '' ? 'on' : ''}`} onClick={() => setMuscle('')}>All</button>
               {MUSCLES.map((m) => <button key={m} class={`chip ${muscle === m ? 'on' : ''}`} onClick={() => setMuscle(m)}>{m}</button>)}
             </div>
-            {shown.length === 0 && more.length === 0 && <p class="muted">No match. Tap <strong>New</strong> to create it.</p>}
+            {shown.length === 0 && more.length === 0 && <p class="muted">No match. Use <strong>Create custom exercise</strong> above.</p>}
             {shown.length > 0 && more.length > 0 && <h3>Your exercises</h3>}
             <div class="list card">
               {shown.map((e) => (

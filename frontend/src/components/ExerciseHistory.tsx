@@ -81,7 +81,7 @@ export function ExerciseHistory({ exerciseId, name, history }: { exerciseId: str
         <h2>Records</h2>
         {best ? (
           <div class="stat-grid">
-            <div><small>Est. 1-rep max</small><strong>{fmt(records.e1rm)} lb</strong><small>{best.date}</small></div>
+            <div><small>Est. 1-rep max</small><strong>{records.e1rm ? `${fmt(records.e1rm)} lb` : "—"}</strong><small>{records.e1rm ? best.date : "from sets of 10 reps or fewer"}</small></div>
             <div><small>Heaviest</small><strong>{fmt(records.weight, 1)} lb</strong><small /></div>
             <div><small>Best set</small><strong>{fmt(best.weight_lb, 1)} × {best.reps}</strong><small /></div>
             <div><small>Best session volume</small><strong>{fmt(records.session_volume)} lb</strong><small /></div>

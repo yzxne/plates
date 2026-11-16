@@ -432,7 +432,7 @@ function WorkoutDetail({ workout, exMap, history, onBack, onDeleted }: {
           <ul class="plain">
             {e.sets.map((s, si) => (
               <li key={si}>{s.type === 'N' ? `Set ${si + 1}` : SET_TYPE_LABELS[s.type]}: {fmt(s.weight_lb ?? 0, 1)} lb × {s.reps ?? 0}
-                {isWorkingSet(s) && s.weight_lb && s.reps ? <span class="muted"> · est. 1RM {fmt(epley1RM(s.weight_lb, s.reps))}</span> : null}
+                {isWorkingSet(s) && s.weight_lb && s.reps && epley1RM(s.weight_lb, s.reps) > 0 ? <span class="muted"> · est. 1RM {fmt(epley1RM(s.weight_lb, s.reps))}</span> : null}
               </li>
             ))}
           </ul>

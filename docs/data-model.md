@@ -1,6 +1,6 @@
 # Data Model (Google Sheet)
 
-Source of truth: `shared/schema.ts`. Schema version **7**. v7 added the **Sleep** tab (sent each morning by an iPhone Shortcut). v6 added `FoodLog.group_id`, `group_name` (foods combined into one named item; parts share `group_id`). v5 added `Routines.folder` (optional; rotation stays inside a folder). v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
+Source of truth: `shared/schema.ts`. Schema version **8**. v8 added the **Water** tab and the `water_goal_oz` setting. v7 added the **Sleep** tab (sent each morning by an iPhone Shortcut). v6 added `FoodLog.group_id`, `group_name` (foods combined into one named item; parts share `group_id`). v5 added `Routines.folder` (optional; rotation stays inside a folder). v4 added the **FoodArchive** tab and the `archive_through` setting (Phase 7 imports). v2 added `Workouts.name`, `Workouts.exercise_notes_json`. v3 added `Foods.favorite`; `FoodLog.food_source`, `place`, `is_estimate`; tabs **Portions** and **SavedMeals**; settings for meal windows, cafeteria and setup.
 
 ## Conventions
 
@@ -59,6 +59,9 @@ One row per date. `id, date, day_complete (bool), total_kcal, total_protein_g, t
 
 ### Sleep
 `id, date (the morning you woke up), asleep_min, bed_time (HH:MM), wake_time (HH:MM), notes, created_at, updated_at, deleted_at`. One row per morning; re-sending replaces it. Written only by `POST /shortcut/sleep`.
+
+### Water
+`id, date, time (HH:MM), oz, kind (water, bottle, diet_soda, monster_zero, …), created_at, updated_at, deleted_at`. One row per tap on the Today water card. Caloric drinks (e.g. regular Monster) also get a FoodLog row.
 
 ### Exercises
 `id, name, primary_muscles (comma list), secondary_muscles, equipment, default_rest_sec, notes, created_at, updated_at, deleted_at`

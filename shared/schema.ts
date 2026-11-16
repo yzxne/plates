@@ -1,7 +1,7 @@
 // Google Sheet schema shared by the backend (creates/validates tabs) and frontend.
 // Documented in docs/data-model.md — keep both in sync.
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 const FOOD_LOG_COLUMNS = [
   'id', 'date', 'meal', 'food_id', 'food_name', 'grams', 'servings',
@@ -67,6 +67,8 @@ export const TABS = {
   FoodArchive: FOOD_LOG_COLUMNS,
   // v7: last night's sleep, sent each morning by an iPhone Shortcut from Apple Health. date = the morning you woke up.
   Sleep: ['id', 'date', 'asleep_min', 'bed_time', 'wake_time', 'notes', 'created_at', 'updated_at', 'deleted_at'],
+  // v8: water and other drinks that count toward hydration (one row per tap)
+  Water: ['id', 'date', 'time', 'oz', 'kind', 'created_at', 'updated_at', 'deleted_at'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type TabName = keyof typeof TABS;
@@ -150,6 +152,8 @@ export const SETTINGS_FIELDS: SettingField[] = [
       { value: '0.8', label: 'Recommended', hint: 'A safe margin above the research plateau.' },
       { value: '1', label: 'High', hint: 'Useful when cutting fast; more filling.' },
     ] },
+  { key: 'water_goal_oz', label: 'Water goal', type: 'number', unit: 'oz per day', min: 32, max: 200, step: 4, default: '',
+    help: 'Leave blank for half your body weight in ounces (176 lb → 88 oz).' },
   { key: 'fat_min_g', label: 'Fat minimum', type: 'number', unit: 'g/day', min: 0, max: 300, step: 1, default: '50',
     help: 'Fat never goes below this. [Assumption] ~0.3 g per lb of body weight is a common floor.',
     presets: [

@@ -36,3 +36,7 @@ Plates Brief Changes.md
 
 # Your UI reference images (private)
 design-refs/
+
+# Obsidian leftovers
+*.canvas
+.obsidian/

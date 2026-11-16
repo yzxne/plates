@@ -94,6 +94,19 @@ Single Leg Extension (Machine)|Machine|Quads||60
 Lying Leg Curl (Machine)|Machine|Hamstrings||75
 Standing Leg Curl (Machine)|Machine|Hamstrings||60
 Romanian Deadlift (Dumbbell)|Dumbbell|Hamstrings|Glutes, Back|120
+Romanian Deadlift (Smith Machine)|Machine|Hamstrings|Glutes, Back|120
+Deadlift (Smith Machine)|Machine|Back|Glutes, Hamstrings|150
+Bent Over Row (Smith Machine)|Machine|Back|Lats, Biceps|90
+Front Squat (Smith Machine)|Machine|Quads|Glutes|120
+Lunge (Smith Machine)|Machine|Quads|Glutes|90
+Split Squat (Barbell)|Barbell|Quads|Glutes|90
+Glute Bridge (Smith Machine)|Machine|Glutes|Hamstrings|90
+Good Morning (Smith Machine)|Machine|Hamstrings|Back, Glutes|120
+Close Grip Bench Press (Smith Machine)|Machine|Triceps|Chest|90
+Decline Bench Press (Smith Machine)|Machine|Chest|Triceps|120
+JM Press (Smith Machine)|Machine|Triceps|Chest|90
+Upright Row (Smith Machine)|Machine|Shoulders|Traps|75
+Standing Calf Raise (Barbell)|Barbell|Calves||60
 Single Leg Romanian Deadlift (Dumbbell)|Dumbbell|Hamstrings|Glutes|90
 Stiff Leg Deadlift (Barbell)|Barbell|Hamstrings|Glutes, Back|120
 Nordic Curl|Bodyweight|Hamstrings||90

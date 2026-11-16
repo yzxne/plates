@@ -24,7 +24,8 @@ function workout(date: string, start: string, sets: Record<string, LoggedSet[]>,
 describe('training math', () => {
   it('estimates 1RM with the Epley formula', () => {
     expect(epley1RM(200, 1)).toBe(200);
-    expect(epley1RM(200, 5)).toBeCloseTo(233.33, 2);
+    expect(epley1RM(200, 5)).toBeCloseTo(229.17, 2); // Epley 233.3, Brzycki 225 → average
+    expect(epley1RM(225, 20)).toBe(0); // too many reps to estimate
     expect(epley1RM(0, 5)).toBe(0);
     expect(epley1RM(100, 0)).toBe(0);
   });

@@ -11,26 +11,27 @@ const history = [wk('old', [ex('lat', [set(160, 10), set(160, 8)]), ex('curl', [
 
 describe('personal records', () => {
   it('finds 1RM, heaviest weight, best set and total volume records with before → after', () => {
-    const today = wk('new', [ex('lat', [set(100, 12, 'W'), set(170, 8), set(160, 10), set(150, 10)]), ex('curl', [set(80, 7)])]);
+    const today = wk('new', [ex('lat', [set(100, 12, 'W'), set(175, 8), set(160, 10), set(150, 10)]), ex('curl', [set(80, 7)])]);
     const prs = findPrs(today, history);
     const lat = Object.fromEntries(prs.filter((p) => p.exercise_id === 'lat').map((p) => [p.kind, [p.before, p.after]]));
-    expect(lat.weight).toEqual([160, 170]);
-    expect(lat.e1rm![1]).toBeCloseTo(170 * (1 + 8 / 30)); // 215.3 > 213.3
+    expect(lat.weight).toEqual([160, 175]);
+    expect(lat.e1rm![1]).toBeCloseTo((175 * (1 + 8 / 30) + (175 * 36) / 29) / 2); // 219.4 > 213.3
     expect(lat.set_volume).toBeUndefined(); // best set 160×10 = 1,600 only ties the old best
-    expect(lat.session_volume).toEqual([2880, 170 * 8 + 1600 + 1500]); // warm-up not counted
+    expect(lat.session_volume).toEqual([2880, 175 * 8 + 1600 + 1500]); // warm-up not counted
     expect(prs.some((p) => p.exercise_id === 'curl')).toBe(false); // 80×7 beats nothing
   });
 
   it('a first-time exercise only gets an e1RM entry with no "before"', () => {
     const prs = findPrs(wk('n', [ex('squat', [set(225, 5)])]), history);
-    expect(prs).toEqual([{ exercise_id: 'squat', kind: 'e1rm', before: null, after: expect.closeTo(262.5) }]);
+    expect(prs).toEqual([{ exercise_id: 'squat', kind: 'e1rm', before: null, after: expect.closeTo(257.81, 1) }]);
   });
 
   it('flags a live set PR, ignoring warm-ups and sets already beaten today', () => {
-    expect(setIsPr('lat', set(170, 8), history)).toBe('e1rm');
+    expect(setIsPr('lat', set(175, 8), history)).toBe('e1rm');
+    expect(setIsPr('lat', set(100, 20), history)).toBeNull(); // 20 reps: no 1RM estimate
     expect(setIsPr('lat', set(165, 1), history)).toBe('weight'); // 165 lb heavier, 1RM 165 lower
     expect(setIsPr('lat', set(200, 1, 'W'), history)).toBeNull();
-    expect(setIsPr('lat', set(170, 8), history, [set(175, 8)])).toBeNull();
+    expect(setIsPr('lat', set(175, 8), history, [set(180, 8)])).toBeNull();
     expect(setIsPr('new-ex', set(50, 10), history)).toBeNull();
   });
 });

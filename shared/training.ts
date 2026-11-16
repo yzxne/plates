@@ -88,11 +88,17 @@ export interface Workout {
 
 // ---------- Math ----------
 
-/** Estimated 1-rep max, Epley formula: weight × (1 + reps / 30). 1 rep = the weight itself. */
+/** Above this many reps a 1RM estimate is mostly guesswork (a 20-rep calf set "predicts" 167% of the weight). */
+export const MAX_1RM_REPS = 10;
+
+/**
+ * Estimated 1-rep max: the average of Epley, weight × (1 + reps/30), and Brzycki, weight × 36 / (37 − reps).
+ * 1 rep = the weight itself. Sets over MAX_1RM_REPS reps give 0 (no estimate) instead of an inflated number.
+ */
 export function epley1RM(weight: number, reps: number): number {
-  if (!(weight > 0) || !(reps > 0)) return 0;
+  if (!(weight > 0) || !(reps > 0) || reps > MAX_1RM_REPS) return 0;
   if (reps === 1) return weight;
-  return weight * (1 + reps / 30);
+  return (weight * (1 + reps / 30) + (weight * 36) / (37 - reps)) / 2;
 }
 
 /** Sets that count as "working" sets: completed and not warm-ups. */

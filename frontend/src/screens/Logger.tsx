@@ -10,6 +10,9 @@ import { errorMessage } from '../api';
 import { BodyMap } from '../components/BodyMap';
 import { MuscleBars } from '../components/Charts';
 import { ActionSheet } from '../components/ActionSheet';
+import { ReorderSheet } from '../components/ReorderSheet';
+import { cardioFact, cardioFor, cardioKcal } from '../../../shared/cardio';
+import { lastWeight } from '../weightData';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { IconBack, IconClose } from '../components/Icons';
 import { ExerciseHistory } from '../components/ExerciseHistory';
@@ -47,6 +50,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const [added, setAdded] = useState<Exercise[]>([]);
   const exMap = useMemo(() => new Map([...exercises, ...added].map((e) => [e.id, e])), [exercises, added]);
   const [menu, setMenu] = useState<number | null>(null);
+  const [reordering, setReordering] = useState(false);
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const known = (e: Exercise) => { if (!exMap.has(e.id)) setAdded((a) => [...a, e]); };
 
@@ -331,6 +335,9 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
         })}
 
         <button class="btn primary" onClick={() => setPicking(true)}>+ Add exercise</button>
+        {w.exercises.length > 1 && <button class="btn" onClick={() => setReordering(true)}>⇅ Reorder exercises</button>}
+
+        <CardioCard muscles={w.exercises.flatMap((ex) => { const p = exMap.get(ex.exercise_id)?.primary[0]; return p ? ex.sets.map(() => p) : []; })} />
         <button class="btn link danger center" onClick={discard}>Discard workout</button>
         <div style={{ height: state.rest ? '128px' : '0' }} />
       </div>
@@ -348,14 +355,18 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
           <div class="overlay-body"><ExerciseHistory exerciseId={historyFor} name={exMap.get(historyFor)?.name ?? ""} history={history} /></div>
         </div>
       )}
+      {reordering && (
+        <ReorderSheet title="Reorder exercises" onClose={() => setReordering(false)}
+          items={w.exercises.map((ex, i) => ({ key: `${ex.exercise_id}-${i}`, label: exMap.get(ex.exercise_id)?.name ?? 'Exercise', sub: `${ex.sets.length} set${ex.sets.length === 1 ? '' : 's'}` }))}
+          onDone={(order) => update((x) => { x.exercises = order.map((i) => x.exercises[i]!); return x; })} />
+      )}
       {menu != null && w.exercises[menu] && (
         <ActionSheet title={exMap.get(w.exercises[menu]!.exercise_id)?.name} onClose={() => setMenu(null)} actions={[
           { label: 'History', onClick: () => setHistoryFor(w.exercises[menu]!.exercise_id) },
           { label: 'Replace exercise', onClick: () => setReplacing(menu) },
           { label: 'Add note', onClick: () => exerciseAction(menu, 'note'), disabled: w.exercises[menu]!.note !== '' },
           { label: 'Plate calculator', onClick: () => exerciseAction(menu, 'plates') },
-          { label: 'Move up', onClick: () => exerciseAction(menu, 'up'), disabled: menu === 0 },
-          { label: 'Move down', onClick: () => exerciseAction(menu, 'down'), disabled: menu === w.exercises.length - 1 },
+          { label: 'Reorder exercises', onClick: () => setReordering(true), disabled: w.exercises.length < 2 },
           { label: 'Remove exercise', onClick: () => exerciseAction(menu, 'remove'), danger: true },
         ]} />
       )}
@@ -475,6 +486,21 @@ function Summary({ data, exMap, onDone }: { data: SummaryData; exMap: Map<string
         </div>
         <button class="btn primary" disabled={deciding} onClick={done}>Done</button>
       </div>
+    </div>
+  );
+}
+
+/** Cardio finisher: a suggestion for today with time, rough calories and a reason to do it. */
+function CardioCard({ muscles }: { muscles: string[] }) {
+  const d = today();
+  const pick = cardioFor(muscles, d);
+  const lb = lastWeight()?.weight_lb;
+  return (
+    <div class="card cardio-card">
+      <div class="card-head"><h2>Cardio finisher</h2><span class="muted">{pick.minutes} min</span></div>
+      <p class="cardio-what"><strong>{pick.title}</strong> · {pick.how}{lb ? <span class="muted"> · ~{cardioKcal(pick, lb)} kcal</span> : null}</p>
+      <p class="muted no-mb">{pick.why}</p>
+      <p class="cardio-fact">💡 {cardioFact(d)}</p>
     </div>
   );
 }

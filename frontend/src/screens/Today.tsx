@@ -17,6 +17,8 @@ import { safeStore } from '../storage';
 import { showToast } from '../toast';
 import { showUndo } from '../undo';
 import { addWeight, deleteWeight, lastWeight, loadWeights, type WeighIn } from '../weightData';
+import { getSettings } from '../settingsStore';
+import { WaterCard } from '../components/WaterCard';
 import { loadSleep, nightOf, sleepLabel, type Night } from '../sleepData';
 import { cachedCoach, ensureCheckIn, expenditureSeries, loadCoach, subscribeCoach, targetsForDate } from '../coachData';
 import { Sparkline } from '../components/UChart';
@@ -332,6 +334,8 @@ export function Today({ date, onDate, onAdd, onSettings, version, nextWorkout, o
 
       <QuickWeigh date={date} />
 
+      <WaterCard date={date} onFoodLogged={() => void load()} />
+
       {nextWorkout}
 
       {day && day.entries.length > 0 && (
@@ -478,19 +482,26 @@ function GearIcon() {
   );
 }
 
+/** Daily protein minimum: your g-per-lb setting × latest weigh-in (shown even before the first check-in). */
+function proteinMin(): number {
+  const w = lastWeight()?.weight_lb;
+  return w ? Math.round((Number(getSettings().protein_g_per_lb) || 0.8) * w) : 0;
+}
+
 function MacroBars({ t, targets, children }: { t: Nutrients | null; targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null; children?: ComponentChildren }) {
   const rows: [string, keyof Nutrients, string][] = [['Calories', 'kcal', ''], ['Protein', 'protein_g', 'g'], ['Fat', 'fat_g', 'g'], ['Carbs', 'carbs_g', 'g']];
   return (
     <div class="card macros">
       {rows.map(([label, key, unit]) => {
         const v = (t?.[key] as number | null) ?? 0;
-        const target = targets?.[key as 'kcal'] ?? 0;
+        const isP = key === 'protein_g';
+        const target = (isP ? targets?.protein_g || proteinMin() : targets?.[key as 'kcal']) ?? 0;
         const pct = target ? Math.min(100, (v / target) * 100) : 0;
         return (
           <div class="macro-row" key={key}>
             <div class="macro-label">
-              <span>{label}</span>
-              <span class="muted">{fmt(v)}{unit}{target ? ` of ${fmt(target)}${unit}` : ''}</span>
+              <span>{label}{isP && target ? <span class={`min-tag ${v >= target ? 'hit' : ''}`}>{v >= target ? '✓ min hit' : `min ${fmt(target)} g`}</span> : null}</span>
+              <span class="muted">{fmt(v)}{unit}{target ? (isP ? (v >= target ? ` of ${fmt(target)}g` : ` · ${fmt(target - v)}g to go`) : ` of ${fmt(target)}${unit}`) : ''}</span>
             </div>
             <div class="macro-track"><span class={`macro-fill k-${key}`} style={{ width: `${pct}%` }} />{target ? <span class="macro-mark" /> : null}</div>
           </div>

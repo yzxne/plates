@@ -114,7 +114,11 @@ export function sleepMinutes(body: { hours?: unknown; minutes?: unknown; seconds
 
 export async function shortcutSleep(sheets: Sheets, body: Record<string, unknown>, now = new Date()) {
   const raw = sleepMinutes(body);
-  if (raw == null) return { ok: true, added: false, message: 'No sleep from Health last night — nothing logged.' };
+  if (raw == null) {
+    // Echo what arrived so a broken Shortcut variable is easy to spot.
+    const got = Object.entries(body).filter(([k]) => k !== 'date').map(([k, v]) => `${k}=${JSON.stringify(v).slice(0, 40)}`).join(', ') || 'nothing';
+    return { ok: true, added: false, message: `No sleep from Health last night — nothing logged. Plates received: ${got}.` };
+  }
   const asleep_min = Math.round(raw);
   if (asleep_min < 30 || asleep_min > 16 * 60) {
     throw new HttpError(400, 'bad_sleep', `${asleep_min} minutes doesn't look like a night's sleep. Send "seconds", "minutes" or "hours" asleep.`);

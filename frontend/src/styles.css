@@ -445,8 +445,10 @@ textarea {
   display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center;
   padding: 10px 16px calc(var(--safe-bottom) + 10px); background: var(--surface); border-top: 1px solid var(--border);
 }
-/* Typing in a set or note: the keyboard is up, so the rest bar steps aside instead of covering the field. */
-.logger:has(input:focus, textarea:focus) .rest-bar { display: none; }
+/* Typing: the rest bar rides just above the keyboard (--kb from viewport.ts). */
+.rest-bar { bottom: var(--kb, 0px); transition: bottom 0.15s ease-out; }
+.logger:has(input:focus, textarea:focus) .rest-bar { padding-bottom: 10px; }
+.logger:has(input:focus, textarea:focus) .overlay-body { padding-bottom: calc(var(--kb, 0px) + 90px); }
 .rest-progress { position: absolute; left: 0; top: 0; height: 3px; background: var(--link); transition: width 0.25s linear; }
 .rest-time { text-align: center; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rest-bar .btn { min-height: 40px; padding: 0 12px; }
@@ -905,3 +907,26 @@ h2.inline { display: inline; margin: 0; }
   font: inherit; font-size: 13px; padding: 4px 6px; min-height: 0; cursor: pointer; white-space: nowrap;
 }
 .slider-marks button.on { color: var(--text); font-weight: 700; }
+
+.min-tag { margin-left: 8px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--protein); }
+.min-tag.hit { background: #1d3a2c; color: #8be0b4; }
+
+/* ---------- Drag to reorder ---------- */
+.reorder-row { position: relative; background: var(--surface); gap: 10px; }
+.reorder-row.dragging { z-index: 2; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5); background: var(--surface-2); }
+.reorder-num { width: 18px; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+.reorder-handle { touch-action: none; cursor: grab; font-size: 22px; color: var(--muted); padding: 8px 4px 8px 14px; user-select: none; -webkit-user-select: none; }
+.reorder.list.card { overflow: visible; margin-bottom: 14px; }
+
+.cardio-card { margin-top: 14px; }
+.cardio-what { margin-bottom: 6px; }
+.cardio-fact { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 14px; }
+
+/* ---------- Water ---------- */
+.water-meter { position: relative; height: 26px; border-radius: 13px; background: var(--surface-2); overflow: hidden; margin: 4px 0 10px; }
+.water-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #2f7fe0, #5ab0ff); border-radius: 13px; transition: width 0.35s ease-out; }
+.water-fill.done { background: linear-gradient(90deg, #2c9a68, #5ad49a); }
+.water-label { position: relative; display: block; text-align: center; line-height: 26px; font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.water-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.water-btns .chip small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.water-more { margin: 10px 0 0; }
