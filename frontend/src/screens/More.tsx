@@ -3,6 +3,7 @@ import type { ComponentChildren } from 'preact';
 import { api, clearToken, errorMessage, setToken } from '../api';
 import { showToast } from '../toast';
 import { AiUsageCard } from '../components/AiUsageCard';
+import { CoachCard } from '../components/CoachCard';
 import { ConnectionCard } from '../components/ConnectionCard';
 import { IconBack, IconChevron } from '../components/Icons';
 import { NotificationsCard } from '../components/NotificationsCard';
@@ -13,7 +14,7 @@ import { DataScreen } from './DataScreen';
 import { SavedFoods } from './SavedFoods';
 import { Settings } from './Settings';
 
-type View = 'menu' | 'settings' | 'foods' | 'data' | 'ai' | 'notify' | 'shortcuts' | 'google';
+type View = 'menu' | 'settings' | 'foods' | 'data' | 'ai' | 'notify' | 'shortcuts' | 'google' | 'coach';
 
 const GOAL: Record<string, string> = { lose: 'Losing', maintain: 'Maintaining', gain: 'Gaining' };
 
@@ -61,6 +62,7 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
         {view === 'notify' && <SubPage title="Notifications" onBack={back}><NotificationsCard /></SubPage>}
         {view === 'shortcuts' && <SubPage title="iPhone Shortcuts" onBack={back}><ShortcutsCard /></SubPage>}
         {view === 'google' && <SubPage title="Google Sheet" onBack={back}><ConnectionCard /></SubPage>}
+        {view === 'coach' && <SubPage title="AI coach" onBack={back}><CoachCard /></SubPage>}
         {view === 'menu' && (
           <section>
             <header class="screen-head with-back">
@@ -73,6 +75,7 @@ export function More({ onLogout, onClose }: { onLogout: () => void; onClose: () 
             <div class="list card">
               <Row title="Profile & goals" sub={profile || 'Body, goal, training days, meal times'} onClick={() => setView('settings')} />
               <Row title="Saved foods" sub="Your foods, favorites" onClick={() => setView('foods')} />
+              <Row title="AI coach" sub="Summary to paste into the Claude app" onClick={() => setView('coach')} />
             </div>
 
             <h3 class="group-label">Connections</h3>

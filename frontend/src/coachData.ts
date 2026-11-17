@@ -3,6 +3,7 @@ import {
   addDays, constantsFrom, expenditureOn, initialExpenditure, lastCheckInDay, runCheckIn, targetsFor, trendSeries,
   type DayIntake, type DayTarget, type ExpenditurePoint, type StoredCheckIn, type TrendPoint, type WeightPoint,
 } from '../../shared/coaching';
+import { splitWeightOutliers } from '../../shared/coachSummary';
 import type { Row } from '../../shared/schema';
 import { today } from './dates';
 import { readTabs, uuid, write } from './foodData';
@@ -46,7 +47,8 @@ export function loadCoach(force = false): Promise<CoachData> {
   loading ??= readTabs(['Weights', 'Days', 'CheckIns'])
     .then((d) => {
       const s = getSettings();
-      const weights = (d.Weights ?? []).map((r) => ({ date: String(r.date), weight_lb: Number(r.weight_lb) })).filter((w) => w.weight_lb > 0);
+      // Readings > 10 % off nearby weigh-ins (wrong unit / wrong Health field / typo) don't move the trend.
+      const weights = splitWeightOutliers((d.Weights ?? []).map((r) => ({ date: String(r.date), weight_lb: Number(r.weight_lb) })).filter((w) => w.weight_lb > 0)).kept;
       const intake: DayIntake[] = (d.Days ?? []).map((r) => ({
         date: String(r.date), kcal: Number(r.total_kcal) || 0, complete: r.day_complete === true || r.day_complete === 'TRUE',
       })).sort((a, b) => a.date.localeCompare(b.date));

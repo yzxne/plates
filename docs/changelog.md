@@ -2,6 +2,10 @@
 
 Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development Brief.md`) and `Plates Brief Changes.md` describe the original plan; this note is what changed since. Newest first. Schema changes need a Worker deploy (`cd backend; npx wrangler deploy`) before the app uses them.
 
+## 2026-11-17 — AI coach (Claude app)
+- **Settings → AI coach**: *Copy summary* builds a compact JSON of the last 4 weeks on the phone (calories/protein vs targets on complete days, partial-looking days left out, alcohol, weigh-ins and trend, check-ins, workouts vs planned, lifts with best est. 1RM vs before, stalls, pain notes, sleep, water, data flags). Paste it into a "Plates Coach" project in the Claude app; *Copy instructions* gives the project's instructions. No API cost, no new tab or Worker route. Setup: docs/coach-prompt.md. Code: `shared/coachSummary.ts`, `shared/coachPrompt.ts`.
+- **Weight outliers**: weigh-ins more than 10 % from the median of nearby weigh-ins (±21 days, needs 2+) no longer move the trend weight or check-ins.
+
 ## 2026-11-16 — Fixes pt 2
 - **Water** (schema v8, `Water` tab): meter on Today toward a goal (setting `water_goal_oz`, default half body weight in oz). Glass / bottle / big bottle, plus diet soda, sparkling water, coffee, Monster Zero Ultra, regular Monster (adds 210 kcal to Snack). Caffeine total shown.
 - **Cardio finisher** card at the bottom of every workout: lighter after leg days, rotates by day, ~kcal from METs, a reason and a fact.
