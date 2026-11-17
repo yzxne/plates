@@ -10,6 +10,7 @@ import {
   bearerToken, revokeOtherSessions, SESSION_TTL_SEC, sessionsValidAfter, signToken, STATE_TTL_SEC, verifyToken,
 } from './session';
 import { lookupUsdaBarcode, searchOff, searchUsda } from './food';
+import { fatSecretConfigured, searchFatSecret } from './fatsecret';
 import { cleanContext, cleanImages, estimate, monthUsage } from './ai';
 import { addSub, cancelRest, lastKind, removeSub, scheduleRest, sendToAll, validEndpoint } from './push';
 import { getWeighReminder, runWeighReminder, setWeighReminder } from './reminders';
@@ -253,7 +254,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
     const fresh = await googleConnection(env); // may change if the token refresh failed above
     return json({
-      backend: { missing_secrets: missingSecrets, usda_key: !!env.USDA_API_KEY },
+      backend: { missing_secrets: missingSecrets, usda_key: !!env.USDA_API_KEY, fatsecret: fatSecretConfigured(env) },
       google: { connected: fresh.connected, reconnect_needed: fresh.reconnectNeeded },
       sheet,
     });
@@ -397,7 +398,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (source === 'usda') return json({ source, foods: await searchUsda(q, env.USDA_API_KEY, 'everyday') });
     if (source === 'usda_brands') return json({ source, foods: await searchUsda(q, env.USDA_API_KEY, 'brands') });
     if (source === 'off') return json({ source, foods: await searchOff(q) });
-    throw new HttpError(400, 'bad_source', 'source must be usda, usda_brands or off');
+    if (source === 'fatsecret') return json({ source, foods: await searchFatSecret(env, q) });
+    throw new HttpError(400, 'bad_source', 'source must be usda, usda_brands, off or fatsecret');
   }
 
   if (method === 'POST' && (path === '/sheet/append' || path === '/sheet/update')) {

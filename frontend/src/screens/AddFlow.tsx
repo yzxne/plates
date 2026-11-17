@@ -1,9 +1,10 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { parseLabel, type ParsedLabel } from '../../../shared/labelParser';
 import {
   MEAL_LABELS, MEALS, makeEntry, per100FromServing, roundNutrients, type Food, type LogEntry, type Meal, type Nutrients,
 } from '../../../shared/nutrition';
-import { api, errorMessage } from '../api';
+import { api, ApiError, errorMessage } from '../api';
 import { lookupBarcode } from '../barcodeLookup';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { AiEstimate, type AiMode } from './AiEstimate';
@@ -186,14 +187,16 @@ function NotFound({ code, errors, go }: { code: string; errors: string[]; go: (v
 
 // ---------- Home: search + Recent / Favorites / Saved meals ----------
 
-interface SearchState { q: string; usda: Food[] | null; brands?: Food[] | null; off: Food[] | null; tab?: 'common' | 'brands' }
+interface SearchState { q: string; usda: Food[] | null; brands?: Food[] | null; off: Food[] | null; fs?: Food[] | null | 'off'; tab?: 'all' | 'common' | 'brands' }
 
 function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }: {
   state: SearchState; setState: (fn: (s: SearchState) => SearchState) => void; date: string; meal: Meal;
   go: (v: View) => void; onQuickLog: (f: Food, grams: number) => void; onOpen: (f: Food) => void; onLogged: () => void;
 }) {
-  const { q, usda, off, brands = null, tab = 'common' } = state;
-  const setQ = (v: string) => setState(() => ({ q: v, usda: null, brands: null, off: null, tab: 'common' }));
+  const { q, usda, off, brands = null, fs = null } = state;
+  const fsOn = fs !== 'off';
+  const tab = state.tab ?? (fsOn ? 'all' : 'common');
+  const setQ = (v: string) => setState((s) => ({ q: v, usda: null, brands: null, off: null, fs: s.fs === 'off' ? 'off' : null }));
   const [showAll, setShowAll] = useState(false);
   const [saved, setSaved] = useState<Food[]>(cachedFoods());
   const [recents, setRecents] = useState<RecentFood[] | null>(null);
@@ -218,12 +221,18 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
   async function run(source: 'usda' | 'usda_brands' | 'off') {
     const query = q.trim();
     if (query.length < 2) return;
+    // Main search: FatSecret (restaurants, brands, generic) alongside USDA, unless it isn't set up.
+    if (source === 'usda' && fs !== 'off') {
+      api<{ foods: Food[] }>('GET', `/food/search?source=fatsecret&q=${encodeURIComponent(query)}`)
+        .then((r) => setState((st) => (st.q === q ? { ...st, fs: r.foods } : st)))
+        .catch((err) => setState((st) => ({ ...st, fs: err instanceof ApiError && err.code === 'fatsecret_off' ? 'off' : [] })));
+    }
     setBusy(source === 'off' ? 'off' : 'usda');
     setError('');
     if (source === 'usda') setShowAll(false);
     try {
       const r = await api<{ foods: Food[] }>('GET', `/food/search?source=${source}&q=${encodeURIComponent(query)}`);
-      setState((s) => (source === 'usda' ? { ...s, usda: r.foods, brands: null, off: null, tab: 'common' }
+      setState((s) => (source === 'usda' ? { ...s, usda: r.foods, brands: null, off: null, tab: undefined }
         : source === 'usda_brands' ? { ...s, brands: r.foods } : { ...s, off: r.foods }));
     } catch (err) {
       setError(errorMessage(err));
@@ -312,11 +321,17 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
           {!usda && busy !== 'usda' && <button class="btn center-block" onClick={() => run('usda')} disabled={q.trim().length < 2}>Search foods</button>}
           {usda && (
             <div class="seg full mt">
-              <button class={tab === 'common' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'common' }))}>Common foods</button>
+              {fsOn && <button class={tab === 'all' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'all' }))}>All foods</button>}
+              <button class={tab === 'common' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'common' }))}>{fsOn ? 'USDA' : 'Common foods'}</button>
               <button class={tab === 'brands' ? 'on' : ''} onClick={() => { setState((s) => ({ ...s, tab: 'brands' })); if (!brands) void run('usda_brands'); }}>Brands</button>
             </div>
           )}
           {busy === 'usda' && <SkeletonRows rows={5} />}
+          {usda && tab === 'all' && busy !== 'usda' && (
+            fs === null ? <SkeletonRows rows={5} />
+              : <ResultList title="Best matches" foods={fs === 'off' ? [] : fs} onPick={onOpen}
+                  empty="No matches. Try the USDA tab, fewer words, or Estimate with AI." note={<a href="https://www.fatsecret.com" target="_blank" rel="noopener">Powered by fatsecret</a>} />
+          )}
           {usda && tab === 'common' && busy !== 'usda' && (
             <>
               <ResultList title={showAll ? 'All matches' : 'Best matches'} foods={showAll ? usda : usda.slice(0, 5)} onPick={onOpen}
@@ -369,7 +384,7 @@ function FoodRows({ foods, gramsFor, onTap, onHold }: { foods: Food[]; gramsFor:
   );
 }
 
-function ResultList({ title, foods, onPick, empty, note }: { title: string; foods: Food[]; onPick: (f: Food) => void; empty: string; note?: string }) {
+function ResultList({ title, foods, onPick, empty, note }: { title: string; foods: Food[]; onPick: (f: Food) => void; empty: string; note?: ComponentChildren }) {
   return (
     <section class="results">
       <h3>{title}</h3>
@@ -455,6 +470,7 @@ function Detail({ food: initial, method, date, meal, onLogged }: { food: Food; m
         {preview && <NutrientTable n={preview.n} />}
         {food.source === 'off' && <p class="muted tiny">Data © Open Food Facts contributors, ODbL</p>}
         {food.source === 'usda' && <p class="muted tiny">Source: USDA FoodData Central</p>}
+        {food.source === 'fatsecret' && <p class="muted tiny"><a href="https://www.fatsecret.com" target="_blank" rel="noopener">Powered by fatsecret</a></p>}
       </div>
       <button class="btn primary" disabled={!preview || busy} onClick={log}>{busy ? 'Logging…' : `Log to ${MEAL_LABELS[meal]}`}</button>
     </div>

@@ -13,6 +13,7 @@ import { lastWeight } from '../weightData';
 export function WaterCard({ date, onFoodLogged }: { date: string; onFoodLogged: () => void }) {
   const [sips, setSips] = useState<Sip[]>([]);
   const [more, setMore] = useState(false);
+  const [custom, setCustom] = useState<string | null>(null);
   useEffect(() => { let live = true; void loadWater(date).then((s) => live && setSips(s)); return () => { live = false; }; }, [date]);
 
   const goal = waterGoal(getSettings().water_goal_oz, lastWeight()?.weight_lb);
@@ -59,8 +60,24 @@ export function WaterCard({ date, onFoodLogged }: { date: string; onFoodLogged: 
       </div>
       <div class="water-btns">
         {quick.map((k) => <button key={k.id} class="chip" onClick={() => void tap(k)}>+ {k.label} <small>{k.note}</small></button>)}
+        <button class={`chip ${custom != null ? 'on' : ''}`} onClick={() => setCustom(custom == null ? '' : null)}>Custom</button>
         <button class={`chip ${more ? 'on' : ''}`} onClick={() => setMore(!more)}>Other drinks</button>
       </div>
+      {custom != null && (
+        <form class="water-custom" onSubmit={(e) => {
+          e.preventDefault();
+          const v = Number(custom.replace(',', '.'));
+          if (!(v > 0 && v <= 128)) { showToast('Enter ounces, 1–128', 'error'); return; }
+          void tap({ id: 'custom', label: 'Water', oz: Math.round(v * 10) / 10, note: `${v} oz` });
+          setCustom(null);
+        }}>
+          <div class="with-unit">
+            <input type="text" inputMode="decimal" aria-label="Ounces of water" placeholder="Ounces" value={custom} autoFocus onInput={(e) => setCustom(e.currentTarget.value)} />
+            <span class="unit">oz</span>
+            <button class="btn primary small-btn" type="submit">Add</button>
+          </div>
+        </form>
+      )}
       {more && (
         <div class="list card water-more">
           {WATER_KINDS.slice(3).map((k) => (

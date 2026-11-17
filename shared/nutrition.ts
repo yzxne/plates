@@ -13,7 +13,7 @@ export interface Nutrients {
   sodium_mg: number | null;
 }
 
-export type FoodSource = 'usda' | 'off' | 'label' | 'ai' | 'manual' | 'quick';
+export type FoodSource = 'usda' | 'off' | 'fatsecret' | 'label' | 'ai' | 'manual' | 'quick';
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 export const MEAL_LABELS: Record<Meal, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };

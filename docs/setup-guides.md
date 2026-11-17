@@ -113,3 +113,13 @@ You need your workers.dev subdomain from Guide 2 for step 9.
 - "Done" for Guides 0–5
 
 Never send the client secret, API keys or passcode.
+
+## FatSecret food search (optional, free)
+
+Adds restaurant chains, brands and everyday foods to search (the "All foods" tab). Free Basic plan: US foods, 5,000 calls a day (one search uses about 11), "Powered by fatsecret" link shown in the app.
+
+1. Sign up at https://platform.fatsecret.com (Register → free Basic edition).
+2. In **My Account → API Keys**, copy the **Client ID** and **Client Secret** (OAuth 2.0) into your password manager.
+3. In **IP Restrictions**, add `0.0.0.0/0` and `::/0` (Cloudflare Workers don't have fixed addresses). Changes can take up to 24 hours.
+4. In a terminal: `cd C:\dev\plates\backend`, then `npx wrangler secret put FATSECRET_CLIENT_ID` and `npx wrangler secret put FATSECRET_CLIENT_SECRET` (paste each when asked).
+5. `npx wrangler deploy`. Search now shows **All foods** first; USDA and Brands stay as tabs.

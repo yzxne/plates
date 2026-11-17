@@ -930,3 +930,5 @@ h2.inline { display: inline; margin: 0; }
 .water-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .water-btns .chip small { color: var(--muted); font-weight: 400; margin-left: 4px; }
 .water-more { margin: 10px 0 0; }
+
+.water-custom { margin-top: 10px; }

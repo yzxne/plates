@@ -35,3 +35,6 @@ Every third-party library, dataset and asset used by Plates, with its license. U
 | UI icons (`frontend/src/components/Icons.tsx`) | Original SVG line drawings | MIT (this repo) |
 
 No MacroFactor/Hevy assets. The reference repo (cal_scanner) contributed nothing.
+
+## FatSecret
+Food search data from the FatSecret Platform API (Basic edition). Attribution "Powered by fatsecret" with a link is shown under results and on FatSecret foods, as their terms require.
