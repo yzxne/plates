@@ -403,12 +403,13 @@ textarea {
 
 /* Body map: muscles fill in as sets are checked */
 .body-map { display: flex; justify-content: center; gap: 12px; margin: 0 0 12px; }
-.bm-fig { margin: 0; width: 88px; text-align: center; }
+.bm-fig { margin: 0; width: 120px; text-align: center; }
 .bm-fig svg { width: 100%; height: auto; display: block; }
 .bm-fig figcaption { font-size: 11px; color: var(--muted); margin-top: 2px; }
-.bm-body > * { fill: #22252c; }
-.bm-m { fill: #343944; stroke: var(--bg); stroke-width: 0.6; }
-.bm-m.on { fill: #ff6b5b; stroke: rgba(255, 107, 91, 0.6); }
+.bm-body path { fill: #1d2026; stroke: #2c3038; stroke-width: 3; }
+.bm-m { fill: #3a3f4a; stroke: #1d2026; stroke-width: 3; }
+.bm-m.on { fill: url(#bm-hot); stroke: #ff9a80; stroke-width: 2.5; }
+.bm-loading { width: 252px; height: 190px; }
 @media (prefers-reduced-motion: no-preference) { .bm-m { transition: fill-opacity 0.4s ease-out; } }
 
 /* Swipe a set left to delete */

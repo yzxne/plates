@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@musclemap/assets": "1.1.0",
     "pdfjs-dist": "6.5.438",
     "preact": "^11.2.0",
     "uplot": "^1.6.32",

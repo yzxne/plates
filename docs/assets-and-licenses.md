@@ -38,3 +38,6 @@ No MacroFactor/Hevy assets. The reference repo (cal_scanner) contributed nothing
 
 ## FatSecret
 Food search data from the FatSecret Platform API (Basic edition). Attribution "Powered by fatsecret" with a link is shown under results and on FatSecret foods, as their terms require.
+
+## Body map artwork
+Muscle diagrams from **MuscleMap** by Jsplice (`@musclemap/assets`, MIT License, https://github.com/Jsplice/MuscleMap). Only the SVG path data is used (no photos); coloring is ours. MIT notice: Copyright (c) 2026 Jsplice / MuscleMap contributors — permission is granted to use, copy, modify and distribute with this notice.
