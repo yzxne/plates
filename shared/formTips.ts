@@ -33,7 +33,12 @@ const RULES: Rule[] = [
     'Lower until the upper arms touch the floor softly, then pause.',
     'Press straight up, elbows about 45° from your body.',
   ]],
-  [/incline.*(press|bench)|landmine press/i, [
+  [/landmine press/i, [
+    'Stand (or half-kneel) with the end of the bar at shoulder height, abs braced.',
+    'Press up and forward along the bar\'s arc until the arm is straight.',
+    'Lower under control to the shoulder; don\'t lean back to finish.',
+  ]],
+  [/incline.*(press|bench)/i, [
     'Bench at about 30°; higher turns it into a shoulder press.',
     'Shoulder blades back and down, slight arch, feet planted.',
     'Lower to the upper chest with elbows ~45° from the body, then press up and slightly back.',
@@ -48,10 +53,20 @@ const RULES: Rule[] = [
     'Lower with control to mid-chest; elbows about 45° from your body, not flared straight out.',
     'Press up and slightly back over the shoulders; keep wrists stacked over elbows.',
   ]],
+  [/diamond push.?up|close.?grip push.?up/i, [
+    'Hands together under your chest, thumbs and index fingers touching.',
+    'Elbows stay close to your sides as you lower your chest to your hands.',
+    'Body stays in one straight line; push back up by straightening the elbows.',
+  ]],
   [/push.?up/i, [
     'Body in one straight line: squeeze glutes and brace abs.',
     'Hands just outside shoulders; elbows angle back about 45°.',
     'Lower until your chest nearly touches the floor, then push the floor away.',
+  ]],
+  [/dip.*machine|machine.*dip/i, [
+    'Sit tall with your back against the pad and shoulders down.',
+    'Press the handles down until your arms are straight, elbows close to your sides.',
+    'Let them rise until your upper arms are about parallel to the floor, under control.',
   ]],
   [/bench dip/i, [
     'Hands on the bench beside your hips, shoulders back and down.',
@@ -70,17 +85,37 @@ const RULES: Rule[] = [
     'Drive hips forward to stand tall; don\'t lean back at the top.',
     'Lower under control to the pins, keeping the bar against your legs.',
   ]],
-  [/romanian|rdl|stiff leg|good morning/i, [
+  [/good morning/i, [
+    'Bar on your upper back (like a squat), soft knees, abs braced.',
+    'Push your hips straight back and lower your chest with a flat back.',
+    'Stop at a strong hamstring stretch (torso near parallel or before), then drive hips forward to stand.',
+  ]],
+  [/romanian|rdl|stiff leg/i, [
     'Soft knees, then push your hips straight back like closing a car door with your butt.',
     'Keep the back flat and the weight close to your legs the whole way.',
     'Go down until you feel a strong hamstring stretch (usually mid-shin), then drive hips forward to stand.',
+  ]],
+  [/trap bar|hex bar/i, [
+    'Stand in the middle of the bar; grab the handles at your sides, arms straight.',
+    'Brace, chest up, then push the floor away; hips and shoulders rise together.',
+    'Finish standing tall with glutes; lower by pushing hips back and bending the knees.',
+  ]],
+  [/sumo/i, [
+    'Wide stance, toes turned out; hands grip inside the legs, about shoulder-width.',
+    'Push the knees out over the toes, chest up, back flat, then push the floor apart.',
+    'Keep the bar against your body and finish tall with glutes.',
   ]],
   [/deadlift/i, [
     'Bar over mid-foot, shins close; grip just outside the legs.',
     'Brace hard, pull the slack out of the bar, back flat, then push the floor away.',
     'Keep the bar against your legs; finish standing tall with glutes, not by leaning back.',
   ]],
-  [/back extension|glute ham/i, [
+  [/glute ham/i, [
+    'Knees just behind the pad, feet locked in, body straight from knees to head.',
+    'Lower your torso forward under control by straightening the knees.',
+    'Pull yourself back up with the hamstrings, hips staying straight (don\'t bend at the waist).',
+  ]],
+  [/back extension/i, [
     'Hinge at the hips with a neutral spine; don\'t round to get lower.',
     'Rise until your body is in a straight line; don\'t hyperextend at the top.',
     'Squeeze glutes and hamstrings to lift, slow on the way down.',
@@ -97,7 +132,7 @@ const RULES: Rule[] = [
   ]],
   [/pulldown/i, [
     'Thighs locked under the pad, chest up, slight lean back.',
-    'Pull elbows down toward your ribs, bringing the bar to the upper chest.',
+    'Pull elbows down toward your ribs, bringing the bar (or handle) to the upper chest.',
     'Control it back up to a full stretch; don\'t yank with your body.',
   ]],
   [/upright row/i, [
@@ -110,6 +145,11 @@ const RULES: Rule[] = [
     'Pull your chest to the bar, squeezing shoulder blades together.',
     'Lower to straight arms with control.',
   ]],
+  [/pendlay/i, [
+    'Torso about parallel to the floor, back flat; the bar starts on the floor every rep.',
+    'Pull explosively to the lower chest, elbows about 45° from your body.',
+    'Return the bar to the floor and reset your back before the next rep; torso stays still.',
+  ]],
   [/row/i, [
     'Brace with a flat back (or chest on the pad); don\'t let your torso swing.',
     'Pull elbows back toward your hips and squeeze the shoulder blades together.',
@@ -120,6 +160,11 @@ const RULES: Rule[] = [
     'Pull toward your forehead while spreading the rope apart, elbows high.',
     'Finish with hands beside your ears, squeeze the upper back, return slowly.',
   ]],
+  [/kelso/i, [
+    'Chest on an incline bench (or chest pad), arms hanging straight down holding the weight.',
+    'Keep arms straight and squeeze your shoulder blades back and together; don\'t bend the elbows or shrug up toward the ears.',
+    'Hold the squeeze for a beat, then let the shoulder blades spread apart slowly.',
+  ]],
   [/shrug/i, [
     'Stand tall, arms straight; weight hangs at your sides or in front.',
     'Lift shoulders straight up toward the ears and hold a beat.',
@@ -127,7 +172,12 @@ const RULES: Rule[] = [
   ]],
 
   // ---- Shoulders ----
-  [/lateral raise|y.?raise/i, [
+  [/y.?raise/i, [
+    'Chest on an incline bench (or bent over), thumbs up, light weight.',
+    'Raise the arms up and out in a "Y" until they line up with your body.',
+    'Keep shoulders down away from the ears; lower slowly.',
+  ]],
+  [/lateral raise/i, [
     'Slight bend in the elbows, lean a touch forward.',
     'Raise out to the sides to shoulder height, leading with the elbows.',
     'Lower slowly; keep traps relaxed and don\'t swing.',
@@ -142,10 +192,20 @@ const RULES: Rule[] = [
     'Rotate palms forward as you press overhead.',
     'Reverse the rotation on the way down; keep the ribs down.',
   ]],
-  [/push press|thruster/i, [
+  [/thruster/i, [
+    'Front squat down with the bar on the front of your shoulders, elbows high.',
+    'Drive up hard out of the squat and use that momentum to press the bar overhead.',
+    'Finish with arms locked over mid-foot, then bring the bar back to your shoulders as you squat again.',
+  ]],
+  [/push press/i, [
     'Dip a few inches at the knees with torso upright.',
     'Drive hard with the legs and use that momentum to press the bar overhead.',
     'Finish with the bar over mid-foot, head through the arms.',
+  ]],
+  [/(shoulder|overhead) press.*(machine|dumbbell|seated)|seated.*(shoulder|overhead) press|dumbbell shoulder press|kettlebell press/i, [
+    'Sit tall (or stand braced) with your back against the pad and ribs down.',
+    'Press up until the arms are straight overhead, without arching your lower back.',
+    'Lower slowly until your hands are about chin to ear level.',
   ]],
   [/overhead press|shoulder press|military|kettlebell press/i, [
     'Brace abs and squeeze glutes so your lower back doesn\'t arch.',
@@ -169,6 +229,16 @@ const RULES: Rule[] = [
     'Curl up and squeeze; don\'t lift your elbow off the pad.',
     'Lower almost to straight, slowly; the bottom is where people get hurt.',
   ]],
+  [/bayesian|incline.*curl/i, [
+    'Arm starts behind your body (cable behind you, or hanging on an incline bench) for a deep stretch.',
+    'Keep the upper arm still and curl up; don\'t let the elbow drift forward.',
+    'Lower slowly all the way back into the stretch.',
+  ]],
+  [/drag curl/i, [
+    'Grip shoulder-width; elbows move back behind you as you lift.',
+    'Drag the bar up the front of your body to about the lower chest.',
+    'Lower along the same path, slowly; don\'t swing.',
+  ]],
   [/^(?!.*(leg|nordic|wrist)).*curl/i, [
     'Elbows stay pinned at your sides; only the forearms move.',
     'Curl up and squeeze the biceps without leaning back.',
@@ -176,7 +246,7 @@ const RULES: Rule[] = [
   ]],
   [/pushdown/i, [
     'Elbows tucked at your sides and stay there.',
-    'Push down until arms are fully straight; spread the rope at the bottom.',
+    'Push down until arms are fully straight (rope: spread it apart at the bottom).',
     'Let it come up only until forearms pass parallel, then repeat.',
   ]],
   [/skull crusher/i, [
@@ -211,12 +281,27 @@ const RULES: Rule[] = [
     'Lower until knees are near 90° or as deep as you can without your lower back lifting off the pad.',
     'Push through the whole foot; don\'t lock the knees hard at the top.',
   ]],
-  [/hack squat|pendulum|belt squat|sissy/i, [
+  [/sissy/i, [
+    'Hold something for balance; rise onto the balls of your feet.',
+    'Lean back and push your knees forward as you lower, body straight from knees to head.',
+    'Go only as deep as your knees allow, then squeeze the quads to come up.',
+  ]],
+  [/belt squat/i, [
+    'Belt around your hips, feet about shoulder-width, standing tall.',
+    'Sit straight down with knees following the toes; keep your chest up.',
+    'Drive up through mid-foot to standing.',
+  ]],
+  [/hack squat|pendulum/i, [
     'Back flat against the pad, feet planted, knees tracking over the toes.',
     'Sink as deep as you can control while heels stay down.',
     'Drive up through mid-foot without slamming into lockout.',
   ]],
-  [/split squat|lunge|step.?up/i, [
+  [/step.?up/i, [
+    'Whole foot on the box; a height that puts your knee around 90°.',
+    'Lean slightly forward and push through the top foot to stand up on the box.',
+    'Don\'t push off the back foot; step down slowly.',
+  ]],
+  [/split squat|lunge/i, [
     'Torso tall; most of the weight on the front foot.',
     'Lower straight down until the back knee nearly touches the floor.',
     'Push through the front heel to stand; knee tracks over the toes.',
@@ -283,7 +368,12 @@ const RULES: Rule[] = [
     'Push the hips up and keep them from sagging.',
     'Breathe steadily.',
   ]],
-  [/plank|hollow/i, [
+  [/hollow/i, [
+    'Lie on your back and press your lower back into the floor.',
+    'Lift shoulders and legs a few inches; arms reach overhead or toward your feet.',
+    'Hold without your lower back lifting; bend the knees to make it easier.',
+  ]],
+  [/plank/i, [
     'Body in a straight line; squeeze glutes and tuck the ribs down.',
     'Press the floor away and don\'t let the hips sag.',
     'Breathe steadily; stop when the form breaks.',

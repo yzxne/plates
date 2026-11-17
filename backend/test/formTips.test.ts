@@ -34,4 +34,23 @@ describe('form tips', () => {
     expect(first('Nordic Curl')).not.toBe(first('Leg Curl'));
     expect(formTips('Underwater basket weaving').general).toBe(true);
   });
+
+  it('gives look-alike movements their own cues', () => {
+    expect(first('Kelso Shrugs')).not.toBe(first('Shrug (Barbell)'));
+    expect(formTips('Kelso Shrugs').tips.join(' ')).toMatch(/shoulder blades back/);
+    expect(first('Deadlift (Trap Bar)')).not.toBe(first('Deadlift'));
+    expect(first('Sumo Deadlift (Barbell)')).not.toBe(first('Deadlift'));
+    expect(first('Good Morning (Barbell)')).not.toBe(first('Romanian Deadlift'));
+    expect(first('Landmine Press')).not.toBe(first('Incline Bench Press'));
+    expect(first('Shoulder Press (Machine Plates)')).not.toBe(first('Overhead Press'));
+    expect(first('Diamond Push-up')).not.toBe(first('Push-up'));
+    expect(first('Sissy Squat')).not.toBe(first('Hack Squat (Machine)'));
+    expect(first('Step-up (Dumbbell)')).not.toBe(first('Lunge (Dumbbell)'));
+    expect(first('Hollow Hold')).not.toBe(first('Plank'));
+    expect(first('Thruster (Barbell)')).not.toBe(first('Push Press (Barbell)'));
+    expect(first('Y-Raise (Dumbbell)')).not.toBe(first('Lateral Raise'));
+    expect(first('Glute Ham Raise')).not.toBe(first('Back Extension (Machine)'));
+    expect(first('Triceps Dip (Machine)')).not.toBe(first('Dip'));
+    expect(formTips('Triceps Pushdown (Bar)').tips.join(' ')).not.toMatch(/spread the rope at/);
+  });
 });
