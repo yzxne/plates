@@ -447,7 +447,8 @@ textarea {
   padding: 10px 16px calc(var(--safe-bottom) + 10px); background: var(--surface); border-top: 1px solid var(--border);
 }
 /* Typing: the rest bar rides just above the keyboard (--kb from viewport.ts). */
-.rest-bar { bottom: var(--kb, 0px); transition: bottom 0.15s ease-out; }
+.rest-bar { transition: bottom 0.15s ease-out; }
+.logger:has(input:focus, textarea:focus) .rest-bar { bottom: var(--kb, 0px); }
 .logger:has(input:focus, textarea:focus) .rest-bar { padding-bottom: 10px; }
 .logger:has(input:focus, textarea:focus) .overlay-body { padding-bottom: calc(var(--kb, 0px) + 90px); }
 .rest-progress { position: absolute; left: 0; top: 0; height: 3px; background: var(--link); transition: width 0.25s linear; }
