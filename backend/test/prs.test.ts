@@ -44,7 +44,7 @@ describe('routine update after a workout', () => {
     ],
   };
 
-  it('keeps max weights and the routine list when changes are discarded', () => {
+  it('takes checked-off weights and keeps the routine list when changes are discarded', () => {
     const done = [ex('lat', [set(100, 10, 'W'), set(175, 8), set(150, 10, 'N', false)]), ex('pullover', [set(60, 12)])];
     const u = updatedRoutine(routine, done, false, () => 'new');
     expect(u.structureChanged).toBe(true);
@@ -62,6 +62,12 @@ describe('routine update after a workout', () => {
       { type: 'N', weight_lb: 60, rep_min: 12, rep_max: 12 }, { type: 'N', weight_lb: 60, rep_min: 12, rep_max: 12 },
     ]);
     expect(u.routine.items[1]!.sets[1]).toMatchObject({ weight_lb: 160, rep_min: 8, rep_max: 12 }); // range kept
+  });
+
+  it('lowers a planned weight when you check off a lighter set (what you saved is what sticks)', () => {
+    const u = updatedRoutine(routine, [ex('lat', [set(100, 10, 'W'), set(140, 8), set(140, 8)]), ex('row', [set(120, 10)])], false, () => 'x');
+    expect(u.routine.items[0]!.sets.map((s) => s.weight_lb)).toEqual([100, 140, 140]);
+    expect(u.weightChanges).toEqual([{ exercise_id: 'lat', from: 160, to: 140 }]);
   });
 
   it('reports no structure change when only weights moved', () => {

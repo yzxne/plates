@@ -492,7 +492,8 @@ export interface RoutineUpdate {
 /**
  * The routine after a workout started from it.
  * keepChanges = true → exercise list/order follows the workout; false → the routine's own list stays.
- * Either way each planned weight becomes the heavier of (planned, lifted today) — weights never go down.
+ * Either way each checked-off set's weight becomes the planned weight (up or down) — the routine matches what you saved.
+ * Unchecked sets leave their planned weight alone.
  * `done` = the workout's exercises including unchecked sets (so skipping a set doesn't delete it from the routine).
  */
 export function updatedRoutine(routine: Routine, done: WorkoutExercise[], keepChanges: boolean, makeId: () => string): RoutineUpdate {
@@ -511,15 +512,15 @@ export function updatedRoutine(routine: Routine, done: WorkoutExercise[], keepCh
     // More sets done than planned (structure kept) → add them.
     if (keepChanges) for (let i = sets.length; i < d.sets.length; i++) {
       const s = d.sets[i]!;
-      sets.push({ type: s.type, weight_lb: s.weight_lb, rep_min: s.rep_min ?? s.reps, rep_max: s.rep_max ?? s.reps });
+      sets.push({ type: s.type, weight_lb: s.completed ? s.weight_lb : null, rep_min: s.rep_min ?? s.reps, rep_max: s.rep_max ?? s.reps });
     }
     const before = Math.max(0, ...item.sets.map((p) => p.weight_lb ?? 0));
     sets.forEach((p, i) => {
       const s = d.sets[i];
-      if (s?.completed && s.weight_lb != null && s.weight_lb > (p.weight_lb ?? 0) && s.type === p.type) p.weight_lb = s.weight_lb;
+      if (s?.completed && s.weight_lb != null && s.type === p.type) p.weight_lb = s.weight_lb;
     });
     const after = Math.max(0, ...sets.map((p) => p.weight_lb ?? 0));
-    if (after > before) weightChanges.push({ exercise_id: item.exercise_id, from: before || null, to: after });
+    if (after !== before) weightChanges.push({ exercise_id: item.exercise_id, from: before || null, to: after });
     return sets;
   };
 
@@ -533,7 +534,7 @@ export function updatedRoutine(routine: Routine, done: WorkoutExercise[], keepCh
         used.add(done.indexOf(d));
         return { ...it, position, sets: maxed(it, d) };
       }
-      const sets: PlannedSet[] = d.sets.map((s) => ({ type: s.type, weight_lb: s.weight_lb, rep_min: s.rep_min ?? s.reps, rep_max: s.rep_max ?? s.reps }));
+      const sets: PlannedSet[] = d.sets.map((s) => ({ type: s.type, weight_lb: s.completed ? s.weight_lb : null, rep_min: s.rep_min ?? s.reps, rep_max: s.rep_max ?? s.reps }));
       const w = Math.max(0, ...sets.map((s) => s.weight_lb ?? 0));
       if (w) weightChanges.push({ exercise_id: d.exercise_id, from: null, to: w });
       return { id: makeId(), exercise_id: d.exercise_id, position, rest_sec: d.rest_sec, sets, notes: '' };

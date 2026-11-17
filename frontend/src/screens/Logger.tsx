@@ -234,7 +234,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       setActive(null);
       if (!ok) showToast('Saved on this phone — will upload when the connection is back', 'error', 6000);
       const prs = findPrs(final, history);
-      // Routine follow-up: heavier weights always carry over; changed exercises wait for your Keep/Discard choice.
+      // Routine follow-up: the weights you checked off always carry over; changed exercises wait for your Keep/Discard choice.
       let routineInfo: SummaryData['routine'] = null;
       if (w.routine_id) {
         try {
@@ -453,7 +453,7 @@ function Summary({ data, exMap, onDone }: { data: SummaryData; exMap: Map<string
               <button class="btn" disabled={deciding} onClick={() => decide(false)}>Discard changes</button>
               <button class="btn primary" disabled={deciding} onClick={() => decide(true)}>Keep changes</button>
             </div>
-            <small class="muted">Either way, any heavier weights you lifted become the routine's new weights.</small>
+            <small class="muted">Either way, the weights you checked off become the routine's weights.</small>
           </div>
         )}
 
@@ -474,7 +474,7 @@ function Summary({ data, exMap, onDone }: { data: SummaryData; exMap: Map<string
                 ))}
               </div>
             ))}
-            <small class="muted">Est. 1-rep max uses the Epley formula: weight × (1 + reps ÷ 30). Warm-ups don't count.</small>
+            <small class="muted">Est. 1-rep max averages the Epley and Brzycki formulas (sets of 10 reps or fewer). Warm-ups don't count.</small>
           </div>
         )}
 
