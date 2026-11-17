@@ -37,6 +37,19 @@ describe('personal records', () => {
     expect(setIsPr('lat', set(175, 8), history, [set(180, 8)])).toBeNull();
     expect(setIsPr('new-ex', set(50, 10), history)).toBeNull();
   });
+
+  it('lets later sets of the same exercise set more records', () => {
+    const past = [wk('old', [ex('row', [set(150, 10), set(150, 9)])])]; // best set 1,500 lb
+    const s1 = set(160, 10);
+    expect(setPrs('row', s1, past)).toEqual(['e1rm', 'weight', 'set_volume']); // 1,600 lb
+    const s2 = set(160, 12);
+    expect(setPrs('row', s2, past, [s1])).toEqual(['set_volume']); // 1,920 lb beats 1,600 from set 1 (12 reps: no 1RM)
+    expect(setPrs('row', set(160, 13), past, [s1, s2])).toEqual(['set_volume']); // and again: 2,080 lb
+    expect(setPrs('row', set(160, 11), past, [s1, s2])).toEqual([]); // 1,760 lb < 1,920 lb already today
+    // The summary at the end shows each record once, with the best of the day.
+    const prs = findPrs(wk('new', [ex('row', [s1, s2])]), past);
+    expect(prs.find((p) => p.kind === 'set_volume')).toMatchObject({ before: 1500, after: 1920 });
+  });
 });
 
 describe('routine update after a workout', () => {
