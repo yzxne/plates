@@ -26,7 +26,7 @@ import { cancelRestPush, scheduleRestPush } from '../push';
 import { unlockAudio } from '../sound';
 import { showToast } from '../toast';
 import { uuid } from '../foodData';
-import { loadRoutines, saveRoutine, saveWorkout } from '../trainData';
+import { loadRoutines, saveExercise, saveRoutine, saveWorkout } from '../trainData';
 
 interface Props {
   exercises: Exercise[];
@@ -53,6 +53,14 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   const [reordering, setReordering] = useState(false);
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const known = (e: Exercise) => { if (!exMap.has(e.id)) setAdded((a) => [...a, e]); };
+  /** Pinned note: lives on the exercise (Exercises tab), shows every workout until you resolve it. Saved right away,
+   *  so keeping or discarding routine changes at the end never affects it. */
+  async function setPinned(e: Exercise, notes: string) {
+    const next = { ...e, notes };
+    setAdded((a) => [...a.filter((x) => x.id !== e.id), next]);
+    try { await saveExercise(next, false); showToast(notes ? 'Pinned. It shows here every workout until you resolve it.' : 'Note resolved', 'info'); }
+    catch (err) { setAdded((a) => [...a.filter((x) => x.id !== e.id), e]); showToast(errorMessage(err), 'error'); }
+  }
 
   useEffect(() => subscribeActive(() => setState(getActive())), []);
   const [shortNight, setShortNight] = useState<Night | null>(null);
@@ -290,9 +298,21 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                 {ex.note === '' && <button class="chip ex-chip" onClick={() => exerciseAction(ei, 'note')}>✎ Note</button>}
                 {info?.primary.length ? <small class="muted">{info.primary.join(', ')}</small> : null}
               </div>
+              {info?.notes ? (
+                <div class="pinned-note">
+                  <span aria-hidden="true">📌</span>
+                  <p>{info.notes}</p>
+                  <button class="btn link small-link" onClick={() => void setPinned(info, '')}>Resolve</button>
+                </div>
+              ) : null}
               {ex.note !== '' && (
-                <textarea class="ex-note" rows={1} placeholder="Note" value={ex.note.trim() ? ex.note : ''}
-                  onInput={(e) => { const v = e.currentTarget.value; update((x) => { x.exercises[ei]!.note = v; return x; }); }} />
+                <div class="ex-note-row">
+                  <textarea class="ex-note" rows={1} placeholder="Note" value={ex.note.trim() ? ex.note : ''}
+                    onInput={(e) => { const v = e.currentTarget.value; update((x) => { x.exercises[ei]!.note = v; return x; }); }} />
+                  {info && ex.note.trim() && ex.note.trim() !== info.notes && (
+                    <button class="chip ex-chip" title="Keep this note on every workout until resolved" onClick={() => void setPinned(info, ex.note.trim())}>📌 Pin</button>
+                  )}
+                </div>
               )}
               {ex.why && <p class={`suggest-note ${ex.why.startsWith('↑') ? 'up' : ex.why.startsWith('↩') ? 'back' : ''}`}>{ex.why}</p>}
               <div class="set-grid set-head">
@@ -345,7 +365,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       {state.rest && <RestTimer rest={state.rest} onChange={setRest} />}
       {picking && <ExercisePicker exercises={[...exMap.values()]} onPick={(e) => { known(e); addExercise(e); }} onClose={() => setPicking(false)} />}
       {plates !== undefined && <PlateCalc initial={plates} onClose={() => setPlates(undefined)} />}
-      {replacing != null && <ExercisePicker title="Replace with" exercises={[...exMap.values()]} onPick={(e) => { known(e); replaceExercise(replacing, e); }} onClose={() => setReplacing(null)} />}
+      {replacing != null && <ExercisePicker title="Replace with" similarTo={exMap.get(w.exercises[replacing]?.exercise_id ?? '')} exercises={[...exMap.values()]} onPick={(e) => { known(e); replaceExercise(replacing, e); }} onClose={() => setReplacing(null)} />}
       {historyFor && (
         <div class="overlay" role="dialog" aria-modal="true" aria-label="Exercise history">
           <header class="overlay-head">

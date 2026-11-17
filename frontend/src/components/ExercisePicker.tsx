@@ -13,12 +13,18 @@ interface Props {
   onPick: (e: Exercise) => void;
   onClose: () => void;
   title?: string;
+  /** Replacing this one: open on its muscle and list the closest matches first. */
+  similarTo?: Exercise;
 }
 
 /** Full-screen exercise chooser with search, muscle filter and "create exercise". */
-export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exercise' }: Props) {
+export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exercise', similarTo }: Props) {
   const [q, setQ] = useState('');
-  const [muscle, setMuscle] = useState('');
+  const [muscle, setMuscle] = useState(() => (similarTo && MUSCLES.includes(similarTo.primary[0] as never) ? similarTo.primary[0]! : ''));
+  // Closeness to the exercise being replaced: same main muscle, then shared secondary muscles.
+  const near = (e: Omit<Exercise, 'id'>) => !similarTo ? 0
+    : (e.primary[0] === similarTo.primary[0] ? 10 : 0) + e.secondary.filter((m) => similarTo.secondary.includes(m) || similarTo.primary.includes(m)).length * 2 + (e.primary.some((m) => similarTo.secondary.includes(m)) ? 1 : 0);
+  const byNear = <T extends Omit<Exercise, 'id'>>(list: T[]) => (similarTo ? [...list].sort((a, b) => near(b) - near(a)) : list);
   const [creating, setCreating] = useState(false);
 
   const [adding, setAdding] = useState('');
@@ -27,9 +33,9 @@ export function ExercisePicker({ exercises, onPick, onClose, title = 'Add exerci
     return (!muscle || e.primary.includes(muscle) || e.secondary.includes(muscle))
       && words.every((w) => `${e.name} ${e.equipment}`.toLowerCase().includes(w));
   };
-  const shown = useMemo(() => exercises.filter(fits), [exercises, q, muscle]);
+  const shown = useMemo(() => byNear(exercises.filter((e) => e.id !== similarTo?.id && fits(e))), [exercises, q, muscle]);
   // Library lifts you don't have yet (same name, or the same lift with the same equipment, counts as having it).
-  const more = useMemo(() => EXERCISE_LIBRARY.filter((l) => !matchExercise(l.name, exercises) && fits(l)), [exercises, q, muscle]);
+  const more = useMemo(() => byNear(EXERCISE_LIBRARY.filter((l) => !matchExercise(l.name, exercises) && fits(l))), [exercises, q, muscle]);
 
   async function pickLibrary(l: Omit<Exercise, 'id'>) {
     setAdding(l.name);

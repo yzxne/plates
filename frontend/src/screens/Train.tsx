@@ -362,7 +362,7 @@ function RoutineEditor({ initial, isNew, before, exercises, folders, onCancel, o
       {!isNew && <button class="btn link danger center" disabled={busy} onClick={remove}>Delete routine</button>}
       {picking && <ExercisePicker exercises={exercises} onPick={addItem} onClose={() => setPicking(false)} />}
       {replacing != null && r.items[replacing] && (
-        <ExercisePicker title="Replace with" exercises={exercises} onClose={() => setReplacing(null)} onPick={(e) => {
+        <ExercisePicker title="Replace with" similarTo={exMap.get(r.items[replacing]!.exercise_id)} exercises={exercises} onClose={() => setReplacing(null)} onPick={(e) => {
           const at = replacing;
           setReplacing(null);
           onExercisesChanged();

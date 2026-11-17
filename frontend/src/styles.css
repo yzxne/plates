@@ -932,3 +932,12 @@ h2.inline { display: inline; margin: 0; }
 .water-more { margin: 10px 0 0; }
 
 .water-custom { margin-top: 10px; }
+
+/* Pinned exercise note (stays until resolved) */
+.pinned-note { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0 8px; padding: 8px 10px; border-radius: 10px; background: #2b2717; border: 1px solid #5a4a1c; }
+.pinned-note p { flex: 1; margin: 0; font-size: 14px; white-space: pre-wrap; }
+.pinned-note .btn { flex: none; min-height: 0; padding: 0 4px; }
+.ex-note-row { display: flex; gap: 8px; align-items: flex-start; }
+.ex-note-row .ex-note { flex: 1; }
+/* Inside a workout, menus and pages opened from it sit above the rest timer bar. */
+.logger .sheet-backdrop, .logger .overlay, .logger .picker { z-index: 29; }
