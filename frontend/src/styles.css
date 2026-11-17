@@ -541,7 +541,11 @@ html:has(.overlay), html:has(.overlay) body { overflow: hidden; }
 .has-active .undo-bar, .has-active .toast { bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 64px); }
 
 .settings-overlay { z-index: 24; }
-.settings-overlay .overlay-body { padding-top: calc(var(--safe-top) + 16px); }
+/* No top padding on the scroller: a sticky header sticks *below* the scroller's padding, which pushed the
+   "Settings" header down over the first rows (worse on iPhone, where the padding includes the notch).
+   The header itself carries the notch spacing instead. */
+.settings-overlay .overlay-body { padding-top: 0; }
+.settings-overlay .screen-head.with-back { margin-top: 0; }
 
 /* ---------- One-screen add ---------- */
 
