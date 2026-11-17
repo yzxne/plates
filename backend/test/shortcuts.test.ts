@@ -94,17 +94,22 @@ describe('Shortcut endpoints', () => {
     const a = await as(key, 'POST', '/shortcut/sleep', { seconds: 25920, bed: '2026-11-13T23:40:00-06:00', wake: '7:02 AM', date: '2026-11-14' });
     expect(a.body).toMatchObject({ added: true, message: 'Logged 7 h 12 m of sleep (23:40–07:02).' });
     const b = await as(key, 'POST', '/shortcut/sleep', { asleep: '6.5', date: '2026-11-14' }); // re-run replaces
-    expect(b.body.message).toBe('Logged 6 h 30 m of sleep.');
+    expect(b.body.message).toBe('Logged 6 h 30 m of sleep (no bed/wake times were sent).');
     expect((await as(key, 'POST', '/shortcut/sleep', { asleep: '' })).body).toMatchObject({ ok: true, added: false });
     expect((await as(key, 'POST', '/shortcut/sleep', { minutes: 5 })).status).toBe(400);
     // iOS date text (narrow no-break space before PM) and an unreadable value
     const c = await as(key, 'POST', '/shortcut/sleep', { asleep: 7.5, bed: 'Nov 16, 2026 at 11:40 PM', wake: 'soon', date: '2026-11-17' });
     expect(c.body.message).toBe(`Logged 7 h 30 m of sleep. Couldn't read: wake="soon".`);
     expect(google.tabValues(sheetId, 'Sleep').find((r) => r[col('Sleep', 'date')] === '2026-11-17')![col('Sleep', 'bed_time')]).toBe('23:40');
-    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: '7 hr 5 min', date: '2026-11-15' })).body.message).toBe('Logged 7 h 5 m of sleep.');
-    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: 26100, date: '2026-11-16' })).body.message).toBe('Logged 7 h 15 m of sleep.');
+    // [Health Samples] → Start Date / End Date sends every sample (text lines or a list): bed = first, wake = last.
+    const d = await as(key, 'POST', '/shortcut/sleep', {
+      asleep: 466, bed: 'Nov 16, 2026 at 11:40 PM\nNov 17, 2026 at 2:10 AM', wake: ['Nov 17, 2026 at 2:05 AM', 'Nov 17, 2026 at 7:26 AM'], date: '2026-11-18',
+    });
+    expect(d.body.message).toBe('Logged 7 h 46 m of sleep (23:40–07:26).');
+    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: '7 hr 5 min', date: '2026-11-15' })).body.message).toBe('Logged 7 h 5 m of sleep (no bed/wake times were sent).');
+    expect((await as(key, 'POST', '/shortcut/sleep', { asleep: 26100, date: '2026-11-16' })).body.message).toBe('Logged 7 h 15 m of sleep (no bed/wake times were sent).');
     const rows = google.tabValues(sheetId, 'Sleep');
-    expect(rows).toHaveLength(5); // header + 4 mornings (the 14th was replaced, not added)
+    expect(rows).toHaveLength(6); // header + 5 mornings (the 14th was replaced, not added)
     expect(rows[1]![col('Sleep', 'asleep_min')]).toBe(390);
     expect(rows[1]![col('Sleep', 'bed_time')]).toBe('23:40');
     expect(rows[1]![col('Sleep', 'wake_time')]).toBe('07:02');

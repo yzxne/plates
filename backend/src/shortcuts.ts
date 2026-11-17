@@ -86,14 +86,18 @@ export async function shortcutWeight(sheets: Sheets, body: { weight?: unknown; u
  * "23:40", "11:40 PM", "Nov 16, 2026 at 11:40 PM" (iOS uses a narrow no-break space before PM),
  * or an ISO date-time → "HH:MM". ISO with a zone is converted to Central; text times are taken as written.
  */
-export function toClock(v: unknown): string {
+export function toClock(v: unknown, pick: 'first' | 'last' = 'first'): string {
+  // A list (Shortcuts sends every sample's Start/End Date when you pick that property on [Health Samples]):
+  // samples are sorted oldest first, so bedtime = first, wake = last.
+  if (Array.isArray(v)) return toClock(pick === 'first' ? v[0] : v.at(-1));
   const s = String(v ?? '').replace(/[  ]/g, ' ').trim();
   if (!s) return '';
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
     const d = new Date(s);
     return Number.isNaN(d.getTime()) ? '' : chicagoTime(d);
   }
-  const m = /(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp]\.?[Mm]\.?)?/.exec(s);
+  const all = [...s.matchAll(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp]\.?[Mm]\.?)?/g)];
+  const m = pick === 'first' ? all[0] : all.at(-1);
   if (m) {
     let h = Number(m[1]);
     const ap = m[3]?.replace(/\./g, '').toLowerCase();
@@ -131,14 +135,14 @@ export async function shortcutSleep(sheets: Sheets, body: Record<string, unknown
     throw new HttpError(400, 'bad_sleep', `${asleep_min} minutes doesn't look like a night's sleep. Send "seconds", "minutes" or "hours" asleep.`);
   }
   const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : chicagoDate(now);
-  const bed_time = toClock(body.bed), wake_time = toClock(body.wake);
+  const bed_time = toClock(body.bed, 'first'), wake_time = toClock(body.wake, 'last');
   const row = { date, asleep_min, ...(bed_time && { bed_time }), ...(wake_time && { wake_time }), notes: 'Apple Health (Shortcut)' };
   // One night per morning: running it again replaces that morning's numbers.
   await sheets.upsertBy('Sleep', 'date', [row]);
   // Say when bed/wake were sent but unreadable, so a wrong Shortcut variable is easy to spot.
   const odd = [['bed', body.bed, bed_time], ['wake', body.wake, wake_time]].filter(([, raw, t]) => String(raw ?? '').trim() && !t)
     .map(([k, raw]) => `${k}=${JSON.stringify(raw).slice(0, 40)}`);
-  const times = bed_time && wake_time ? ` (${bed_time}–${wake_time})` : '';
+  const times = bed_time && wake_time ? ` (${bed_time}–${wake_time})` : !body.bed && !body.wake ? ' (no bed/wake times were sent)' : '';
   return { ok: true, added: true, message: `Logged ${Math.floor(asleep_min / 60)} h ${asleep_min % 60} m of sleep${times}.${odd.length ? ` Couldn't read: ${odd.join(', ')}.` : ''}` };
 }
 
