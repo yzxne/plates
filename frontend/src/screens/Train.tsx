@@ -517,13 +517,26 @@ export function NextWorkoutCard({ onStart, version }: { onStart: (r: Routine) =>
   );
 }
 
-/** Last 30 days vs the 30 before: muscle balance radar + totals with change. */
+const PERIODS = [
+  { days: 7, tab: 'Week', title: 'Last 7 days', before: '7 days before' },
+  { days: 14, tab: '2 weeks', title: 'Last 2 weeks', before: '2 weeks before' },
+  { days: 30, tab: 'Month', title: 'Last 30 days', before: '30 days before' },
+] as const;
+const PERIOD_KEY = 'plates.train.period';
+
+/** Last 7 / 14 / 30 days vs the same length before: muscle balance radar + totals with change. */
 function Last30({ history, exMap }: { history: Workout[]; exMap: Map<string, Exercise> }) {
+  const [days, setDays] = useState<number>(() => {
+    const saved = Number(safeStore.getItem(PERIOD_KEY));
+    return PERIODS.some((p) => p.days === saved) ? saved : 30;
+  });
+  const pick = (d: number) => { setDays(d); safeStore.setItem(PERIOD_KEY, String(d)); };
+  const period = PERIODS.find((p) => p.days === days)!;
   const t = today();
-  const in30 = (w: Workout, from: number, to: number) => w.date > shiftDate(t, -to) && w.date <= shiftDate(t, -from);
-  const now = history.filter((w) => in30(w, 0, 30));
-  const prev = history.filter((w) => in30(w, 30, 60));
-  if (!now.length && !prev.length) return null;
+  const inRange = (w: Workout, from: number, to: number) => w.date > shiftDate(t, -to) && w.date <= shiftDate(t, -from);
+  if (!history.some((w) => inRange(w, 0, 60))) return null; // nothing recent at all: hide the card
+  const now = history.filter((w) => inRange(w, 0, days));
+  const prev = history.filter((w) => inRange(w, days, days * 2));
   const sum = (ws: Workout[]) => ws.reduce((a, w) => {
     const x = workoutTotals(w);
     return { workouts: a.workouts + 1, sec: a.sec + x.durationSec, volume: a.volume + x.volume, sets: a.sets + x.sets };
@@ -534,8 +547,11 @@ function Last30({ history, exMap }: { history: Workout[]; exMap: Map<string, Exe
   const kfmt = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n.toLocaleString('en-US'));
   return (
     <div class="card">
-      <h2>Last 30 days</h2>
-      <MuscleRadar now={groupSets(setsPerMuscle(now, exMap))} prev={groupSets(setsPerMuscle(prev, exMap))} />
+      <h2>{period.title}</h2>
+      <div class="seg full mb" role="group" aria-label="Period">
+        {PERIODS.map((p) => <button key={p.days} class={p.days === days ? 'on' : ''} aria-pressed={p.days === days} onClick={() => pick(p.days)}>{p.tab}</button>)}
+      </div>
+      <MuscleRadar now={groupSets(setsPerMuscle(now, exMap))} prev={groupSets(setsPerMuscle(prev, exMap))} nowLabel={period.title} prevLabel={period.before} />
       <div class="stat-grid">
         <div><small>Workouts</small><strong>{a.workouts}</strong><small>{delta(a.workouts, b.workouts, String)}</small></div>
         <div><small>Time</small><strong>{formatDuration(a.sec).replace(/ \d+s$/, '')}</strong><small>{delta(a.sec, b.sec, (n) => formatDuration(n).replace(/ \d+s$/, ''))}</small></div>

@@ -54,7 +54,7 @@ export function MuscleBars({ counts, target }: { counts: Record<string, number>;
 }
 
 /** Hexagon radar of working sets per muscle group: this period (filled) vs the one before (dashed). Original SVG. */
-export function MuscleRadar({ now, prev }: { now: Record<string, number>; prev: Record<string, number> }) {
+export function MuscleRadar({ now, prev, nowLabel = 'Last 30 days', prevLabel = '30 days before' }: { now: Record<string, number>; prev: Record<string, number>; nowLabel?: string; prevLabel?: string }) {
   const groups = Object.keys(now);
   const max = Math.max(1, ...groups.map((g) => Math.max(now[g] ?? 0, prev[g] ?? 0)));
   const C = 130; const R = 92;
@@ -75,7 +75,7 @@ export function MuscleRadar({ now, prev }: { now: Record<string, number>; prev: 
           return <text key={g} class="axis-label" x={x} y={y + 4} text-anchor="middle">{g} {now[g] ?? 0}</text>;
         })}
       </svg>
-      <div class="legend"><span><i style={{ background: 'var(--fat)' }} />Last 30 days</span><span><i style={{ background: 'var(--muted)' }} />30 days before</span></div>
+      <div class="legend"><span><i style={{ background: 'var(--fat)' }} />{nowLabel}</span><span><i style={{ background: 'var(--muted)' }} />{prevLabel}</span></div>
     </div>
   );
 }
