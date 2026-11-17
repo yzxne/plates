@@ -426,7 +426,7 @@ export type PrKind = 'e1rm' | 'weight' | 'set_volume' | 'session_volume';
 export const PR_LABELS: Record<PrKind, string> = {
   e1rm: 'Est. 1-rep max',
   weight: 'Heaviest weight',
-  set_volume: 'Best set (weight × reps)',
+  set_volume: 'Most in one set (weight × reps)',
   session_volume: 'Total volume',
 };
 export interface Pr { exercise_id: string; kind: PrKind; before: number | null; after: number }
@@ -469,16 +469,25 @@ export function findPrs(workout: Workout, history: Workout[]): Pr[] {
   return out;
 }
 
-/** Is this one set a new record (est. 1RM or heaviest weight) versus history? For the live 🏆 pop-up. */
-export function setIsPr(exerciseId: string, set: Pick<LoggedSet, 'type' | 'weight_lb' | 'reps'>, history: Workout[], earlierToday: LoggedSet[] = []): PrKind | null {
-  if (set.type === 'W' || !set.weight_lb || !set.reps) return null;
+/**
+ * Records this one set beats versus history and earlier sets today, for the live 🏆 pop-up. Each counts on its own:
+ * est. 1RM, heaviest weight, and most weight moved in one set (weight × reps, so a lighter set with more reps counts).
+ */
+export function setPrs(exerciseId: string, set: Pick<LoggedSet, 'type' | 'weight_lb' | 'reps'>, history: Workout[], earlierToday: LoggedSet[] = []): PrKind[] {
+  if (set.type === 'W' || !set.weight_lb || !set.reps) return [];
   const old = bestsFor(exerciseId, history);
-  if (!old.weight) return null; // first time doing it: no "record" yet
+  if (!old.weight) return []; // first time doing it: no "record" yet
   const today = bestsFor(exerciseId, [{ id: '_', routine_id: '', name: '', date: '', start_time: '', end_time: '', notes: '', exercises: [{ exercise_id: exerciseId, rest_sec: 0, note: '', sets: earlierToday }] }]);
-  const e1 = epley1RM(set.weight_lb, set.reps);
-  if (e1 > Math.max(old.e1rm, today.e1rm) + 1e-9) return 'e1rm';
-  if (set.weight_lb > Math.max(old.weight, today.weight)) return 'weight';
-  return null;
+  const out: PrKind[] = [];
+  if (epley1RM(set.weight_lb, set.reps) > Math.max(old.e1rm, today.e1rm) + 1e-9) out.push('e1rm');
+  if (set.weight_lb > Math.max(old.weight, today.weight)) out.push('weight');
+  if (set.weight_lb * set.reps > Math.max(old.set_volume, today.set_volume) + 1e-9) out.push('set_volume');
+  return out;
+}
+
+/** First record this set beats (see setPrs), or null. */
+export function setIsPr(exerciseId: string, set: Pick<LoggedSet, 'type' | 'weight_lb' | 'reps'>, history: Workout[], earlierToday: LoggedSet[] = []): PrKind | null {
+  return setPrs(exerciseId, set, history, earlierToday)[0] ?? null;
 }
 
 // ---------- Updating a routine after a workout ----------

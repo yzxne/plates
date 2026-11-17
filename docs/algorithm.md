@@ -90,7 +90,7 @@ Code: `shared/accuracy.ts`, tests `backend/test/accuracy.test.ts`. Shown in Prog
 Code: `shared/training.ts`, tests `backend/test/prs.test.ts`.
 
 - **Double progression:** when a routine workout starts, if last time *every* working set of an exercise reached the top of its planned rep range (at or above the planned weight), the next weight up is pre-filled (+5 lb, or +2.5 lb under 50 lb) and shown in green with "↑ Weight up". Reps start empty. Edit it if it feels heavy.
-- **Records:** est. 1-rep max (Epley/Brzycki average, sets of ≤ 10 reps), heaviest weight, best single set (weight × reps), and best session volume per exercise. Warm-ups never count. A 🏆 pop-up appears when a ticked set beats your best est. 1RM or heaviest weight; the workout summary lists every record as old → new.
+- **Records:** est. 1-rep max (Epley/Brzycki average, sets of ≤ 10 reps), heaviest weight, best single set (weight × reps), and best session volume per exercise. Warm-ups never count. A 🏆 pop-up appears when a ticked set beats your best est. 1RM, heaviest weight, or most weight moved in one set (weight × reps, so a lighter set with more reps can be a record); each is its own record; the workout summary lists every record as old → new.
 - **Routine after a workout:** exercises swapped/added/removed/reordered → you choose Keep or Discard. Either way each planned weight becomes the heavier of planned vs lifted (never lower).
 - **Stalls:** no new best est. 1RM for ≥ 4 weeks across ≥ 3 sessions → listed under Train → Stalled. **Deload** lowers that exercise's planned weights ~10 % (rounded to 5 / 2.5 lb).
 - **Weekly sets per muscle:** colored against [Assumption] 10–20 hard sets/week (amber under, green in range, blue over).

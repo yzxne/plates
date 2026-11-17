@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deloadWeight, findPrs, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, suggestSets, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
+import { deloadWeight, findPrs, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, setPrs, suggestSets, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
 
 const set = (weight_lb: number | null, reps: number, type: LoggedSet['type'] = 'N', completed = true): LoggedSet =>
   ({ id: Math.random().toString(36), type, weight_lb, reps, rep_min: null, rep_max: null, completed, rpe: null, note: '' });
@@ -28,7 +28,10 @@ describe('personal records', () => {
 
   it('flags a live set PR, ignoring warm-ups and sets already beaten today', () => {
     expect(setIsPr('lat', set(175, 8), history)).toBe('e1rm');
-    expect(setIsPr('lat', set(100, 20), history)).toBeNull(); // 20 reps: no 1RM estimate
+    expect(setPrs('lat', set(100, 20), history)).toEqual(['set_volume']); // lighter, but 2000 lb > 1600 lb best set (20 reps: no 1RM)
+    expect(setPrs('lat', set(170, 10), history)).toEqual(['e1rm', 'weight', 'set_volume']);
+    expect(setPrs('lat', set(150, 10), history)).toEqual([]);
+    expect(setPrs('lat', set(110, 15), history, [set(110, 16)])).toEqual([]); // 1650 lb beats history (1600) but not 110 × 16 earlier today
     expect(setIsPr('lat', set(165, 1), history)).toBe('weight'); // 165 lb heavier, 1RM 165 lower
     expect(setIsPr('lat', set(200, 1, 'W'), history)).toBeNull();
     expect(setIsPr('lat', set(175, 8), history, [set(180, 8)])).toBeNull();

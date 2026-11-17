@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { today } from '../dates';
 import { loadSleep, nightOf, SHORT_SLEEP_MIN, sleepLabel, type Night } from '../sleepData';
 import {
-  epley1RM, findPrs, formatDuration, isWorkingSet, muscleProgress, previousSets, PR_LABELS, setIsPr, setsPerMuscle, updatedRoutine, workoutTotals,
+  epley1RM, findPrs, formatDuration, isWorkingSet, muscleProgress, previousSets, PR_LABELS, setPrs, setsPerMuscle, updatedRoutine, workoutTotals,
   type Exercise, type LoggedSet, type Pr, type Routine, type RoutineUpdate, type SetType, type Workout, type WorkoutExercise,
 } from '../../../shared/training';
 import { getActive, newSet, setActive, subscribeActive, type ActiveState, type RestTimer as Rest } from '../activeWorkout';
@@ -99,17 +99,18 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     if (fill.reps == null && s.reps == null) { showToast('Enter reps first', 'error'); return; }
     const rest = ex.rest_sec > 0 ? { endsAt: Date.now() + ex.rest_sec * 1000, total: ex.rest_sec, ...nextUp(ei, si) } : null;
     if (rest) scheduleRestPush(ex.rest_sec);
-    // Live record check: beats your best est. 1RM or heaviest weight (history + earlier sets today)?
+    // Live record check: est. 1RM, heaviest weight, most weight moved in one set (history + earlier sets today).
     const done = { ...s, ...fill };
     const earlier = w.exercises.filter((x) => x.exercise_id === ex.exercise_id).flatMap((x) => x.sets).filter((x) => x.completed && x.id !== s.id);
-    const pr = setIsPr(ex.exercise_id, done, history, earlier);
-    fill.pr = !!pr;
+    const prs = setPrs(ex.exercise_id, done, history, earlier);
+    fill.pr = prs.length > 0;
     update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
-    if (pr) {
+    if (prs.length) {
       const name = exMap.get(ex.exercise_id)?.name ?? 'Exercise';
-      showToast(pr === 'e1rm'
-        ? `🏆 New PR · ${name}: est. 1RM ${fmt(epley1RM(done.weight_lb!, done.reps!))} lb`
-        : `🏆 New PR · ${name}: heaviest ${fmt(done.weight_lb!, 1)} lb`, 'ok', 5000);
+      const parts = prs.map((k) => k === 'e1rm' ? `est. 1RM ${fmt(epley1RM(done.weight_lb!, done.reps!))} lb`
+        : k === 'weight' ? `heaviest ${fmt(done.weight_lb!, 1)} lb`
+        : `most in one set ${fmt(done.weight_lb!, 1)} × ${done.reps} = ${fmt(done.weight_lb! * done.reps!)} lb`);
+      showToast(`🏆 New PR · ${name}: ${parts.join(' · ')}`, 'ok', 5000);
     }
   }
 
