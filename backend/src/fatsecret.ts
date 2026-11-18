@@ -6,33 +6,38 @@ import { roundNutrients, type Food, type Nutrients } from '../../shared/nutritio
 import type { Env } from './env';
 import { HttpError } from './http';
 
-const TOKEN_URL = 'https://oauth.fatsecret.com/connect/token';
 const API = 'https://platform.fatsecret.com/rest/server.api';
-const SEARCH = 'https://platform.fatsecret.com/rest/foods/search/v1';
 
-let token: { value: string; until: number } | null = null;
-export const _resetFatSecret = () => { token = null; };
+// Signed with OAuth 1.0 (HMAC-SHA1) instead of OAuth 2.0: FatSecret's OAuth 2.0 tokens only work from
+// whitelisted IP addresses, and the free plan can't allow "any address" — which a Cloudflare Worker needs.
+// OAuth 1.0 uses the same Client ID / Secret (as consumer key / secret) with no IP list.
+export const _resetFatSecret = () => {};
 
 export const fatSecretConfigured = (env: Env) => !!(env.FATSECRET_CLIENT_ID && env.FATSECRET_CLIENT_SECRET);
 
-async function accessToken(env: Env): Promise<string> {
-  if (token && token.until > Date.now() + 60_000) return token.value;
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${btoa(`${env.FATSECRET_CLIENT_ID}:${env.FATSECRET_CLIENT_SECRET}`)}`,
-    },
-    body: 'grant_type=client_credentials&scope=basic',
-  });
-  if (!res.ok) throw new HttpError(502, 'fatsecret_auth', `FatSecret sign-in failed (${res.status}). Check the keys and that IP restrictions allow any address.`);
-  const t = (await res.json()) as { access_token: string; expires_in: number };
-  token = { value: t.access_token, until: Date.now() + t.expires_in * 1000 };
-  return token.value;
+/** RFC 3986 percent-encoding (encodeURIComponent leaves !'()* alone). */
+export const pct = (s: string) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+
+/** Base string = METHOD&url&sorted params; key = consumer secret + '&' (no access token). */
+export async function oauth1Sign(method: string, url: string, params: Record<string, string>, secret: string): Promise<string> {
+  const norm = Object.entries(params).map(([k, v]) => [pct(k), pct(v)] as const)
+    .sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : a[0] < b[0] ? -1 : 1))
+    .map(([k, v]) => `${k}=${v}`).join('&');
+  const base = [method.toUpperCase(), pct(url), pct(norm)].join('&');
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(`${pct(secret)}&`), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(base)));
+  return btoa(String.fromCharCode(...sig));
 }
 
-async function call<T>(env: Env, url: string): Promise<T> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${await accessToken(env)}` } });
+async function call<T>(env: Env, params: Record<string, string>): Promise<T> {
+  const all: Record<string, string> = {
+    ...params, format: 'json',
+    oauth_consumer_key: env.FATSECRET_CLIENT_ID!, oauth_signature_method: 'HMAC-SHA1', oauth_version: '1.0',
+    oauth_timestamp: String(Math.floor(Date.now() / 1000)), oauth_nonce: crypto.randomUUID().replace(/-/g, ''),
+  };
+  all.oauth_signature = await oauth1Sign('GET', API, all, env.FATSECRET_CLIENT_SECRET!);
+  const qs = Object.entries(all).map(([k, v]) => `${pct(k)}=${pct(v)}`).join('&');
+  const res = await fetch(`${API}?${qs}`);
   if (!res.ok) throw new HttpError(502, 'fatsecret_error', `FatSecret search failed (${res.status})`);
   const data = (await res.json()) as T & { error?: { code: number; message: string } };
   if (data.error) throw new HttpError(502, 'fatsecret_error', `FatSecret: ${data.error.message}`);
@@ -73,17 +78,10 @@ export function mapFatSecret(f: FsFood): Food | null {
 /** Search, then load details for the top results (each is one more call; 10 results ≈ 11 of the 5,000/day). */
 export async function searchFatSecret(env: Env, query: string, max = 10): Promise<Food[]> {
   if (!fatSecretConfigured(env)) throw new HttpError(503, 'fatsecret_off', 'FatSecret is not set up yet.');
-  const u = new URL(SEARCH);
-  u.searchParams.set('search_expression', query);
-  u.searchParams.set('max_results', String(max));
-  u.searchParams.set('format', 'json');
-  const hits = arr((await call<{ foods?: { food?: FsHit | FsHit[] } }>(env, u.toString())).foods?.food);
+  const found = await call<{ foods?: { food?: FsHit | FsHit[] } }>(env, { method: 'foods.search', search_expression: query, max_results: String(max) });
+  const hits = arr(found.foods?.food);
   const details = await Promise.all(hits.map(async (h) => {
-    const g = new URL(API);
-    g.searchParams.set('method', 'food.get.v2');
-    g.searchParams.set('food_id', h.food_id);
-    g.searchParams.set('format', 'json');
-    try { return mapFatSecret((await call<{ food: FsFood }>(env, g.toString())).food); } catch { return null; }
+    try { return mapFatSecret((await call<{ food: FsFood }>(env, { method: 'food.get.v2', food_id: h.food_id })).food); } catch { return null; }
   }));
   return details.filter((f): f is Food => f !== null);
 }

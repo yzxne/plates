@@ -120,6 +120,6 @@ Adds restaurant chains, brands and everyday foods to search (the "All foods" tab
 
 1. Sign up at https://platform.fatsecret.com (Register → free Basic edition).
 2. In **My Account → API Keys**, copy the **Client ID** and **Client Secret** (OAuth 2.0) into your password manager.
-3. In **IP Restrictions**, add `0.0.0.0/0` and `::/0` (Cloudflare Workers don't have fixed addresses). Changes can take up to 24 hours.
+3. Skip **IP Restrictions**: Plates signs requests with OAuth 1.0, which doesn't use the IP list (the free plan can't allow every address, and Cloudflare Workers have no fixed address).
 4. In a terminal: `cd C:\dev\plates\backend`, then `npx wrangler secret put FATSECRET_CLIENT_ID` and `npx wrangler secret put FATSECRET_CLIENT_SECRET` (paste each when asked).
 5. `npx wrangler deploy`. Search now shows **All foods** first; USDA and Brands stay as tabs.

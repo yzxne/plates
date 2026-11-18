@@ -2,6 +2,9 @@
 
 Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development Brief.md`) and `Plates Brief Changes.md` describe the original plan; this note is what changed since. Newest first. Schema changes need a Worker deploy (`cd backend; npx wrangler deploy`) before the app uses them.
 
+## 2026-11-18 — FatSecret without an IP list
+- FatSecret search now signs each request with OAuth 1.0 (same Client ID / Secret). OAuth 2.0 only works from whitelisted IPs, and the free plan can't whitelist every address, which a Cloudflare Worker needs.
+
 ## 2026-11-17 — Routine weights follow what you saved
 - After a workout, each checked-off set's weight becomes the routine's planned weight, **up or down** (it used to keep the heavier one forever). Unchecked sets change nothing; new exercises only take weights from checked-off sets.
 - Removed a 3-minute test "Push" workout from 2026-11-11 (Bench 225×12 ×2, 205×12), soft-deleted in the Sheet.
