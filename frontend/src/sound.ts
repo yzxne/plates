@@ -1,8 +1,9 @@
 // Rest-timer alert. iPhone Safari only allows sound after a tap, so unlockAudio() is
 // called when you check off a set; the alert plays when the timer ends.
 //
-// Loudness: full-scale square wave at ~2.3 kHz (where phone speakers and ears are most
-// sensitive), through a compressor so it stays loud without clipping.
+// Sound: a soft three-note chime (C–E–G an octave above middle C's octave, like a doorbell/marimba):
+// sine tones with a quiet overtone, gentle attack and a ringing fade. Mid-range pitches still carry
+// on a phone speaker without the piercing edge of the old 2–3 kHz square-wave beeps.
 // Volume follows the iPhone's media volume. Web audio is muted by the silent switch
 // (default "ambient" audio session, which mixes with your music instead of pausing it).
 // Vibration isn't available in iPhone Safari (documented limitation).
@@ -24,7 +25,7 @@ export function unlockAudio(): void {
       comp.release.value = 0.1;
       const tone = ctx.createBiquadFilter(); // takes the harsh edge off the square wave
       tone.type = 'lowpass';
-      tone.frequency.value = 7000;
+      tone.frequency.value = 4000;
       tone.connect(comp).connect(ctx.destination);
       out = tone;
     }
@@ -32,31 +33,36 @@ export function unlockAudio(): void {
   } catch { /* no audio */ }
 }
 
-function burst(at: number, freq: number, length: number): void {
+/** One bell-like note: sine + a quiet octave overtone, 15 ms fade-in, ringing decay. */
+function chime(at: number, freq: number, length: number, level = 0.55): void {
   if (!ctx || !out) return;
-  const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  osc.type = 'square';
-  osc.frequency.value = freq;
   gain.gain.setValueAtTime(0.0001, at);
-  gain.gain.exponentialRampToValueAtTime(1, at + 0.008);
-  gain.gain.setValueAtTime(1, at + length - 0.03);
+  gain.gain.exponentialRampToValueAtTime(level, at + 0.015);
   gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
-  osc.connect(gain).connect(out);
-  osc.start(at);
-  osc.stop(at + length + 0.02);
+  gain.connect(out);
+  for (const [mult, amp] of [[1, 1], [2, 0.18]] as const) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq * mult;
+    g.gain.value = amp;
+    osc.connect(g).connect(gain);
+    osc.start(at);
+    osc.stop(at + length + 0.05);
+  }
 }
 
-/** Three pairs of high/low beeps (~1.5 s). */
+/** Rising C6–E6–G6 chime, played twice (~1.6 s). */
 export function beep(): void {
   if (!ctx) return;
   try {
     if (ctx.state === 'suspended') void ctx.resume();
     const t0 = ctx.currentTime + 0.03;
-    for (let i = 0; i < 3; i++) {
-      const t = t0 + i * 0.5;
-      burst(t, 2300, 0.16);
-      burst(t + 0.2, 2900, 0.16);
+    for (const rep of [0, 0.85]) {
+      chime(t0 + rep, 1047, 0.7);
+      chime(t0 + rep + 0.16, 1319, 0.7);
+      chime(t0 + rep + 0.32, 1568, 0.8);
     }
   } catch { /* ignore */ }
   navigator.vibrate?.([150, 100, 150]);
