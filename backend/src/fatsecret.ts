@@ -75,8 +75,8 @@ export function mapFatSecret(f: FsFood): Food | null {
   };
 }
 
-/** Search, then load details for the top results (each is one more call; 10 results ≈ 11 of the 5,000/day). */
-export async function searchFatSecret(env: Env, query: string, max = 10): Promise<Food[]> {
+/** Search, then load details for the top results (each is one more call; 15 results ≈ 16 of the 5,000/day). */
+export async function searchFatSecret(env: Env, query: string, max = 15): Promise<Food[]> {
   if (!fatSecretConfigured(env)) throw new HttpError(503, 'fatsecret_off', 'FatSecret is not set up yet.');
   const found = await call<{ foods?: { food?: FsHit | FsHit[] } }>(env, { method: 'foods.search', search_expression: query, max_results: String(max) });
   const hits = arr(found.foods?.food);

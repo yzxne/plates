@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { parseLabel, type ParsedLabel } from '../../../shared/labelParser';
+import { rankFoods } from '../../../shared/searchRank';
 import {
   MEAL_LABELS, MEALS, makeEntry, per100FromServing, roundNutrients, type Food, type LogEntry, type Meal, type Nutrients,
 } from '../../../shared/nutrition';
@@ -195,7 +196,7 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
 }) {
   const { q, usda, off, brands = null, fs = null } = state;
   const fsOn = fs !== 'off';
-  const tab = state.tab ?? (fsOn ? 'all' : 'common');
+  const tab = state.tab ?? 'all';
   const setQ = (v: string) => setState((s) => ({ q: v, usda: null, brands: null, off: null, fs: s.fs === 'off' ? 'off' : null }));
   const [showAll, setShowAll] = useState(false);
   const [saved, setSaved] = useState<Food[]>(cachedFoods());
@@ -217,6 +218,8 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
     [q, saved],
   );
   const favorites = saved.filter((f) => f.favorite);
+  // "Best matches": FatSecret + USDA in one list, ranked (your foods boosted, duplicates and broken entries dropped).
+  const best = useMemo(() => (usda ? rankFoods(q, [Array.isArray(fs) ? fs : [], usda], { mine: saved }) : []), [q, usda, fs, saved]);
 
   async function run(source: 'usda' | 'usda_brands' | 'off') {
     const query = q.trim();
@@ -321,16 +324,20 @@ function Home({ state, setState, date, meal, go, onQuickLog, onOpen, onLogged }:
           {!usda && busy !== 'usda' && <button class="btn center-block" onClick={() => run('usda')} disabled={q.trim().length < 2}>Search foods</button>}
           {usda && (
             <div class="seg full mt">
-              {fsOn && <button class={tab === 'all' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'all' }))}>All foods</button>}
-              <button class={tab === 'common' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'common' }))}>{fsOn ? 'USDA' : 'Common foods'}</button>
+              <button class={tab === 'all' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'all' }))}>Best</button>
+              <button class={tab === 'common' ? 'on' : ''} onClick={() => setState((s) => ({ ...s, tab: 'common' }))}>USDA</button>
               <button class={tab === 'brands' ? 'on' : ''} onClick={() => { setState((s) => ({ ...s, tab: 'brands' })); if (!brands) void run('usda_brands'); }}>Brands</button>
             </div>
           )}
           {busy === 'usda' && <SkeletonRows rows={5} />}
           {usda && tab === 'all' && busy !== 'usda' && (
-            fs === null ? <SkeletonRows rows={5} />
-              : <ResultList title="Best matches" foods={fs === 'off' ? [] : fs} onPick={onOpen}
-                  empty="No matches. Try the USDA tab, fewer words, or Estimate with AI." note={<a href="https://www.fatsecret.com" target="_blank" rel="noopener">Powered by fatsecret</a>} />
+            <>
+              <ResultList title={showAll ? 'All matches' : 'Best matches'} foods={showAll ? best : best.slice(0, 8)} onPick={onOpen}
+                empty="No matches. Try fewer words, Brands, or Estimate with AI."
+                note={fsOn ? <a href="https://www.fatsecret.com" target="_blank" rel="noopener">Powered by fatsecret</a> : 'USDA FoodData Central'} />
+              {fs === null && <p class="muted tiny-pad">Loading more results…</p>}
+              {!showAll && best.length > 8 && <button class="btn link center" onClick={() => setShowAll(true)}>Show {best.length - 8} more</button>}
+            </>
           )}
           {usda && tab === 'common' && busy !== 'usda' && (
             <>
