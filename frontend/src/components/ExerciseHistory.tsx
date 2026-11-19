@@ -5,6 +5,7 @@ import { bestSet, bestsFor, epley1RM, findStall, isWorkingSet, type LoggedSet, t
 import { formTips } from '../../../shared/formTips';
 import { shiftDate, today } from '../dates';
 import { fmt } from '../format';
+import { forRecords } from '../trainData';
 import { loadWeights, type WeighIn } from '../weightData';
 import { UChart, type SeriesSpec } from './UChart';
 
@@ -33,9 +34,10 @@ export function ExerciseHistory({ exerciseId, name, history }: { exerciseId: str
   const [weights, setWeights] = useState<WeighIn[]>([]);
   useEffect(() => { loadWeights().then(setWeights).catch(() => {}); }, []);
 
-  const best = bestSet(exerciseId, history);
-  const records = bestsFor(exerciseId, history);
-  const stall = findStall(exerciseId, history, today());
+  const counted = forRecords(history); // gym change: older machine/cable/barbell sets don't set records
+  const best = bestSet(exerciseId, counted);
+  const records = bestsFor(exerciseId, counted);
+  const stall = findStall(exerciseId, counted, today());
 
   // Oldest → newest, so "new best at the time" can be marked.
   const sessions = useMemo<Session[]>(() => {

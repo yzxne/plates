@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deloadWeight, findPrs, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, setPrs, suggestSets, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
+import { deloadWeight, findPrs, recordHistory, findStall, nextRoutine, platesPerSide, progressionFor, setIsPr, setPrs, suggestSets, updatedRoutine, type LoggedSet, type Routine, type Workout, type WorkoutExercise } from '../../shared/training';
 
 const set = (weight_lb: number | null, reps: number, type: LoggedSet['type'] = 'N', completed = true): LoggedSet =>
   ({ id: Math.random().toString(36), type, weight_lb, reps, rep_min: null, rep_max: null, completed, rpe: null, note: '' });
@@ -160,5 +160,16 @@ describe('routine folders', () => {
     expect(nextRoutine(routines, [did('upper')])?.id).toBe('lower');
     expect(nextRoutine(routines, [did('lower')])?.id).toBe('upper');
     expect(nextRoutine(routines, [])?.id).toBe('push');
+  });
+});
+
+describe('record history after a gym change', () => {
+  it('drops older non-dumbbell sets from records and stalls, keeps dumbbells and everything after the date', () => {
+    const old = { ...wk('old', [ex('pulldown', [set(190, 8)]), ex('db-press', [set(60, 8)])]), date: '2026-07-20' };
+    const now = { ...wk('new', [ex('pulldown', [set(160, 8)])]), date: '2026-09-01' };
+    const kept = recordHistory([old, now], '2026-08-01', (id) => id === 'db-press');
+    expect(kept.map((w) => [w.id, w.exercises.map((e) => e.exercise_id)])).toEqual([['old', ['db-press']], ['new', ['pulldown']]]);
+    expect(findPrs({ ...now, id: 'today', date: '2026-11-18', exercises: [ex('pulldown', [set(170, 8)])] }, kept).length).toBeGreaterThan(0);
+    expect(recordHistory([old, now], '', () => false)).toHaveLength(2);
   });
 });

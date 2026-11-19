@@ -35,8 +35,10 @@ describe('trend weight', () => {
     expect(t[3]!.trend).toBeCloseTo(200 - 10 * (1 - 0.9 ** 3), 6);
     expect(t[4]!.scale).toBeNull();
   });
-  it('averages several weigh-ins on one day', () => {
-    expect(trendSeries([{ date: '2026-01-01', weight_lb: 180 }, { date: '2026-01-01', weight_lb: 182 }], '2026-01-01')[0]!.trend).toBe(181);
+  it('uses the latest weigh-in when there are several on one day', () => {
+    // Same day: the latest weigh-in counts (a re-weigh after a typo), by time or else entry order.
+    expect(trendSeries([{ date: '2026-01-01', weight_lb: 180 }, { date: '2026-01-01', weight_lb: 182 }], '2026-01-01')[0]!.trend).toBe(182);
+    expect(trendSeries([{ date: '2026-01-01', weight_lb: 182, time: '08:54' }, { date: '2026-01-01', weight_lb: 185, time: '08:53' }], '2026-01-01')[0]!.trend).toBe(182);
   });
 });
 

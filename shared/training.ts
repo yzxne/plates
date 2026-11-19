@@ -635,6 +635,20 @@ export function suggestSets(planned: PlannedSet[], sessions: LoggedSet[][]): Sug
 export interface Stall { exercise_id: string; since: string; days: number; sessions: number; best: number }
 
 /** No new best est. 1RM for ≥ `minDays` days across ≥ `minSessions` sessions since the last best. */
+/** Equipment that weighs the same in any gym, so its history always counts toward records. */
+export const PORTABLE_EQUIPMENT = /^(dumbbell|kettlebell)$/i;
+
+/**
+ * History used for records, stalls and bests: workouts before `start` keep only exercises `keep` allows
+ * (dumbbells after a gym change). Blank start = everything. "Previous" sets and History lists use the full history.
+ */
+export function recordHistory(history: Workout[], start: string, keep: (exerciseId: string) => boolean): Workout[] {
+  if (!start) return history;
+  return history
+    .map((w) => (w.date >= start ? w : { ...w, exercises: w.exercises.filter((e) => keep(e.exercise_id)) }))
+    .filter((w) => w.exercises.length);
+}
+
 export function findStall(exerciseId: string, history: Workout[], today: string, minDays = 28, minSessions = 3): Stall | null {
   const sessions = history
     .filter((w) => w.end_time && w.exercises.some((e) => e.exercise_id === exerciseId))

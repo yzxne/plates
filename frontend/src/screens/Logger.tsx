@@ -26,7 +26,7 @@ import { cancelRestPush, scheduleRestPush } from '../push';
 import { unlockAudio } from '../sound';
 import { showToast } from '../toast';
 import { uuid } from '../foodData';
-import { loadRoutines, saveExercise, saveRoutine, saveWorkout } from '../trainData';
+import { forRecords, loadRoutines, saveExercise, saveRoutine, saveWorkout } from '../trainData';
 
 interface Props {
   exercises: Exercise[];
@@ -102,7 +102,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     // Live record check: est. 1RM, heaviest weight, most weight moved in one set (history + earlier sets today).
     const done = { ...s, ...fill };
     const earlier = w.exercises.filter((x) => x.exercise_id === ex.exercise_id).flatMap((x) => x.sets).filter((x) => x.completed && x.id !== s.id);
-    const prs = setPrs(ex.exercise_id, done, history, earlier);
+    const prs = setPrs(ex.exercise_id, done, forRecords(history), earlier);
     fill.pr = prs.length > 0;
     update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, fill); return x; }, rest);
     if (prs.length) {
@@ -234,7 +234,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
       const ok = await saveWorkout(final);
       setActive(null);
       if (!ok) showToast('Saved on this phone — will upload when the connection is back', 'error', 6000);
-      const prs = findPrs(final, history);
+      const prs = findPrs(final, forRecords(history));
       // Routine follow-up: the weights you checked off always carry over; changed exercises wait for your Keep/Discard choice.
       let routineInfo: SummaryData['routine'] = null;
       if (w.routine_id) {

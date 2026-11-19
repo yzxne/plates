@@ -2,6 +2,11 @@
 
 Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development Brief.md`) and `Plates Brief Changes.md` describe the original plan; this note is what changed since. Newest first. Schema changes need a Worker deploy (`cd backend; npx wrangler deploy`) before the app uses them.
 
+## 2026-11-18 — Gym change and weigh-in fixes
+- **Lift records start** setting (set to 2026-08-01): records, PR pop-ups, stalls and bests ignore machine/cable/barbell sets from the old gym; dumbbell lifts keep all history. Nothing deleted.
+- **Weigh-ins:** the latest one each day counts (was the average). Progress → Weight → **Recent weigh-ins** lists the last 14 with Delete (Undo available).
+- Settings changed in the Sheet: activity level 1.375 → 1.55; the mistyped 185 lb weigh-in (Nov 18) soft-deleted.
+
 ## 2026-11-18 — Smarter food search
 - **Best** tab merges FatSecret and USDA into one ranked list (`shared/searchRank.ts`): every typed word should match name or brand (plurals and word starts count; a whole word beats a prefix, so "eggs" ≠ eggplant); plain foods first unless you typed a brand; foods you've saved or logged get a boost; duplicates (same name + brand, calories within 5 %) and impossible entries (over 902 kcal/100 g, macros 50 % off the calories) are dropped; when 5+ results match every word, partial matches are hidden. Top 8 shown, "Show more" for the rest. FatSecret now returns 15 candidates (~16 of the 5,000 daily calls per search).
 

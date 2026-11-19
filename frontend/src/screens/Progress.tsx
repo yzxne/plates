@@ -10,6 +10,8 @@ import { today } from '../dates';
 import { fmt } from '../format';
 import { getSettings } from '../settingsStore';
 import { showToast } from '../toast';
+import { showUndo } from '../undo';
+import { addWeight, deleteWeight, loadWeights, type WeighIn } from '../weightData';
 import { SkeletonScreen } from '../components/Skeleton';
 
 const RANGES = [['1W', 7], ['1M', 30], ['3M', 91], ['6M', 182], ['1Y', 365], ['All', 100000]] as const;
@@ -89,7 +91,8 @@ export function Progress({ focus }: { focus?: ProgressSection }) {
       <div class="card" id="p-weight">
         <div class="card-head"><h2>Weight</h2><span class="muted">{data.trend.length ? `Trend ${fmt(data.trend.at(-1)!.trend, 1)} lb` : ''}</span></div>
         {weight && weight.x.length > 1 ? <UChart x={weight.x} ys={weight.ys} series={WEIGHT_SERIES} /> : <p class="muted">Log weigh-ins on Today to see your trend.</p>}
-        <small class="muted">Dots: scale weight. Line: trend weight (smoothed, see docs/algorithm.md).</small>
+        <small class="muted">Dots: scale weight. Line: trend weight (smoothed, see docs/algorithm.md). Several weigh-ins on one day: the latest counts.</small>
+        <RecentWeighIns />
       </div>
 
       <SleepCard />
@@ -267,5 +270,45 @@ function SleepCard() {
       </div>
       <small class="muted">From Apple Health each morning. Orange: under 6 hours.</small>
     </div>
+  );
+}
+
+/** Last weigh-ins with a delete button (fix a typo). Deleting shows Undo; the trend reloads either way. */
+function RecentWeighIns() {
+  const [list, setList] = useState<WeighIn[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const reload = () => loadWeights(true).then(setList).catch(() => setList([]));
+  useEffect(() => { if (open && !list) void reload(); }, [open]);
+  async function remove(w: WeighIn) {
+    try {
+      await deleteWeight(w);
+      setList((l) => (l ?? []).filter((x) => x.id !== w.id));
+      void loadCoach(true);
+      showUndo(`Deleted ${fmt(w.weight_lb, 1)} lb (${w.date})`, {
+        undo: async () => { await addWeight(w.weight_lb, w.date); await reload(); void loadCoach(true); },
+      });
+    } catch (err) { showToast(errorMessage(err), 'error'); }
+  }
+  return (
+    <details class="weighins" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>Recent weigh-ins</summary>
+      {list === null ? <p class="muted tiny-pad">Loading…</p> : list.length === 0 ? <p class="muted tiny-pad">No weigh-ins yet.</p> : (
+        <div class="list">
+          {list.slice(0, 14).map((w, i, all) => {
+            const sameDay = all.filter((x) => x.date === w.date);
+            const counts = sameDay[0]?.id === w.id; // list is newest first
+            return (
+              <div class="row" key={w.id}>
+                <span class="row-text">
+                  <span>{fmt(w.weight_lb, 1)} lb{sameDay.length > 1 && !counts ? <small class="muted"> · not counted (later entry that day)</small> : null}</span>
+                  <small class="muted">{w.date}{w.time ? ` · ${w.time}` : ''}</small>
+                </span>
+                <button class="btn small-btn danger" aria-label={`Delete ${fmt(w.weight_lb, 1)} lb on ${w.date}`} onClick={() => remove(w)}>Delete</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </details>
   );
 }

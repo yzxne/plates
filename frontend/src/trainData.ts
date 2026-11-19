@@ -1,9 +1,10 @@
 // Training data in the Sheet: Exercises, Routines + RoutineExercises, Workouts + Sets.
 import {
-  exerciseToRow, routineRows, rowsToRoutines, rowsToWorkouts, rowToExercise, starterExercises, workoutRows,
+  exerciseToRow, PORTABLE_EQUIPMENT, recordHistory, routineRows, rowsToRoutines, rowsToWorkouts, rowToExercise, starterExercises, workoutRows,
   type Exercise, type Routine, type Workout,
 } from '../../shared/training';
 import { readTabs, uuid, write } from './foodData';
+import { getSettings } from './settingsStore';
 
 let exercisesCache: Exercise[] | null = null;
 let historyCache: Workout[] | null = null;
@@ -95,4 +96,10 @@ export async function deleteWorkout(w: Workout): Promise<void> {
   const setIds = w.exercises.flatMap((e) => e.sets.map((s) => s.id));
   if (setIds.length) await write('/sheet/update', { tab: 'Sets', rows: setIds.map((id) => ({ id, deleted_at: ts })) }, `Delete sets: ${w.name}`);
   historyCache = (historyCache ?? []).filter((x) => x.id !== w.id);
+}
+
+/** History for records/stalls/bests, honoring Settings → "Lift records start" (dumbbells always count). */
+export function forRecords(history: Workout[]): Workout[] {
+  const ex = exerciseMap();
+  return recordHistory(history, getSettings().lift_history_start ?? '', (id) => PORTABLE_EQUIPMENT.test(ex.get(id)?.equipment ?? ''));
 }

@@ -947,3 +947,9 @@ h2.inline { display: inline; margin: 0; }
 .ex-note-row .ex-note { flex: 1; }
 /* Inside a workout, menus and pages opened from it sit above the rest timer bar. */
 .logger .sheet-backdrop, .logger .overlay, .logger .picker { z-index: 29; }
+
+/* Progress → Weight: recent weigh-ins with delete */
+.weighins { margin-top: 10px; }
+.weighins summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px 0; }
+.weighins .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.weighins .small-btn { min-height: 34px; padding: 0 12px; }

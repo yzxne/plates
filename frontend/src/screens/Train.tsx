@@ -18,7 +18,7 @@ import { safeStore } from '../storage';
 import { showToast } from '../toast';
 import { SkeletonScreen } from '../components/Skeleton';
 import {
-  deleteRoutine, deleteWorkout, loadExercises, loadHistory, loadRoutines, saveRoutine, seedStarterExercises,
+  deleteRoutine, deleteWorkout, forRecords, loadExercises, loadHistory, loadRoutines, saveRoutine, seedStarterExercises,
 } from '../trainData';
 
 type View =
@@ -566,7 +566,8 @@ function Last30({ history, exMap }: { history: Workout[]; exMap: Map<string, Exe
 function Stalled({ routines, history, exMap, onChanged }: { routines: Routine[]; history: Workout[]; exMap: Map<string, Exercise>; onChanged: () => void }) {
   const [busy, setBusy] = useState('');
   const ids = [...new Set(routines.flatMap((r) => r.items.map((i) => i.exercise_id)))];
-  const stalls = ids.map((id) => findStall(id, history, today())).filter((s): s is NonNullable<typeof s> => !!s);
+  const counted = forRecords(history);
+  const stalls = ids.map((id) => findStall(id, counted, today())).filter((s): s is NonNullable<typeof s> => !!s);
   if (!stalls.length) return null;
 
   async function deload(exerciseId: string) {

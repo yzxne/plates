@@ -164,6 +164,8 @@ export const SETTINGS_FIELDS: SettingField[] = [
   { key: 'checkin_weekday', label: 'Check-in day', type: 'select', default: 'Mon',
     options: WEEKDAYS.map((d) => ({ value: d, label: d })) },
   { key: 'training_days', label: 'Training days', type: 'days', default: 'Mon,Wed,Fri' },
+  { key: 'lift_history_start', label: 'Lift records start', type: 'date', default: '',
+    help: 'Changed gyms? Records, stalls and best est. 1RM ignore machine, cable and barbell sets before this date (different equipment). Dumbbell lifts keep all their history. Old workouts stay in History. Blank = use everything.' },
   { key: 'breakfast_window', label: 'Breakfast time', type: 'window', default: '04:00-10:59',
     help: 'Food logged in this window goes to Breakfast automatically.' },
   { key: 'lunch_window', label: 'Lunch time', type: 'window', default: '11:00-15:59' },

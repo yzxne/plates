@@ -78,20 +78,17 @@ export function initialExpenditure(s: Record<string, string>, weightLb: number |
 
 // ---------- 2. Trend weight ----------
 
-export interface WeightPoint { date: string; weight_lb: number }
+export interface WeightPoint { date: string; weight_lb: number; time?: string }
 export interface TrendPoint { date: string; trend: number; scale: number | null }
 
 /**
  * Daily trend weight (exponentially weighted moving average) from the first weigh-in to `until`.
- * Several weigh-ins on one day are averaged. A gap of g days moves the trend by 1 − (1 − α)^g of the
+ * Several weigh-ins on one day: the latest one counts (a re-weigh usually fixes a typo). A gap of g days moves the trend by 1 − (1 − α)^g of the
  * difference, so missing days neither stall nor overshoot it. Days without a weigh-in keep the trend.
  */
 export function trendSeries(points: WeightPoint[], until: string, alpha = DEFAULT_CONSTANTS.trendAlpha): TrendPoint[] {
   const byDay = new Map<string, number[]>();
-  for (const p of points) {
-    if (!(p.weight_lb > 0)) continue;
-    (byDay.get(p.date) ?? byDay.set(p.date, []).get(p.date)!).push(p.weight_lb);
-  }
+  for (const p of latestPerDay(points)) byDay.set(p.date, [p.weight_lb]);
   const days = [...byDay.keys()].sort();
   if (!days.length) return [];
   const out: TrendPoint[] = [];
@@ -112,6 +109,17 @@ export function trendSeries(points: WeightPoint[], until: string, alpha = DEFAUL
 }
 
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/** One weigh-in per day: the latest by time, else the last one entered. */
+export function latestPerDay<T extends WeightPoint>(points: T[]): T[] {
+  const best = new Map<string, T>();
+  for (const p of points) {
+    if (!(p.weight_lb > 0)) continue;
+    const cur = best.get(p.date);
+    if (!cur || (p.time ?? '') >= (cur.time ?? '')) best.set(p.date, p);
+  }
+  return [...best.values()];
+}
 
 // ---------- 3. Expenditure ----------
 
