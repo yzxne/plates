@@ -45,6 +45,7 @@ export async function makeCoachSummary(weeks = 4): Promise<string> {
     checkins: coach.checkins,
     workouts: history,
     exerciseNames: new Map(exercises.map((e) => [e.id, e.name])),
+    exerciseEquipment: new Map(exercises.map((e) => [e.id, e.equipment])),
     food: foodRows,
     sleep,
     water: water.filter((r) => !r.deleted_at).map((r) => ({ date: String(r.date), oz: Number(r.oz) || 0 })),

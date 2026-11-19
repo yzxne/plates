@@ -137,6 +137,28 @@ describe('coach summary', () => {
     expect(JSON.parse(text.slice(text.indexOf('{')))).toEqual(s);
   });
 
+  it('honors Lift records start: old-gym machine sets drop out, dumbbells keep history', () => {
+    const settings = { ...inputs().settings, lift_history_start: '2026-11-01' };
+    const db = (w: Workout): Workout => ({ ...w, id: `${w.id}-db`, exercises: [{ ...w.exercises[0]!, exercise_id: 'row' }] });
+    const base = inputs().workouts;
+    const workouts = [...base, db({ ...base[0]!, exercises: [{ ...base[0]!.exercises[0]!, sets: [set(200, 8)] }] }), db(base[3]!)];
+    const out = buildCoachSummary(inputs({
+      settings, workouts,
+      exerciseNames: new Map([['lat', 'Lat Pulldown'], ['row', 'Dumbbell Row']]),
+      exerciseEquipment: new Map([['lat', 'cable'], ['row', 'dumbbell']]),
+    }));
+    expect(out.lifts.find((l) => l.exercise === 'Lat Pulldown')!.best_e1rm_before).toBeNull();
+    expect(out.lifts.find((l) => l.exercise === 'Dumbbell Row')!.best_e1rm_before).toBeGreaterThan(200);
+    expect(out.flags.some((f) => f.includes('Lift records start 2026-11-01'))).toBe(true);
+  });
+
+  it('uses the latest weigh-in of a day', () => {
+    const out = buildCoachSummary(inputs({ weights: [
+      { date: '2026-11-05', weight_lb: 178 }, { date: '2026-11-12', weight_lb: 180, time: '07:00' }, { date: '2026-11-12', weight_lb: 177, time: '07:05' },
+    ] }));
+    expect(out.last_7_days.find((d) => d.date === '2026-11-12')!.weight_lb).toBe(177);
+  });
+
   it('works with no data at all', () => {
     const empty = buildCoachSummary({ ...inputs(), weights: [], days: [], checkins: [], workouts: [], food: [] });
     expect(empty.latest_checkin).toBeNull();

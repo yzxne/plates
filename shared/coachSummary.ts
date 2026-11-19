@@ -3,7 +3,7 @@
 // Setup: docs/coach-prompt.md. Instructions for the chat: shared/coachPrompt.ts. Tests: backend/test/coachSummary.test.ts.
 import { addDays, ageOn, constantsFrom, daysBetween, trendSeries, weekdayOf, type StoredCheckIn, type WeightPoint } from './coaching';
 import { WEEKDAYS } from './schema';
-import { epley1RM, findStall, isWorkingSet, type Workout } from './training';
+import { epley1RM, findStall, isWorkingSet, PORTABLE_EQUIPMENT, recordHistory, type Workout } from './training';
 
 // ---------- Inputs ----------
 
@@ -35,6 +35,7 @@ export interface CoachInputs {
   checkins: StoredCheckIn[]; // any order
   workouts: Workout[]; // finished workouts, any order
   exerciseNames: Map<string, string>;
+  exerciseEquipment?: Map<string, string>; // for Settings → Lift records start (dumbbell/kettlebell history always counts)
   food: CoachFood[]; // FoodLog rows for the window (archive rows not needed)
   sleep: { date: string; asleep_min: number; bed_time: string; wake_time: string }[];
   water: { date: string; oz: number }[];
@@ -92,6 +93,11 @@ function weekStart(date: string, startDay: string): string {
   const want = Math.max(0, WEEKDAYS.indexOf(startDay as (typeof WEEKDAYS)[number]));
   const have = WEEKDAYS.indexOf(weekdayOf(date));
   return addDays(date, -((have - want + 7) % 7));
+}
+
+/** Latest weigh-in of a day (by time, else entry order), matching how the trend counts it. */
+function latestOfDay<T extends WeightPoint>(ws: T[]): T {
+  return ws.reduce((a, b) => ((b.time ?? '') >= (a.time ?? '') ? b : a));
 }
 
 function bestE1rm(w: Workout, exerciseId: string): number {
@@ -220,6 +226,10 @@ export function buildCoachSummary(input: CoachInputs): CoachSummary {
   const sleepBy = new Map(input.sleep.map((n) => [n.date, n]));
   const workouts = input.workouts.filter((w) => w.end_time).sort((a, b) => a.start_time.localeCompare(b.start_time));
   const name = (id: string) => input.exerciseNames.get(id) ?? 'Unknown exercise';
+  // Bests and stalls ignore non-portable lifts before Settings → Lift records start (gym change); sessions/notes use everything.
+  const liftStart = (input.settings.lift_history_start ?? '').trim();
+  const records = recordHistory(workouts, liftStart, (id) => PORTABLE_EQUIPMENT.test(input.exerciseEquipment?.get(id) ?? ''));
+  if (liftStart) flags.push(`Lift records start ${liftStart} (gym change): earlier machine/cable/barbell sets are left out of bests and stalls; dumbbell/kettlebell history still counts.`);
   const minutes = (w: Workout) => Math.max(0, Math.round((Date.parse(w.end_time) - Date.parse(w.start_time)) / 60000));
   const workingSets = (w: Workout) => w.exercises.reduce((n, e) => n + e.sets.filter((x) => isWorkingSet(x)).length, 0);
 
@@ -288,7 +298,7 @@ export function buildCoachSummary(input: CoachInputs): CoachSummary {
   for (let i = 6; i >= 0; i--) {
     const d = addDays(today, -i);
     const day = dayBy.get(d);
-    const ws = kept.filter((w) => w.date === d).map((w) => w.weight_lb);
+    const ws = kept.filter((w) => w.date === d);
     const wo = workouts.filter((w) => w.date === d).map((w) => w.name);
     last7.push({
       date: d,
@@ -299,7 +309,7 @@ export function buildCoachSummary(input: CoachInputs): CoachSummary {
       alcohol_kcal: Math.round(foodIn(d, d).filter(isAlcohol).reduce((n, f) => n + f.kcal, 0)),
       workout: wo.length ? wo.join(' + ') : null,
       sleep_min: sleepBy.get(d)?.asleep_min ?? null,
-      weight_lb: ws.length ? r1(avg(ws)) : null,
+      weight_lb: ws.length ? r1(latestOfDay(ws).weight_lb) : null,
     });
   }
 
@@ -309,10 +319,10 @@ export function buildCoachSummary(input: CoachInputs): CoachSummary {
   const lifts: CoachLift[] = [];
   for (const id of ids) {
     const done = inWindow.filter((w) => w.exercises.some((e) => e.exercise_id === id));
-    const bestWin = Math.max(0, ...done.map((w) => bestE1rm(w, id)));
+    const bestWin = Math.max(0, ...records.filter((w) => w.date >= from && w.date <= today).map((w) => bestE1rm(w, id)));
     if (!bestWin) continue;
-    const before = Math.max(0, ...workouts.filter((w) => w.date < from).map((w) => bestE1rm(w, id)));
-    const stall = findStall(id, workouts, today);
+    const before = Math.max(0, ...records.filter((w) => w.date < from).map((w) => bestE1rm(w, id)));
+    const stall = findStall(id, records, today);
     lifts.push({
       exercise: name(id),
       sessions_in_window: done.length,
