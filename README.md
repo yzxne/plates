@@ -49,6 +49,11 @@ git config core.hooksPath .githooks
 
 ## Docs
 
+- [Changelog](docs/changelog.md): everything built after the 8 phases
+- [Algorithms and formulas](docs/algorithm.md)
+- [Training plan](docs/training-plan.md)
+- [iPhone Shortcuts](docs/shortcuts.md)
+- [AI coach setup](docs/coach-prompt.md)
 - [Data model](docs/data-model.md)
 - [Phase 0 report](docs/phase0-report.md)
 - [Assets and licenses](docs/assets-and-licenses.md)
@@ -57,4 +62,6 @@ git config core.hooksPath .githooks
 ## Data attribution
 
 - Food data from [USDA FoodData Central](https://fdc.nal.usda.gov/) (public domain, CC0).
+- Restaurant and brand search [Powered by fatsecret](https://www.fatsecret.com) (free Basic plan).
+- Body map artwork: [MuscleMap](https://github.com/Jsplice/MuscleMap) (MIT).
 - Barcode data from [Open Food Facts](https://world.openfoodfacts.org/) (ODbL / DbCL).

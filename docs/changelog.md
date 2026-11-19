@@ -15,12 +15,25 @@ Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development
 ## 2026-11-18 — Smarter food search
 - **Best** tab merges FatSecret and USDA into one ranked list (`shared/searchRank.ts`): every typed word should match name or brand (plurals and word starts count; a whole word beats a prefix, so "eggs" ≠ eggplant); plain foods first unless you typed a brand; foods you've saved or logged get a boost; duplicates (same name + brand, calories within 5 %) and impossible entries (over 902 kcal/100 g, macros 50 % off the calories) are dropped; when 5+ results match every word, partial matches are hidden. Top 8 shown, "Show more" for the rest. FatSecret now returns 15 candidates (~16 of the 5,000 daily calls per search).
 
+## 2026-11-18 — Rest timer sound
+- The rest-timer alert is a soft rising chime (C–E–G sine tones, played twice, ~1.6 s) instead of high square-wave beeps (`frontend/src/sound.ts`).
+
 ## 2026-11-18 — FatSecret without an IP list
 - FatSecret search now signs each request with OAuth 1.0 (same Client ID / Secret). OAuth 2.0 only works from whitelisted IPs, and the free plan can't whitelist every address, which a Cloudflare Worker needs.
 
 ## 2026-11-17 — Routine weights follow what you saved
 - After a workout, each checked-off set's weight becomes the routine's planned weight, **up or down** (it used to keep the heavier one forever). Unchecked sets change nothing; new exercises only take weights from checked-off sets.
 - Removed a 3-minute test "Push" workout from 2026-11-11 (Bench 225×12 ×2, 205×12), soft-deleted in the Sheet.
+
+## 2026-11-17 — Training and fixes
+- **PPLUL split** (Sheet, folder "PPLUL"): Push, Pull, Legs, Upper, Lower, 5 days, bulking, mostly 6–8 reps. See docs/training-plan.md.
+- **PRs**: most weight moved in one set (weight × reps) is its own record and pops up live, so a lighter set with more reps can be a PR; several PRs can land on one exercise in one workout.
+- **Train → muscle balance card**: Week / 2 weeks / Month switch, each compared with the period before; choice remembered.
+- **Form tips**: Kelso shrug fixed (shoulder blades back, not up) plus ~20 exercises that were getting a look-alike's tips.
+- **Coach instructions**: note on PPLUL exercise order (keep it; dips after the shoulder press; move a lagging muscle earlier; optional supersets on Upper).
+- **Sleep Shortcut**: bed/wake read in any iOS format, including the raw [Health Samples] Start/End Date lists (bed = first, wake = last); the reply says when no times were sent or one couldn't be read.
+- **Rest timer** only rises above the keyboard while a field is focused (it could stick mid-screen).
+- **Settings**: the header no longer covers the top rows on iPhone.
 
 ## 2026-11-17 — AI coach (Claude app)
 - **Settings → AI coach**: *Copy summary* builds a compact JSON of the last 4 weeks on the phone (calories/protein vs targets on complete days, partial-looking days left out, alcohol, weigh-ins and trend, check-ins, workouts vs planned, lifts with best est. 1RM vs before, stalls, pain notes, sleep, water, data flags). Paste it into a "Plates Coach" project in the Claude app; *Copy instructions* gives the project's instructions. No API cost, no new tab or Worker route. Setup: docs/coach-prompt.md. Code: `shared/coachSummary.ts`, `shared/coachPrompt.ts`.
@@ -35,6 +48,14 @@ Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development
 - **Smith / free-weight pairs** added to the exercise library; "+ Create custom exercise" button in the picker.
 - **Rest timer** sits above the keyboard; page shift after the keyboard closes is reset (iOS scroll bugs).
 - Sleep endpoint says what it received when nothing is logged.
+
+## 2026-11-16 — Search, notes, body map
+- **FatSecret** search (restaurants, brands, generic foods) added as a tab (now merged into **Best**, see 2026-11-18). Off until its keys are set (docs/setup-guides.md).
+- **Water**: Custom oz amount.
+- **Pinned exercise notes**: 📌 Pin a workout note to the exercise; it shows every workout until you tap Resolve. Saved right away, so it survives a discarded workout.
+- **Replace exercise** opens on the same muscle and lists the closest matches first (also in the routine editor).
+- Menus and sheets in the workout sit above the rest timer bar.
+- **Body map**: new MuscleMap artwork (MIT); muscles glow as their sets are checked off; male/female from Settings.
 
 ## 2026-11-14
 - **Amount slider** replaces ½ / 1 / 1½ chips (logging, editing, combos, AI estimates).

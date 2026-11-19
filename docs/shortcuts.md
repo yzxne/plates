@@ -118,13 +118,13 @@ Needs sleep in Apple Health: Apple Watch with sleep tracking, or any sleep app t
    - **Value** is not **Awake**, and **Value** is not **In Bed** (add both with "+ Add Filter", match **All**)
    - Sort by **Start Date**, Oldest First.
 3. **Get Details of Health Samples** → **Duration**. Then **Calculate Statistics** → **Sum** of it.
-4. **Get Details of Health Samples** (tap the input, pick **Health Samples** from step 2) → **Start Date** → **Get Item from List** → First Item → **Format Date** → Custom `HH:mm`.
-5. Same again with **End Date** → **Last Item** → **Format Date** `HH:mm`.
-6. **Get Contents of URL**: `https://plates-api.zwag7913.workers.dev/shortcut/sleep` · Method **POST** · Header `Authorization` = `Bearer plk_…` · Request Body **JSON**:
+4. **Get Contents of URL**: `https://plates-api.zwag7913.workers.dev/shortcut/sleep` · Method **POST** · Header `Authorization` = `Bearer plk_…` · Request Body **JSON**:
    - `asleep` (Text) = **Statistics** from step 3
-   - `bed` (Text) = **Formatted Date** from step 4
-   - `wake` (Text) = **Formatted Date** from step 5
-7. Optional: **Show Notification** with **Contents of URL** → you'll see "Logged 7 h 12 m of sleep."
+   - `bed` (Text) = tap → Select Variable → **Health Samples** (step 2) → tap the bubble → **Start Date**
+   - `wake` (Text) = same, but **End Date**
+5. Optional: **Show Notification** with **Contents of URL** → you'll see "Logged 7 h 46 m of sleep (23:40–07:26)."
+
+Plates takes the **first** start time as bedtime and the **last** end time as wake time, and reads any date format iOS sends (lists, "Nov 16, 2026 at 11:40 PM", ISO). If no times arrive, the message ends "(no bed/wake times were sent)"; an unreadable one is named ("Couldn't read: …"). Older versions of this Shortcut with Format Date steps still work.
 
 `asleep` can be seconds, minutes, hours or text like "7 hr 12 min"; Plates works out which. Running it twice on one morning replaces that morning's number. No sleep found → nothing is logged.
 

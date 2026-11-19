@@ -30,6 +30,8 @@ Key/value pairs. `id, key, value, created_at, updated_at`. All values are text.
 | fat_min_g | g/day | 50 |
 | checkin_weekday | Mon–Sun | Mon |
 | training_days | comma list, e.g. `Mon,Wed,Fri` | Mon,Wed,Fri |
+| lift_history_start | YYYY-MM-DD. Records, PR pop-ups, stalls and bests ignore non-dumbbell sets before it (gym change). Blank = all history. | — |
+| water_goal_oz | Daily water goal; blank = half body weight in oz | — |
 | plate_diameter_in | AI scale reference | 10.5 |
 | breakfast_window / lunch_window / dinner_window | Meal time windows (HH:MM-HH:MM); anything else is Snack | 04:00-10:59 / 11:00-15:59 / 16:00-20:59 |
 | cafeteria_name | Default place for Cafeteria AI estimates | — |

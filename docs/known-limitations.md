@@ -33,11 +33,15 @@ Updated each phase.
 - **Unchecked sets are not saved** when you finish a workout (by design; you're told how many before confirming).
 - **Rest timer sound** needs the phone's ringer on and at least one tap (checking a set counts). No vibration on iPhone.
 - **Rest timer can't notify you while Plates is in the background** — web apps can't schedule sounds when closed; the timer is correct when you come back.
-- **Routines aren't auto-updated** from what you lifted; edit the routine to change targets.
-- **Rest-timer notifications** work only in the Home Screen app, need permission once, and can arrive 1–2 s late. When Plates is on screen the notification is silent (the app beeps instead).
+- **Routine weights follow what you check off**: after a workout each checked set's weight becomes the planned weight (up or down). Unchecked sets change nothing. Exercise list changes wait for Keep/Discard.
+- **Rest-timer notifications** work only in the Home Screen app, need permission once, and can arrive 1–2 s late. When Plates is on screen the notification is silent (the app plays its chime instead).
 - **Swipe on entries** is custom touch handling; if it fights with scrolling on your phone, tap still opens edit.
 - **Undo** lasts 6 seconds; after that use edit/delete.
 - **Last-used amounts** come from the last 60 days of your log.
 - **Expenditure needs complete days and weigh-ins.** Until ~2 weeks of data, it leans on the profile estimate (labelled "low data" / "settling").
 - **Days without a Days row** (food logged but Today never opened that day) don't count toward expenditure; opening the day fixes it.
 - **Charts are computed on the phone** from all weigh-ins and day totals; fine for years of data.
+- **FatSecret uses OAuth 1.0** (signed requests). Its OAuth 2.0 tokens only work from whitelisted IPs, the free plan can't whitelist every address, and Cloudflare Workers have no fixed IP. Free plan: US foods, 5,000 calls/day (~16 per search).
+- **Warm-up, cool-down and ramp-up ticks** live only with the workout on the phone; they aren't saved to the Sheet. Plans are matched by workout name (Push/Pull/Legs/Upper/Lower) and are fixed in code (`shared/warmups.ts`), not editable in the app yet.
+- **Several weigh-ins on one day:** only the latest counts toward the trend. Delete a wrong one in Progress → Weight → Recent weigh-ins.
+- **Dumbbell weights are logged as both dumbbells combined** (e.g. two 40s = 80). Older Hevy sets were converted on 2026-11-18.
