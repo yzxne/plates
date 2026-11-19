@@ -87,8 +87,10 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
 
   // Warm-up / cool-down for this day (matched by workout name: Push, Pull, Legs, Upper, Lower).
   const prep = prepFor(w.name);
+  const cardioMuscles = w.exercises.flatMap((ex) => { const p = exMap.get(ex.exercise_id)?.primary[0]; return p ? ex.sets.map(() => p) : []; });
+  const cardioDone = (w.prep_done ?? []).includes('x:cardio');
   const prepDone = (k: 'w' | 'c') => (w.prep_done ?? []).filter((x) => x.startsWith(k + ':')).map((x) => x.slice(2));
-  const togglePrep = (k: 'w' | 'c', id: string, on: boolean) => update((x) => {
+  const togglePrep = (k: 'w' | 'c' | 'x', id: string, on: boolean) => update((x) => {
     const key = `${k}:${id}`;
     const rest = (x.prep_done ?? []).filter((d) => d !== key);
     return { ...x, prep_done: on ? [...rest, key] : rest };
@@ -234,6 +236,14 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
     const final: Workout = {
       ...structuredClone(w),
       name: w.name.trim() || 'Workout',
+      // Cardio finisher ticked → kept with the workout (History, coach summary), since ticks aren't saved otherwise.
+      notes: (() => {
+        if (!cardioDone) return w.notes;
+        const c = cardioFor(cardioMuscles, today());
+        const line = `Cardio finisher done: ${c.title}, ${c.minutes} min`;
+        return w.notes.trim() ? `${w.notes.trim()}
+${line}` : line;
+      })(),
       end_time: new Date().toISOString(),
       exercises: w.exercises
         .map((e) => ({ ...e, note: e.note.trim(), sets: e.sets.filter((s) => s.completed) }))
@@ -380,7 +390,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
         {w.exercises.length > 1 && <button class="btn" onClick={() => setReordering(true)}>⇅ Reorder exercises</button>}
 
         {prep && <PrepCard title="Cool-down" items={prep.cool} done={prepDone('c')} onToggle={(id, on) => togglePrep('c', id, on)} startOpen={false} />}
-        <CardioCard muscles={w.exercises.flatMap((ex) => { const p = exMap.get(ex.exercise_id)?.primary[0]; return p ? ex.sets.map(() => p) : []; })} />
+        <CardioCard muscles={cardioMuscles} done={cardioDone} onToggle={() => togglePrep('x', 'cardio', !cardioDone)} />
         <button class="btn link danger center" onClick={discard}>Discard workout</button>
         <div style={{ height: state.rest ? '128px' : '0' }} />
       </div>
@@ -534,13 +544,17 @@ function Summary({ data, exMap, onDone }: { data: SummaryData; exMap: Map<string
 }
 
 /** Cardio finisher: a suggestion for today with time, rough calories and a reason to do it. */
-function CardioCard({ muscles }: { muscles: string[] }) {
+function CardioCard({ muscles, done, onToggle }: { muscles: string[]; done: boolean; onToggle: () => void }) {
   const d = today();
   const pick = cardioFor(muscles, d);
   const lb = lastWeight()?.weight_lb;
   return (
-    <div class="card cardio-card">
-      <div class="card-head"><h2>Cardio finisher</h2><span class="muted">{pick.minutes} min</span></div>
+    <div class={`card cardio-card ${done ? 'done' : ''}`}>
+      <div class="card-head">
+        <h2>Cardio finisher</h2>
+        <span class="muted">{pick.minutes} min</span>
+        <button class={`check ${done ? 'on' : ''}`} aria-pressed={done} aria-label="Cardio done" onClick={onToggle}>✓</button>
+      </div>
       <p class="cardio-what"><strong>{pick.title}</strong> · {pick.how}{lb ? <span class="muted"> · ~{cardioKcal(pick, lb)} kcal</span> : null}</p>
       <p class="muted no-mb">{pick.why}</p>
       <p class="cardio-fact">💡 {cardioFact(d)}</p>

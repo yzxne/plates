@@ -2,6 +2,9 @@
 
 Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development Brief.md`) and `Plates Brief Changes.md` describe the original plan; this note is what changed since. Newest first. Schema changes need a Worker deploy (`cd backend; npx wrangler deploy`) before the app uses them.
 
+## 2026-11-18 — Cardio check
+- **Cardio finisher** has a ✓. When ticked, finishing the workout adds "Cardio finisher done: <what>, <min> min" to the workout's notes (so History and the coach summary see it).
+
 ## 2026-11-18 — Warm-ups, athletic legs, tab bar fix
 - **Warm-up / Cool-down cards** in every PPLUL workout and **ramp-up set chips** on the first big lift (see algorithm.md → Warm-ups).
 - **Tab bar** could sit mid-screen after a swipe on iPhone: the page no longer scrolls (#app is the scroller), and any leftover shift is cleared when you come back to the app.

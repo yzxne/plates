@@ -975,3 +975,7 @@ h2.inline { display: inline; margin: 0; }
 .ramp > small { margin-right: 2px; }
 .ramp-step { font-variant-numeric: tabular-nums; min-height: 30px; padding: 0 10px; }
 .ramp-step.on { background: var(--ok); border-color: var(--ok); color: #06130c; }
+.cardio-card .card-head { gap: 10px; }
+.cardio-card .card-head .muted { margin-left: auto; }
+.cardio-card .check { width: 40px; height: 40px; min-height: 40px; padding: 0; }
+.cardio-card.done { border-color: var(--ok); }
