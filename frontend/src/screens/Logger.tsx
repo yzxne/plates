@@ -7,6 +7,8 @@ import {
 } from '../../../shared/training';
 import { getActive, newSet, setActive, subscribeActive, type ActiveState, type RestTimer as Rest } from '../activeWorkout';
 import { errorMessage } from '../api';
+import { PrepCard, RampHint } from '../components/WarmupCard';
+import { prepFor, rampFor } from '../../../shared/warmups';
 import { BodyMap } from '../components/BodyMap';
 import { MuscleBars } from '../components/Charts';
 import { ActionSheet } from '../components/ActionSheet';
@@ -82,6 +84,15 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
   };
 
   const totals = workoutTotals({ ...w, end_time: new Date(now).toISOString() });
+
+  // Warm-up / cool-down for this day (matched by workout name: Push, Pull, Legs, Upper, Lower).
+  const prep = prepFor(w.name);
+  const prepDone = (k: 'w' | 'c') => (w.prep_done ?? []).filter((x) => x.startsWith(k + ':')).map((x) => x.slice(2));
+  const togglePrep = (k: 'w' | 'c', id: string, on: boolean) => update((x) => {
+    const key = `${k}:${id}`;
+    const rest = (x.prep_done ?? []).filter((d) => d !== key);
+    return { ...x, prep_done: on ? [...rest, key] : rest };
+  });
 
   function patchSet(ei: number, si: number, p: Partial<LoggedSet>) {
     update((x) => { Object.assign(x.exercises[ei]!.sets[si]!, p); return x; });
@@ -276,6 +287,8 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
 
         <BodyMap progress={muscleProgress(w, exMap)} />
 
+        {prep && <PrepCard title="Warm-up" items={prep.warm} done={prepDone('w')} onToggle={(id, on) => togglePrep('w', id, on)} startOpen={!w.exercises.some((e) => e.sets.some((s) => s.completed))} />}
+
         {w.exercises.length === 0 && <p class="muted center">Add your first exercise.</p>}
 
         {w.exercises.map((ex, ei) => {
@@ -289,6 +302,14 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
                 <button class="chip ex-chip" onClick={() => setReplacing(ei)} aria-label={`Replace ${info?.name ?? 'exercise'}`}>⇄ Replace</button>
                 <button class="icon-btn small more-btn" aria-label="Exercise options" onClick={() => setMenu(ei)}>⋯</button>
               </div>
+              {(() => {
+                const ramp = prep ? rampFor(prep, w.exercises.map((x) => exMap.get(x.exercise_id)?.name ?? ''), ei) : null;
+                if (!ramp) return null;
+                const first = ex.sets.find((s) => s.type !== 'W');
+                const working = first?.weight_lb ?? (prev.find((p) => p.type !== 'W')?.weight_lb ?? null);
+                return <RampHint ramp={ramp} working={working} done={ex.ramp_done ?? []}
+                  onToggle={(i) => update((x) => { const e = x.exercises[ei]!; const d = e.ramp_done ?? []; e.ramp_done = d.includes(i) ? d.filter((n) => n !== i) : [...d, i]; return x; })} />;
+              })()}
               <div class="ex-chips">
                 <label class="chip ex-chip">
                   <span aria-hidden="true">⏱</span> Rest {restLabel(ex.rest_sec)}
@@ -358,6 +379,7 @@ export function Logger({ exercises, history, onMinimize, onDone }: Props) {
         <button class="btn primary" onClick={() => setPicking(true)}>+ Add exercise</button>
         {w.exercises.length > 1 && <button class="btn" onClick={() => setReordering(true)}>⇅ Reorder exercises</button>}
 
+        {prep && <PrepCard title="Cool-down" items={prep.cool} done={prepDone('c')} onToggle={(id, on) => togglePrep('c', id, on)} startOpen={false} />}
         <CardioCard muscles={w.exercises.flatMap((ex) => { const p = exMap.get(ex.exercise_id)?.primary[0]; return p ? ex.sets.map(() => p) : []; })} />
         <button class="btn link danger center" onClick={discard}>Discard workout</button>
         <div style={{ height: state.rest ? '128px' : '0' }} />

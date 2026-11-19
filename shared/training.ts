@@ -72,6 +72,8 @@ export interface WorkoutExercise {
   note: string;
   /** UI only: why the weights were pre-filled this way ("↑ 190 lb: you hit 8/8/8 at 185 lb"). Not saved. */
   why?: string;
+  /** UI only: ramp-up steps ticked off (indexes). Not saved. */
+  ramp_done?: number[];
   sets: LoggedSet[];
 }
 
@@ -84,6 +86,8 @@ export interface Workout {
   end_time: string; // ISO ('' while active)
   notes: string;
   exercises: WorkoutExercise[];
+  /** UI only: warm-up ("w:id") and cool-down ("c:id") items ticked off. Not saved. */
+  prep_done?: string[];
 }
 
 // ---------- Math ----------

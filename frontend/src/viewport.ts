@@ -1,7 +1,7 @@
 // iPhone keyboard handling.
 // 1. --kb = how much of the screen the keyboard covers, so bars pinned to the bottom (rest timer) can sit above it.
 // 2. When the keyboard closes, iOS can leave the page shifted, which makes the top (or bottom) unreachable.
-//    Put it back: no page scroll while a full-screen panel is open, otherwise just re-apply the scroll.
+//    Put it back: the document never scrolls (#app is the scroller), so reset it to 0.
 export function installViewportFix() {
   const vv = window.visualViewport;
   const root = document.documentElement;
@@ -17,12 +17,15 @@ export function installViewportFix() {
   document.addEventListener('focusin', () => setTimeout(update, 300)); // after the keyboard has opened
   update();
 
+  // Coming back to the app (after swiping home or to another app): clear any leftover shift.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { window.scrollTo(0, 0); update(); } });
+  window.addEventListener('pageshow', () => { window.scrollTo(0, 0); update(); });
+
   document.addEventListener('focusout', () => {
     setTimeout(() => {
       const a = document.activeElement;
       if (a && a.matches('input, textarea, select')) { update(); return; } // moved to another field
-      if (document.querySelector('.overlay')) window.scrollTo(0, 0);
-      else window.scrollTo(window.scrollX, Math.min(window.scrollY, root.scrollHeight - window.innerHeight));
+      window.scrollTo(0, 0); // the page never scrolls (#app does), so any leftover shift is iOS's — undo it
       update();
     }, 120);
   });

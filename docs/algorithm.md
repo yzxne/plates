@@ -96,3 +96,12 @@ Code: `shared/training.ts`, tests `backend/test/prs.test.ts`.
 - **Stalls:** no new best est. 1RM for ≥ 4 weeks across ≥ 3 sessions → listed under Train → Stalled. **Deload** lowers that exercise's planned weights ~10 % (rounded to 5 / 2.5 lb).
 - **Weekly sets per muscle:** colored against [Assumption] 10–20 hard sets/week (amber under, green in range, blue over).
 - **Plate calculator:** greedy with 45/35/25/10/5/2.5 lb plates; bars 45/35/25 or plates only (machines).
+
+## Warm-ups (shared/warmups.ts)
+
+Matched to the workout by name (Push, Pull, Legs, Upper, Lower). Ticks stay on the phone with the workout; nothing is saved to the Sheet.
+
+- **Warm-up card** (top): 4–5 min easy cardio + 3–4 dynamic moves for the day. Timed items have a countdown.
+- **Ramp-up sets** (under the first big lift, and one light set for a later big lift): % of the first working set's weight, rounded to 5 lb (2.5 under 50): 3 steps = 50 % × 8, 70 % × 4, 85 % × 2; 2 steps = 50 % × 8, 75 % × 3; 1 step = 60 % × 5. Shown as tappable chips, not logged as sets, so they never touch records, volume or routine weights.
+- **Cool-down card** (bottom, beside the cardio finisher): 30–45 s stretch holds.
+- Sources: ramp-up sets near working load improve strength performance more than a few light reps (Ribeiro et al. 2020, IJERPH); evidence for adding general warm-up on top is mixed (systematic review, Motricidade 2021); static holds under 60 s per muscle change strength about −1 % vs about −4.6 % for 60 s+ (Behm et al. 2016; Chaabene, Behm et al. 2019), so longer holds go at the end.

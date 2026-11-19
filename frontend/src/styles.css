@@ -51,7 +51,10 @@ a { color: var(--link); }
 
 /* ---------- Layout ---------- */
 
-.app { min-height: 100dvh; }
+/* The page itself never scrolls; #app is the scroller. iOS shifts position:fixed bars (tab bar, rest timer)
+   when the document scrolls or rubber-bands, which could leave the tab bar mid-screen after a swipe. */
+html, body { height: 100%; overflow: hidden; }
+#app { position: fixed; inset: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
 
 .screen {
   padding: calc(var(--safe-top) + 16px) 16px calc(var(--tabbar-h) + var(--safe-bottom) + 24px);
@@ -953,3 +956,22 @@ h2.inline { display: inline; margin: 0; }
 .weighins summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px 0; }
 .weighins .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .weighins .small-btn { min-height: 34px; padding: 0 12px; }
+
+/* Workout: warm-up / cool-down checklist and ramp-up hints */
+.prep-card summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
+.prep-card summary::-webkit-details-marker { display: none; }
+.prep-card summary h2 { margin: 0; font-size: 17px; }
+.prep-card summary::after { content: '▾'; color: var(--muted); margin-left: 6px; }
+.prep-card[open] summary::after { content: '▴'; }
+.prep-card.all-done summary .muted { color: var(--ok); }
+.prep-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.prep-list li { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 10px; }
+.prep-list .check { width: 40px; height: 40px; min-height: 40px; padding: 0; }
+.prep-list li.on .prep-text > span { color: var(--muted); text-decoration: line-through; }
+.prep-text { display: grid; min-width: 0; }
+.prep-text small { font-size: 13px; }
+.prep-timer { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ramp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 8px; }
+.ramp > small { margin-right: 2px; }
+.ramp-step { font-variant-numeric: tabular-nums; min-height: 30px; padding: 0 10px; }
+.ramp-step.on { background: var(--ok); border-color: var(--ok); color: #06130c; }
