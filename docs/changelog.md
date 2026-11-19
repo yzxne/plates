@@ -5,7 +5,7 @@ Everything built after Brief v2 and Phases 1–8. The brief (`Plates Development
 ## 2026-11-18 — Warm-ups, athletic legs, tab bar fix
 - **Warm-up / Cool-down cards** in every PPLUL workout and **ramp-up set chips** on the first big lift (see algorithm.md → Warm-ups).
 - **Tab bar** could sit mid-screen after a swipe on iPhone: the page no longer scrolls (#app is the scroller), and any leftover shift is cleared when you come back to the app.
-- Sheet: Legs routine is now the athletic day (pendulum squat, single-leg RDL, walking lunge, Nordic curl, Copenhagen adduction, paused calf raise, back extension, hanging leg raise); old items soft-deleted. 18 old single-dumbbell sets doubled (dumbbells logged as both combined). Training days Mon, Tue, Wed, Fri, Sat.
+- Sheet: new **Athletic Legs** routine in PPLUL (pendulum squat, single-leg RDL, walking lunge, Nordic curl, Copenhagen adduction, paused calf raise, back extension, hanging leg raise); the original Legs routine is kept as is. 18 old single-dumbbell sets doubled (dumbbells logged as both combined). Training days Mon, Tue, Wed, Fri, Sat.
 
 ## 2026-11-18 — Gym change and weigh-in fixes
 - **Lift records start** setting (set to 2026-08-01): records, PR pop-ups, stalls and bests ignore machine/cable/barbell sets from the old gym; dumbbell lifts keep all history. Nothing deleted.
